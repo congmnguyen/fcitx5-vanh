@@ -27,10 +27,6 @@ pub fn from_hex(hex: &str) -> Vec<u8> {
     (0..hex.len() / 2).map(|i| u8::from_str_radix(&hex[2 * i..2 * i + 2], 16).unwrap()).collect()
 }
 
-pub fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
-}
-
 pub fn chars(s: &str) -> Vec<char> {
     s.chars().collect()
 }

@@ -2,6 +2,7 @@
   lib,
   stdenv,
   acl,
+  cargo,
   cmake,
   dbus,
   fcitx5,
@@ -16,6 +17,7 @@
   pkg-config,
   python3,
   qt6,
+  rustc,
   udev,
 }:
 
@@ -44,12 +46,14 @@ stdenv.mkDerivation (finalAttrs: {
   };
 
   nativeBuildInputs = [
+    cargo
     cmake
     gettext
     hicolor-icon-theme
     kdePackages.extra-cmake-modules
     pkg-config
     qt6.wrapQtAppsHook
+    rustc
   ];
 
   buildInputs = [

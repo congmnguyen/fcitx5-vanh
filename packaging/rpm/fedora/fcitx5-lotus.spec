@@ -6,9 +6,11 @@ License:        GPL-3.0-or-later
 URL:            https://github.com/LotusInputMethod/fcitx5-lotus
 Source0:        %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
 
+BuildRequires:  cargo
 BuildRequires:  cmake
 BuildRequires:  extra-cmake-modules
 BuildRequires:  gcc-c++
+BuildRequires:  rust
 BuildRequires:  gettext-devel
 BuildRequires:  cmake(Fcitx5Core)
 BuildRequires:  libinput-devel

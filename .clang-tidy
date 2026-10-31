@@ -28,7 +28,7 @@ Checks: >
   -bugprone-throwing-static-initialization
 
 WarningsAsErrors: ''
-HeaderFilterRegex: '(src|server|common|lotus|test)/.*'
+HeaderFilterRegex: '(src|server|common|engine-rs/cxx|test)/.*'
 
 CheckOptions:
   - key:             modernize-use-nullptr.NullMacros

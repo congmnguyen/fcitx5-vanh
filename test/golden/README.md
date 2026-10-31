@@ -2,8 +2,8 @@
 
 Ba file ở đây do chính engine Go gốc sinh ra, dùng để kiểm chứng bản port C++ khớp từng byte.
 Engine Go đó là **[bamboo-core](https://github.com/BambooEngine/bamboo-core)** (MIT, © 2018 Luong Thanh
-Lam); bản port C++ nằm trong `lotus/`, phát hành dưới GPL-3.0-or-later, và bản MIT được giữ tại
-[`../../lotus/LICENSE.bamboo-core`](../../lotus/LICENSE.bamboo-core) — xem thêm [`../../CREDITS`](../../CREDITS).
+Lam); bản port (trước là C++ trong `lotus/`, nay là Rust trong `engine-rs/`) phát hành dưới GPL-3.0-or-later, và bản MIT được giữ tại
+[`../../engine-rs/LICENSE.bamboo-core`](../../engine-rs/LICENSE.bamboo-core) — xem thêm [`../../CREDITS`](../../CREDITS).
 
 | File | Nội dung | Cột |
 |---|---|---|

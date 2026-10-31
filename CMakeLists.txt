@@ -69,7 +69,7 @@ set(LOTUS_SETFACL_EXECUTABLE "/usr/bin/setfacl" CACHE FILEPATH
 
 add_subdirectory(common)
 add_subdirectory(po)
-add_subdirectory(lotus)
+add_subdirectory(engine-rs)
 add_subdirectory(src)
 add_subdirectory(data)
 add_subdirectory(server)

@@ -13,7 +13,7 @@ Files: debian/*
 Copyright: 2026 Nguyen Hoang Ky <nhktmdzhg@gmail.com>
 License: GPL-3.0-or-later
 
-Files: lotus/*
+Files: engine-rs/*
 Copyright: 2018 Luong Thanh Lam <ltlam93@gmail.com>
            2026 Nguyen Hoang Ky <nhktmdzhg@gmail.com>
 License: GPL-3.0-or-later

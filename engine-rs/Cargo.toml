@@ -1,0 +1,22 @@
+[package]
+name = "lotus-engine"
+version = "6.0.4"
+edition = "2021"
+license = "GPL-3.0-or-later"
+description = "Vietnamese typing engine of fcitx5-lotus (Vanh): a port of bamboo-core plus the English restore"
+publish = false
+
+# std only: the Debian build runs offline, so the crate must not depend on crates.io.
+[dependencies]
+
+[lib]
+name = "lotus_engine"
+# staticlib for the C++ addon, rlib for `cargo test`.
+crate-type = ["staticlib", "rlib"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+# Never unwind into the C++ addon (cargo ignores this for test builds).
+panic = "abort"

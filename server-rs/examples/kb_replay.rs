@@ -4,35 +4,34 @@
 
 //! Test helper of the C++/Rust wire test (test/server-wire-compat.cpp), not installed.
 //!
-//! `kb_replay <allowed-exe> <messages>` binds the server's two abstract sockets for the current
-//! user (honouring VANH_SOCKET_NAMESPACE) with the server's own socket, authorization, decoding
-//! and planning code, prints `ready`, answers each authorized mouse client with one `C` byte,
+//! `kb_replay <messages>` opens the server's two sockets for the current user (honouring
+//! VANH_SOCKET_DIR and VANH_SOCKET_NAMESPACE) with the server's own socket directory, stale socket,
+//! authorization, decoding and planning code, prints `ready`, answers each authorized mouse
+//! client with one `C` byte,
 //! replays `<messages>` keyboard requests into a recorder (physical Shift released, paced keys
 //! drained before the next non-Cancel request) and prints the key transcript. No uinput, no libinput. Exit 0 on success,
 //! 2 on timeout or error.
 
-use lotus_server::auth::{authorize_peer, AllowedExecutable};
+use lotus_server::auth::authorize_peer;
 use lotus_server::planner::{Planner, Recorder};
 use lotus_server::protocol::{self, KbOp, KB_MSG_SIZE};
-use lotus_server::server::{bind_server_socket, current_username, listen_server_socket, socket_name, socket_namespace};
+use lotus_server::server::{current_username, socket_namespace};
 use lotus_server::shift::ShiftState;
-use lotus_server::sys::{self, AbstractAddr, PollFd, POLLHUP, POLLIN};
-use lotus_server::{log, names};
+use lotus_server::sys::{self, PollFd, POLLHUP, POLLIN};
+use lotus_server::{log, sockets};
 use std::io::Write;
 use std::os::fd::{AsFd, AsRawFd, OwnedFd};
-use std::os::unix::ffi::OsStrExt;
 use std::time::{Duration, Instant};
 
 fn main() {
     log::use_stderr();
     let args: Vec<std::ffi::OsString> = std::env::args_os().collect();
-    if args.len() != 3 {
-        eprintln!("usage: kb_replay <allowed-exe> <messages>");
+    if args.len() != 2 {
+        eprintln!("usage: kb_replay <messages>");
         std::process::exit(2);
     }
-    let allowed = AllowedExecutable { path: args[1].as_bytes().to_vec(), alt_prefix: Vec::new() };
-    let wanted: usize = args[2].to_str().and_then(|text| text.parse().ok()).unwrap_or(0);
-    std::process::exit(match replay(&allowed, wanted) {
+    let wanted: usize = args[1].to_str().and_then(|text| text.parse().ok()).unwrap_or(0);
+    std::process::exit(match replay(wanted) {
         Some(transcript) => {
             print!("{transcript}");
             0
@@ -41,13 +40,10 @@ fn main() {
     });
 }
 
-fn replay(allowed: &AllowedExecutable, wanted: usize) -> Option<String> {
+fn replay(wanted: usize) -> Option<String> {
     let namespace = socket_namespace(&current_username());
-    let kb_server = bind_server_socket(&AbstractAddr::new(&socket_name(&namespace, names::KB_SOCKET_SUFFIX)), "keyboard socket")?;
-    let mouse_server = bind_server_socket(&AbstractAddr::new(&socket_name(&namespace, names::MOUSE_SOCKET_SUFFIX)), "mouse socket")?;
-    if !listen_server_socket(&kb_server, "keyboard socket") || !listen_server_socket(&mouse_server, "mouse socket") {
-        return None;
-    }
+    let server_sockets = sockets::open_server_sockets(&sockets::base_dir(), &namespace, sys::effective_uid())?;
+    let (kb_server, mouse_server) = (&server_sockets.kb.fd, &server_sockets.mouse.fd);
     println!("ready");
     std::io::stdout().flush().ok()?;
 
@@ -73,7 +69,7 @@ fn replay(allowed: &AllowedExecutable, wanted: usize) -> Option<String> {
         sys::poll_fds(&mut fds, i32::try_from(left.as_millis()).unwrap_or(i32::MAX)).ok()?;
         if fds[0].revents & POLLIN != 0 {
             if let Ok(candidate) = sys::accept_nonblocking(kb_server.as_fd()) {
-                if authorize_peer(candidate.as_fd(), uid, "keyboard socket", allowed).is_some() {
+                if authorize_peer(candidate.as_fd(), uid, "keyboard socket").is_some() {
                     kb_client = Some(candidate);
                     continue;
                 }
@@ -81,9 +77,12 @@ fn replay(allowed: &AllowedExecutable, wanted: usize) -> Option<String> {
         }
         if fds[1].revents & POLLIN != 0 {
             if let Ok(candidate) = sys::accept_nonblocking(mouse_server.as_fd()) {
-                if authorize_peer(candidate.as_fd(), uid, "mouse socket", allowed).is_some() {
-                    sys::send_nonblocking(candidate.as_fd(), b"C").ok()?;
-                    mouse_clients.push(candidate);
+                if authorize_peer(candidate.as_fd(), uid, "mouse socket").is_some() {
+                    // A client that already hung up (the test's refused connection) is dropped,
+                    // as the server does.
+                    if sys::send_nonblocking(candidate.as_fd(), b"C").is_ok() {
+                        mouse_clients.push(candidate);
+                    }
                 }
             }
         }

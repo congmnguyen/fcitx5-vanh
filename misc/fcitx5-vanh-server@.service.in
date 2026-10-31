@@ -1,16 +1,46 @@
 [Unit]
 Description=Fcitx5 Vanh Server for %i
-After=systemd-modules-load.service systemd-udevd.service
+After=systemd-modules-load.service systemd-udevd.service systemd-tmpfiles-setup.service
 Wants=systemd-modules-load.service
 
 [Service]
+Type=simple
 User=@LOTUS_UINPUT_PROXY_USER@
 Group=input
 
-CapabilityBoundingSet=CAP_SYS_NICE CAP_SYS_PTRACE
-AmbientCapabilities=CAP_SYS_NICE CAP_SYS_PTRACE
+# CAP_SYS_NICE only for the priority boost and the CPU pinning at startup; the server drops every
+# capability right after, and sets no_new_privs and PR_SET_DUMPABLE=0 itself.
+CapabilityBoundingSet=CAP_SYS_NICE
+AmbientCapabilities=CAP_SYS_NICE
+NoNewPrivileges=yes
 
-Type=simple
+# Sockets: /run/vanh/%i/{kb,mouse}.sock. systemd creates /run/vanh/%i owned by the proxy user
+# (the parent /run/vanh comes from tmpfiles.d/vanh.conf) and removes it when the unit stops.
+RuntimeDirectory=vanh/%i
+RuntimeDirectoryMode=0755
+
+# The server only needs /dev/uinput (ACL of 99-vanh.rules), the evdev nodes (group input), the
+# udev database and sysfs (read only), the udev netlink monitor and its two AF_UNIX sockets.
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateIPC=yes
+ProtectProc=invisible
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_UNIX AF_NETLINK
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+UMask=0022
 
 ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/fcitx5-vanh-server -u %i
 

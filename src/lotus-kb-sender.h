@@ -25,8 +25,8 @@
 class LOTUS_EXPORT KbSender {
   public:
     /**
-     * @brief Builds a sender for the given abstract socket path.
-     * @param socketPath Socket path built by buildSocketPath("kbSocket").
+     * @brief Builds a sender for the given socket path.
+     * @param socketPath Socket path built by buildSocketPath(VANH_KB_SOCKET_FILE).
      */
     explicit KbSender(std::string socketPath);
 
@@ -66,7 +66,7 @@ class LOTUS_EXPORT KbSender {
 
   private:
     /**
-     * @brief Opens the abstract socket.
+     * @brief Opens the socket and checks that the uinput server owns it.
      * @return True on success.
      */
     bool               connectLocked();

@@ -2,6 +2,7 @@
 #pragma once
 
 #include <array>
+#include <cstdlib>
 #include <filesystem>
 #include <string>
 #include <utility>
@@ -12,6 +13,8 @@
 #include <fcitx/inputcontextmanager.h>
 #include <fcitx/inputpanel.h>
 #include <fcitx/instance.h>
+
+#include <unistd.h>
 
 /**
  * @brief Headless Mock InputContext for Fcitx5-Lotus Integration Testing.
@@ -162,6 +165,10 @@ class TestInputContext final : public fcitx::InputContext {
  * 1. Clean slate: Previous runs or local user configs will not contaminate test results.
  * 2. Host safety: Tests will NEVER overwrite developer's personal fcitx5 settings.
  * 3. Parallel-safe: Each test target passes a unique test name for isolated folders.
+ * 4. Socket isolation: the uinput server sockets live in a fresh private directory
+ *    (`VANH_SOCKET_DIR`, a short mkdtemp() path so `<dir>/<namespace>/mouse.sock` fits in
+ *    sockaddr_un), never in /run/vanh, and the addon accepts a server socket owned by the test's
+ *    own uid (`VANH_SERVER_UID`) instead of the uinput proxy user.
  */
 inline void configureTestPaths(const char* name) {
     const auto      root = std::filesystem::temp_directory_path() / name;
@@ -181,12 +188,25 @@ inline void configureTestPaths(const char* name) {
     setenv("XDG_DATA_HOME", (root / "data").c_str(), 1);
     setenv("XDG_CACHE_HOME", (root / "cache").c_str(), 1);
 
+    static std::filesystem::path s_socketDir;
+    if (s_socketDir.empty()) {
+        std::string pattern = (std::filesystem::temp_directory_path() / "vanh-XXXXXX").string();
+        if (mkdtemp(pattern.data()) != nullptr) {
+            s_socketDir = pattern;
+        }
+    }
+    setenv("VANH_SOCKET_DIR", s_socketDir.empty() ? (root / "run").c_str() : s_socketDir.c_str(), 1);
+    setenv("VANH_SERVER_UID", std::to_string(getuid()).c_str(), 1);
+
     static std::filesystem::path s_cleanupPath;
     s_cleanupPath                = root;
     static const bool registered = [] {
         std::atexit([] {
             std::error_code err;
             std::filesystem::remove_all(s_cleanupPath, err);
+            if (!s_socketDir.empty()) {
+                std::filesystem::remove_all(s_socketDir, err);
+            }
         });
         return true;
     }();

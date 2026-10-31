@@ -98,7 +98,7 @@ int main() {
     // it, the test would drive real keystrokes, so nothing is sent in that case.
     KbSocketListener listener;
     if (!listener.valid()) {
-        reportFailure("bind kbSocket", "free abstract socket", "another process owns the replacement socket",
+        reportFailure("bind kbSocket", "free socket path", "another process owns the replacement socket",
                       "the test refuses to drive the uinput transport owned by the session");
         return 1;
     }

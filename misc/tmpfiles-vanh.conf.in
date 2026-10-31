@@ -1,0 +1,5 @@
+# Socket directory of fcitx5-vanh-server: /run/vanh/<user>/{kb,mouse}.sock. Only the uinput
+# proxy user may create entries in it, so no other user can bind the sockets first. The server
+# creates (or, under systemd, RuntimeDirectory= creates) the per-user directory itself.
+# Type Path       Mode User                       Group Age
+d      /run/vanh  0755 @LOTUS_UINPUT_PROXY_USER@  root  -

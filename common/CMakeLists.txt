@@ -1,3 +1,0 @@
-add_library(lotus_common_executable_path OBJECT common-executable-path.cpp)
-set_target_properties(lotus_common_executable_path PROPERTIES POSITION_INDEPENDENT_CODE ON)
-target_include_directories(lotus_common_executable_path PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

@@ -9,8 +9,7 @@ target_include_directories(lotus_core_objects PRIVATE
 )
 target_compile_definitions(lotus_core_objects PRIVATE
     FCITX5_LOTUS_SETTINGS_PATH="${CMAKE_INSTALL_FULL_BINDIR}/fcitx5-vanh-settings"
-    LOTUS_SERVER_EXECUTABLE="${LOTUS_SERVER_EXECUTABLE}"
-    LOTUS_ALT_EXECUTABLE_PREFIX="${LOTUS_ALT_EXECUTABLE_PREFIX}"
+    LOTUS_UINPUT_PROXY_USER="${LOTUS_UINPUT_PROXY_USER}"
 )
 target_link_libraries(lotus_core_objects PRIVATE
     Fcitx5::Core
@@ -54,7 +53,6 @@ add_library(lotus MODULE lotus.cpp
 set_target_properties(lotus PROPERTIES OUTPUT_NAME "vanh")
 set_target_properties(lotus PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_link_libraries(lotus
-        lotus_common_executable_path
         Fcitx5::Core
         Fcitx5::Config
         Fcitx5::Module::Emoji
@@ -66,12 +64,12 @@ target_link_libraries(lotus
 
 target_include_directories(lotus PRIVATE
     ${PROJECT_BINARY_DIR}
+    ${PROJECT_SOURCE_DIR}/common
 )
 # Same flags as lotus_core_objects so its prebuilt PCH is reused, not rejected.
 target_compile_definitions(lotus PRIVATE
     FCITX5_LOTUS_SETTINGS_PATH="${CMAKE_INSTALL_FULL_BINDIR}/fcitx5-vanh-settings"
-    LOTUS_SERVER_EXECUTABLE="${LOTUS_SERVER_EXECUTABLE}"
-    LOTUS_ALT_EXECUTABLE_PREFIX="${LOTUS_ALT_EXECUTABLE_PREFIX}"
+    LOTUS_UINPUT_PROXY_USER="${LOTUS_UINPUT_PROXY_USER}"
 )
 if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.16)
     target_precompile_headers(lotus REUSE_FROM lotus_core_objects)

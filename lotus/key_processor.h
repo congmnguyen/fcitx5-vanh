@@ -79,6 +79,7 @@ namespace lotus {
     struct Options {
         bool    autoNonVnRestore    = true;             // Restore the raw key strokes of a non-Vietnamese word
         bool    ddFreeStyle         = true;             // Allow "dd" inside a non-Vietnamese sequence
+        bool    englishRestore      = false;            // Restore an English word to its keys at a word break (Vikey lists)
         bool    macroEnabled        = false;            // Expand macros at a word break and on Tab
         bool    autoCapitalizeMacro = false;            // Follow the case of the trigger word
         bool    spellCheckWithDicts = true;             // Spell check against the custom dictionary

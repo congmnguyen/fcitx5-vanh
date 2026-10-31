@@ -14,6 +14,7 @@ add_library(lotus_engine STATIC
     encoder.cpp
     engine.cpp
     engine_utils.cpp
+    english_restore.cpp
     flattener.cpp
     input_method.cpp
     key_processor.cpp

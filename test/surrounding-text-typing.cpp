@@ -119,5 +119,20 @@ int main() {
             ++failures;
         }
     }
+    // English restore (Vikey word lists): an English word goes back to the keys at the word break,
+    // a common Vietnamese word stays.
+    typer.stale = false;
+    constexpr std::array<Case, 8> englishCases{
+        Case{.keys = "more ", .want = "more "}, Case{.keys = "user ", .want = "user "},   Case{.keys = "test ", .want = "test "},
+        Case{.keys = "cos ", .want = "có "},     Case{.keys = "ddi ", .want = "đi "},       Case{.keys = "tieengs ", .want = "tiếng "},
+        Case{.keys = "khoong ", .want = "không "}, Case{.keys = "vieetj ", .want = "việt "},
+    };
+    for (const Case& test : englishCases) {
+        const std::string got = typer.type(test.keys);
+        if (got != test.want) {
+            std::cerr << "English restore typing '" << test.keys << "': expected '" << test.want << "', got '" << got << "'\n";
+            ++failures;
+        }
+    }
     return failures == 0 ? 0 : 1;
 }

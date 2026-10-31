@@ -11,6 +11,7 @@
  */
 
 #include "key_processor.h"
+#include "english_restore.h"
 
 #include "case_map.h"
 #include "utf8.h"
@@ -477,6 +478,22 @@ namespace lotus {
     }
 
     bool KeyProcessor::mustFallbackToEnglish() const {
+        if (options_.englishRestore) {
+            const std::u32string vn  = getProcessedString(toMask(Mode::VietnameseMode) | toMask(Mode::LowerCase));
+            const std::u32string raw = getProcessedString(toMask(Mode::EnglishMode) | toMask(Mode::LowerCase));
+            std::string          rawAscii;
+            bool                 ascii = true;
+            for (const char32_t c : raw) {
+                if (c > 0x7F) {
+                    ascii = false;
+                    break;
+                }
+                rawAscii += static_cast<char>(c);
+            }
+            if (ascii && vn != raw && preferEnglishWord(vn, rawAscii)) {
+                return true;
+            }
+        }
         if (!options_.autoNonVnRestore) {
             return false;
         }

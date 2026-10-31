@@ -75,6 +75,7 @@ namespace fcitx {
         lotus::Options option = {
             .autoNonVnRestore    = *engine_.config().autoNonVnRestore,
             .ddFreeStyle         = *engine_.config().ddFreeStyle,
+            .englishRestore      = *engine_.config().englishRestore,
             .macroEnabled        = *engine_.config().enableMacro,
             .autoCapitalizeMacro = *engine_.config().capitalizeMacro,
             .spellCheckWithDicts = *engine_.config().spellCheck,
@@ -840,11 +841,15 @@ namespace fcitx {
         };
 
         std::u32string oldWord;
+        bool           keepEngine = false;
         if (surrKnown_ && surrSoftResetAt_ == 0) {
             // No reset since our last key: our own record of the word is authoritative. The app's
             // surrounding text lags behind when typing fast, and rebuilding from it then deletes or
             // keeps the wrong characters.
             oldWord = surrWord_;
+            // Keep the engine's own key history when it still matches, so a word break sees the keys
+            // actually typed ("more"), not a rebuild of the text ("moer").
+            keepEngine = !oldWord.empty() && pullPreeditString() == oldWord;
         } else {
             // First key, or the app reset/refocused (it may have changed the text): trust the app,
             // which re-sends its text on focus/reset.
@@ -854,9 +859,11 @@ namespace fcitx {
         }
         surrSoftResetAt_ = 0;
 
-        (*lotusEngine_).reset();
-        if (!oldWord.empty())
-            lotusEngine_->rebuildFromText(oldWord);
+        if (!keepEngine) {
+            (*lotusEngine_).reset();
+            if (!oldWord.empty())
+                lotusEngine_->rebuildFromText(oldWord);
+        }
 
         const bool processed = lotusEngine_->processKey(engineKeyValue(currentSym), lotus::keyStatesFromBits(static_cast<uint32_t>(keyEvent.rawKey().states())));
 
@@ -872,9 +879,11 @@ namespace fcitx {
             return;
         }
 
-        std::u32string newWord = pullCommitString();
+        const std::u32string committed = pullCommitString();
+        std::u32string       newWord   = committed;
         newWord += pullPreeditString();
-        (*lotusEngine_).reset();
+        if (!committed.empty())
+            (*lotusEngine_).reset();
 
         const DiffPart diffPart = compareAndSplitU32(oldWord, newWord);
         const size_t   charsToDelete = diffPart.deletedPart.size();

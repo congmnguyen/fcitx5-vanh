@@ -57,6 +57,10 @@ const EN_FLOOR: i32 = 99; // English mode: no floor for turning a tie Vietnamese
 const TIE_PREV: i32 = 5; // a tie leaning English (3x) after a clearly English word (D22)
 const PLAIN_MARGIN: i32 = 15; // "thí makes": the earlier word must read English ~30x more (D13)
 const LOOKBACK_MARGIN: i32 = 10;
+// Vanh: an earlier word follows a switch to English only when its English reading is at least as
+// common as the Vietnamese one. Vikey allows a Vietnamese reading 10x more common (LOOKBACK_MARGIN),
+// which turned "cả release" into "car release" (cả 34 vs car 27).
+const LOOKBACK_EN_LEAD: i32 = 0;
 const PAIR_OVERRIDES: i32 = 10; // word pairs this sure of the Vietnamese reading beat D22 (D34)
 const NEXT_PAIR: i32 = 20; // the next word must be this sure to flip a word back (D35)
 const BIGRAM_MIN: i32 = 3;
@@ -242,7 +246,7 @@ pub fn lookback_ok(w: &Word) -> bool {
     if w.same {
         return w.en != MISSING && w.vn == MISSING; // English-only, looks the same ("makes")
     }
-    w.en != MISSING && w.vn != MISSING && w.en >= w.vn - LOOKBACK_MARGIN
+    w.en != MISSING && w.vn != MISSING && w.en >= w.vn + LOOKBACK_EN_LEAD
 }
 
 /// Vietnamese mode: should the word go back to its keys?

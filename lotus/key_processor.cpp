@@ -131,11 +131,13 @@ namespace lotus {
             if (hasPreedit) {
                 commitPreeditAndReset(getPreeditString());
             }
+            forgetContext();
             return false;
         }
 
         if (keyVal == kFcitxBackSpace) {
             if (!hasPreedit) {
+                forgetContext(); // into the text before: the earlier words may change
                 return false;
             }
             if (runeCount() == 1) {
@@ -227,32 +229,36 @@ namespace lotus {
         if (utils::isWordBreakSymbol(keyRune)) {
             if (options_.macroEnabled && macroTable_ != nullptr) {
                 if (const auto macroVal = macroTable_->get(oldText)) {
+                    history_.clear();
                     engine_.reset();
                     std::u32string text = expandMacro(oldText, *macroVal);
                     text.push_back(keyRune);
                     return {std::move(text), true};
                 }
             }
-            {
-                // Also for words that show no Vietnamese letter but lost a Telex undo key ("eror").
-                if (auto english = englishRestoreText()) {
-                    engine_.restoreLastWord(false);
-                    std::u32string newText = std::move(*english);
-                    newText.push_back(keyRune);
-                    engine_.processKey(keyRune, toMask(Mode::EnglishMode));
-                    return {std::move(newText), true};
-                }
-            }
-            if (utils::hasAnyVietnameseRune(oldText) && mustFallbackToEnglish()) {
+            // The word as typed, before a restore changes the engine.
+            english::Word        info;
+            const std::u32string keys       = currentKeys();
+            const std::u32string vietnamese = getProcessedString(toMask(Mode::VietnameseMode) | toMask(Mode::FullText));
+            const bool analyzed = options_.englishRestore && english::analyze(keys, getProcessedString(toMask(Mode::VietnameseMode) | toMask(Mode::LowerCase)), info);
+            std::u32string word;
+            bool           english = false;
+            // Also for words that show no Vietnamese letter but lost a Telex undo key ("eror").
+            if (auto restored = englishRestoreText()) {
                 engine_.restoreLastWord(false);
-                std::u32string newText = getProcessedString(toMask(Mode::EnglishMode) | toMask(Mode::FullText));
-                newText.push_back(keyRune);
-                engine_.processKey(keyRune, toMask(Mode::EnglishMode));
-                return {std::move(newText), true};
+                word    = std::move(*restored);
+                english = true;
+            } else if (utils::hasAnyVietnameseRune(oldText) && mustFallbackToEnglish()) {
+                engine_.restoreLastWord(false);
+                word    = getProcessedString(toMask(Mode::EnglishMode) | toMask(Mode::FullText));
+                english = true;
+            } else {
+                word = std::u32string(oldText);
             }
-            engine_.processKey(keyRune, toMask(Mode::EnglishMode));
-            std::u32string text(oldText);
+            std::u32string text = finishWord(analyzed ? &info : nullptr, keys, vietnamese, word, english, keyRune);
+            text += word;
             text.push_back(keyRune);
+            engine_.processKey(keyRune, toMask(Mode::EnglishMode));
             return {std::move(text), true};
         }
         return {std::u32string{}, true};
@@ -496,22 +502,105 @@ namespace lotus {
             return std::nullopt;
         }
         const std::u32string vn = getProcessedString(toMask(Mode::VietnameseMode) | toMask(Mode::LowerCase));
-        // The keys as typed, Telex undo keys included ("error", not "eror"); after a rebuild only the
-        // engine's rendering of the keys is known.
-        std::u32string keys = typedKeysKnown_ && !typedKeys_.empty() ? typedKeys_ : getProcessedString(toMask(Mode::EnglishMode) | toMask(Mode::FullText));
-        std::string    raw;
-        for (const char32_t c : keys) {
-            const char32_t lower = case_map::toLower(c);
-            if (lower < U'a' || lower > U'z') {
-                return std::nullopt;
-            }
-            raw += static_cast<char>(lower);
+        const std::u32string keys = currentKeys();
+        english::Word        w;
+        if (!english::analyze(keys, vn, w)) {
+            return std::nullopt;
         }
-        std::u32string rawU(raw.begin(), raw.end());
-        if (vn == rawU || !preferEnglishWord(vn, raw)) {
+        const english::Prev* prev = prevWord();
+        if (englishMode_ ? !english::stayEnglish(w, prev) : !english::restoreInVietnamese(w, prev)) {
             return std::nullopt;
         }
         return keys;
+    }
+
+    const english::Prev* KeyProcessor::prevWord() const {
+        return history_.empty() ? nullptr : &history_.front();
+    }
+
+    std::u32string KeyProcessor::currentKeys() const {
+        // The keys as typed, Telex undo keys included ("error", not "eror"); after a rebuild only the
+        // engine's rendering of the keys is known.
+        return typedKeysKnown_ && !typedKeys_.empty() ? typedKeys_ : getProcessedString(toMask(Mode::EnglishMode) | toMask(Mode::FullText));
+    }
+
+    std::u32string KeyProcessor::finishWord(const english::Word* info, const std::u32string& keys, const std::u32string& vietnamese, const std::u32string& shown, bool english,
+                                            char32_t breakKey) {
+        rewrittenBefore_.clear();
+        if (!options_.englishRestore) {
+            return {};
+        }
+        if (info == nullptr) {
+            history_.clear(); // digits, one letter...: the chain of words breaks here
+            return {};
+        }
+        const english::Word& w = *info;
+        const bool     wasEnglish = englishMode_;
+        std::u32string newBefore;
+        std::u32string oldBefore;
+        if (rewriteAllowed_) {
+            size_t back = 0;
+            if (english && !wasEnglish && w.fewCaps) {
+                // Ambiguous words just before follow the switch to English ("thí error" -> "this error").
+                while (back < history_.size() && !history_[back].english && english::lookbackOk(history_[back].word))
+                    ++back;
+                while (back > 0 && history_[back - 1].word.same)
+                    --back; // no need to retype unchanged words at the far end
+                for (size_t b = back; b-- > 0;) {
+                    newBefore += history_[b].keys + U" ";
+                    oldBefore += history_[b].shown + U" ";
+                }
+            } else if (!english && wasEnglish) {
+                // Back to Vietnamese: a word kept English may read Vietnamese before this one ("lát nữa").
+                while (back < history_.size() && english::flipBackBefore(history_[back], w, back == 0))
+                    ++back;
+                for (size_t b = back; b-- > 0;) {
+                    newBefore += history_[b].vietnamese + U" ";
+                    oldBefore += history_[b].shown + U" ";
+                }
+            }
+        }
+        if (newBefore == oldBefore) {
+            newBefore.clear();
+            oldBefore.clear();
+        }
+        rewrittenBefore_ = std::move(oldBefore);
+
+        englishMode_ = english;
+        if (english != wasEnglish) {
+            history_.clear(); // a new run of words in the other language
+        }
+        if (breakKey == U' ') {
+            english::Prev p;
+            p.word       = w;
+            p.keys       = keys;
+            p.vietnamese = vietnamese;
+            p.shown      = shown;
+            p.english    = english;
+            p.restored   = english && !wasEnglish;
+            history_.insert(history_.begin(), std::move(p));
+            if (history_.size() > 2)
+                history_.pop_back();
+        } else {
+            history_.clear(); // only words separated by a single space count
+        }
+        return newBefore;
+    }
+
+    void KeyProcessor::setRewriteAllowed(bool allowed) {
+        rewriteAllowed_ = allowed;
+    }
+
+    std::u32string KeyProcessor::takeRewrittenBefore() {
+        if (rewrittenBefore_.empty())
+            return {};
+        return encodeText(std::exchange(rewrittenBefore_, std::u32string{}));
+    }
+
+    void KeyProcessor::forgetContext() {
+        history_.clear();
+        englishMode_ = false;
+        rewrittenBefore_.clear();
     }
 
     bool KeyProcessor::mustFallbackToEnglish() const {

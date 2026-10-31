@@ -572,11 +572,13 @@ namespace fcitx {
             pendingCommitString_.clear();
             hasHistory_ = false;
             (*lotusEngine_).reset();
+            lotusEngine_->forgetContext();
             oldPreBuffer_.clear();
             return true;
         }
 
         if (currentSym == FcitxKey_Delete) {
+            lotusEngine_->forgetContext();
             return true;
         }
 
@@ -668,6 +670,7 @@ namespace fcitx {
             } else {
                 hasHistory_ = false;
                 (*lotusEngine_).reset();
+                lotusEngine_->forgetContext();
                 oldPreBuffer_.clear();
             }
             keyEvent.forward();
@@ -681,11 +684,13 @@ namespace fcitx {
         }
         const std::u32string keyText(1, static_cast<char32_t>(keyCodePoint));
 
+        lotusEngine_->setRewriteAllowed(true);
         bool                 processed = lotusEngine_->processKey(engineKeyValue(currentSym), lotus::keyStatesFromBits(static_cast<uint32_t>(keyEvent.rawKey().states())));
 
         const std::u32string commitStr = pullCommitString();
         if (!commitStr.empty()) {
-            DiffPart diffPart = compareAndSplitU32(oldPreBuffer_, commitStr);
+            // English restore may rewrite the words before ("thí makes" -> "this makes").
+            DiffPart diffPart = compareAndSplitU32(lotusEngine_->takeRewrittenBefore() + oldPreBuffer_, commitStr);
 
             if (!diffPart.deletedPart.empty()) {
                 performReplacement(diffPart);
@@ -808,10 +813,12 @@ namespace fcitx {
 
         if (isBackspace(keyEvent.rawKey().sym())) {
             (*lotusEngine_).reset();
-            if (surrKnown_ && !surrWord_.empty())
+            if (surrKnown_ && !surrWord_.empty()) {
                 surrWord_.pop_back();
-            else
+            } else {
                 invalidateSurroundingWord(true);
+                lotusEngine_->forgetContext();
+            }
             keyEvent.forward();
             return;
         }
@@ -865,6 +872,7 @@ namespace fcitx {
                 lotusEngine_->rebuildFromText(oldWord);
         }
 
+        lotusEngine_->setRewriteAllowed(true);
         const bool processed = lotusEngine_->processKey(engineKeyValue(currentSym), lotus::keyStatesFromBits(static_cast<uint32_t>(keyEvent.rawKey().states())));
 
         if (!processed) {
@@ -884,6 +892,8 @@ namespace fcitx {
         newWord += pullPreeditString();
         if (!committed.empty())
             (*lotusEngine_).reset();
+        // English restore may rewrite the words before ("thí makes" -> "this makes").
+        oldWord = lotusEngine_->takeRewrittenBefore() + oldWord;
 
         const DiffPart diffPart = compareAndSplitU32(oldWord, newWord);
         const size_t   charsToDelete = diffPart.deletedPart.size();
@@ -1290,6 +1300,9 @@ namespace fcitx {
     }
 
     void LotusState::handleActiveMode(KeyEvent& keyEvent, KeySym currentSym) {
+        // English restore may rewrite earlier words only where committed text can be deleted;
+        // handleUinputMode and handleSurroundingText allow it.
+        lotusEngine_->setRewriteAllowed(false);
         switch (currentMode()) {
             case LotusMode::Smooth:
             case LotusMode::SuperSmooth:
@@ -1361,6 +1374,7 @@ namespace fcitx {
                 isPrevPunctuation_ = false;
             }
             (*lotusEngine_).reset();
+            lotusEngine_->forgetContext();
             oldPreBuffer_.clear();
             hasHistory_ = false;
         }
@@ -1470,8 +1484,10 @@ namespace fcitx {
         if (!keepSentenceState) {
             isPrevPunctuation_ = false;
         }
-        if (lotusEngine_)
+        if (lotusEngine_) {
             (*lotusEngine_).reset();
+            lotusEngine_->forgetContext();
+        }
     }
 
     bool LotusState::isEmptyHistory() const {

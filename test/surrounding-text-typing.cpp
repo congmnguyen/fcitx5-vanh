@@ -135,5 +135,30 @@ int main() {
             ++failures;
         }
     }
+    // Context (Vikey look-back, word pairs, English mode): the words around decide.
+    constexpr std::array<Case, 15> contextCases{
+        Case{.keys = "video call this ", .want = "video call this "},
+        Case{.keys = "this makes sense ", .want = "this makes sense "},
+        Case{.keys = "this error ", .want = "this error "},
+        Case{.keys = "error this ", .want = "error this "},
+        Case{.keys = "the bus ", .want = "the bus "},
+        Case{.keys = "cho con bus ", .want = "cho con bú "},
+        Case{.keys = "tooi ddi hocj ", .want = "tôi đi học "},
+        Case{.keys = "minhf sex focus vaof cais issue ddos ", .want = "mình sẽ focus vào cái issue đó "},
+        Case{.keys = "fix error nayf ddi ", .want = "fix error này đi "},
+        Case{.keys = "user cos ", .want = "user có "},
+        Case{.keys = "test xong roofi ", .want = "test xong rồi "},
+        Case{.keys = "it has been ", .want = "it has been "},
+        Case{.keys = "office its nhaats ", .want = "office ít nhất "},
+        Case{.keys = "the theme of rust ", .want = "the theme of rust "},
+        Case{.keys = "this is a test ", .want = "this is a test "},
+    };
+    for (const Case& test : contextCases) {
+        const std::string got = typer.type(test.keys);
+        if (got != test.want) {
+            std::cerr << "Context typing '" << test.keys << "': expected '" << test.want << "', got '" << got << "'\n";
+            ++failures;
+        }
+    }
     return failures == 0 ? 0 : 1;
 }

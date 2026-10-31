@@ -23,6 +23,7 @@
 #define _LOTUS_KEY_PROCESSOR_H_
 
 #include "dictionary.h"
+#include "english_restore.h"
 #include "encoder.h"
 #include "engine.h"
 #include "macro_table.h"
@@ -218,6 +219,24 @@ namespace lotus {
         void rebuildFromText(std::u32string_view text);
 
         /**
+         * @brief Allows English restore to rewrite the words before the current one ("thí makes" ->
+         *        "this makes"). Only for modes that can delete committed text (uinput, surrounding).
+         */
+        void setRewriteAllowed(bool allowed);
+
+        /**
+         * @brief Takes the on-screen text of the earlier words the last commit rewrites (with the
+         *        spaces after them), to delete before the commit. Empty when nothing is rewritten.
+         */
+        std::u32string takeRewrittenBefore();
+
+        /**
+         * @brief Forgets the words before the cursor (click, cursor move, focus change, Backspace
+         *        into an earlier word): English restore then judges the next word on its own.
+         */
+        void forgetContext();
+
+        /**
          * @brief Engine driven by this processor.
          * @return Engine.
          */
@@ -391,6 +410,15 @@ namespace lotus {
         std::u32string                    typedKeys_;            ///< Keys typed for the current word (English restore)
         bool                              typedKeysKnown_ = true; ///< False after a rebuild or Backspace
         [[nodiscard]] std::optional<std::u32string> englishRestoreText() const;
+        /** Records the finished word for the next one and returns the rewritten earlier words. */
+        std::u32string finishWord(const english::Word* info, const std::u32string& keys, const std::u32string& vietnamese, const std::u32string& shown, bool english,
+                                  char32_t breakKey);
+        [[nodiscard]] std::u32string currentKeys() const;
+        [[nodiscard]] const english::Prev* prevWord() const;
+        std::vector<english::Prev>        history_;            ///< Words before the current one, newest first
+        bool                              englishMode_     = false; ///< The word before went back to English
+        bool                              rewriteAllowed_  = false;
+        std::u32string                    rewrittenBefore_;
     };
 
 } // namespace lotus

@@ -507,8 +507,8 @@ msgid "Lotus"
 msgstr "Lotus"
 
 #: src/lotus-engine.cpp:1140
-msgid "Lotus - Off"
-msgstr "Lotus - Tắt"
+msgid "Vanh - Off"
+msgstr "Vanh - Tắt"
 
 #: settings-gui/ui/main_window.py:33
 msgid "Lotus Settings"
@@ -524,8 +524,8 @@ msgid ""
 msgstr "Lotus là bộ gõ tiếng Việt cho Fcitx5, hỗ trợ nhiều chế độ và kiểu gõ."
 
 #: src/lotus-notify.cpp:86
-msgid "Lotus: the uinput server is not running"
-msgstr "Lotus: máy chủ uinput đang không chạy"
+msgid "Vanh: the uinput server is not running"
+msgstr "Vanh: máy chủ uinput đang không chạy"
 
 #: src/lotus-config.h:155 src/lotus-config.h:223 src/lotus-engine.cpp:193
 #: src/lotus-engine.cpp:348

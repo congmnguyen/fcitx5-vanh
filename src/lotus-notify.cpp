@@ -85,7 +85,7 @@ void notifyMissingUinputServer() {
     body += '\n';
     body += kLotusDocsUrl;
 
-    NotificationPtr notification{notify_notification_new(_("Lotus: the uinput server is not running"), body.c_str(), "fcitx5-lotus")};
+    NotificationPtr notification{notify_notification_new(_("Vanh: the uinput server is not running"), body.c_str(), "fcitx5-lotus")};
     if (notification == nullptr) {
         LOTUS_WARN("Cannot create the uinput server notification");
         return;

@@ -1155,7 +1155,7 @@ namespace fcitx {
 
     std::string LotusEngine::subModeLabelImpl(const InputMethodEntry& /*entry*/, InputContext& /*inputContext*/) {
         switch (currentMode()) {
-            case LotusMode::Off: return _("Lotus - Off");
+            case LotusMode::Off: return _("Vanh - Off");
             case LotusMode::Emoji: return "😄";
             default: return isGnome_ ? "vi" : "🪷";
         }

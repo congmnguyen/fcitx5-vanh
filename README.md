@@ -1,5 +1,21 @@
 [English](README.en.md) | [Tiếng Việt](README.md)
 
+# Vanh
+
+**Vanh** (Việt + Anh) là bản fork của [fcitx5-lotus](https://github.com/LotusInputMethod/fcitx5-lotus), bộ gõ tiếng Việt cho fcitx5. Vanh gõ được tiếng Việt và tiếng Anh xen kẽ mà không cần chuyển chế độ.
+
+Những gì Vanh thêm so với lotus:
+
+- **Tự chuyển Anh/Việt.** Đến cuối từ, nếu phím vừa gõ là một từ tiếng Anh thì trả lại đúng phím đã gõ: `test` không thành "tét", `error` không thành "eror". Từ tiếng Việt vẫn giữ nguyên: `cos` → "có".
+- **Nhìn ngữ cảnh.** Một từ đọc được cả hai cách thì dựa vào từ đứng cạnh để quyết định (`cho con bus` → "cho con bú", `the bus` → giữ nguyên). Từ trước cũng được sửa lại khi cần: `thí makes` → "this makes". Danh sách từ và bảng cặp từ lấy từ [Vikey](https://github.com/tonyminibot/Vikey).
+- **Surrounding text tự động** trong Uinput mode khi app hỗ trợ (Brave, Facebook, thanh địa chỉ): không còn mất chữ hay lặp chữ khi gõ nhanh.
+
+Tên addon, tên gói và file cấu hình vẫn giữ là `lotus`, để dễ lấy bản sửa từ upstream về.
+
+Giấy phép GPL-3.0-or-later, như lotus. Ghi công: [lotus](https://github.com/LotusInputMethod/fcitx5-lotus), [bamboo](https://github.com/BambooEngine/ibus-bamboo), [Vikey](https://github.com/tonyminibot/Vikey) (dữ liệu tự chuyển Anh/Việt). Phần dưới đây là README gốc của lotus.
+
+---
+
 <a id="readme-top"></a>
 
 <div align="center">

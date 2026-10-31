@@ -482,7 +482,7 @@ msgid "Lotus"
 msgstr ""
 
 #: src/lotus-engine.cpp:1140
-msgid "Lotus - Off"
+msgid "Vanh - Off"
 msgstr ""
 
 #: settings-gui/ui/main_window.py:33
@@ -499,7 +499,7 @@ msgid ""
 msgstr ""
 
 #: src/lotus-notify.cpp:86
-msgid "Lotus: the uinput server is not running"
+msgid "Vanh: the uinput server is not running"
 msgstr ""
 
 #: src/lotus-config.h:155 src/lotus-config.h:223 src/lotus-engine.cpp:193

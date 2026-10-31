@@ -1,5 +1,21 @@
 [English](README.en.md) | [Tiếng Việt](README.md)
 
+# Vanh
+
+**Vanh** (Việt + Anh, "Vietnamese + English") is a fork of [fcitx5-lotus](https://github.com/LotusInputMethod/fcitx5-lotus), a Vietnamese input method for fcitx5. With Vanh you can mix Vietnamese and English in the same text without switching modes.
+
+What Vanh adds to lotus:
+
+- **Automatic English/Vietnamese switching.** At the end of a word, if the keys you typed are an English word, Vanh puts them back as typed: `test` stays "test" instead of "tét", and `error` stays "error" instead of "eror". Vietnamese words are kept: `cos` → "có".
+- **Context.** For a word that reads both ways, the word next to it decides (`cho con bus` → "cho con bú", while `the bus` stays). An earlier word is fixed when the next one makes it clear: `thí makes` → "this makes". The word lists and word pairs come from [Vikey](https://github.com/tonyminibot/Vikey).
+- **Automatic surrounding text** in Uinput mode when the app supports it (Brave, Facebook, the address bar), so fast typing no longer drops or doubles letters.
+
+The addon, package and config file are still named `lotus`, so fixes from upstream are easy to bring in.
+
+Vanh is licensed GPL-3.0-or-later, like lotus. Credits: [lotus](https://github.com/LotusInputMethod/fcitx5-lotus), [bamboo](https://github.com/BambooEngine/ibus-bamboo), [Vikey](https://github.com/tonyminibot/Vikey) (switching data). The original lotus README follows.
+
+---
+
 <a id="readme-top"></a>
 
 <div align="center">

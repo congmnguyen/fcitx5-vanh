@@ -122,7 +122,8 @@ int main() {
     // English restore (Vikey word lists): an English word goes back to the keys at the word break,
     // a common Vietnamese word stays.
     typer.stale = false;
-    constexpr std::array<Case, 8> englishCases{
+    constexpr std::array<Case, 10> englishCases{
+        Case{.keys = "error ", .want = "error "}, Case{.keys = "issue ", .want = "issue "},
         Case{.keys = "more ", .want = "more "}, Case{.keys = "user ", .want = "user "},   Case{.keys = "test ", .want = "test "},
         Case{.keys = "cos ", .want = "có "},     Case{.keys = "ddi ", .want = "đi "},       Case{.keys = "tieengs ", .want = "tiếng "},
         Case{.keys = "khoong ", .want = "không "}, Case{.keys = "vieetj ", .want = "việt "},

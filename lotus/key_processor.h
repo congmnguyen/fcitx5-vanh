@@ -388,6 +388,9 @@ namespace lotus {
         std::u32string                    commit_;
         bool                              lastKeyWithShift_        = false;
         bool                              shouldRestoreKeyStrokes_ = false;
+        std::u32string                    typedKeys_;            ///< Keys typed for the current word (English restore)
+        bool                              typedKeysKnown_ = true; ///< False after a rebuild or Backspace
+        [[nodiscard]] std::optional<std::u32string> englishRestoreText() const;
     };
 
 } // namespace lotus

@@ -142,6 +142,7 @@ namespace lotus {
                 commitPreeditAndReset(U"");
                 return true;
             }
+            typedKeysKnown_ = false;
             engine_.removeLastChar(true);
             updatePreedit(getPreeditString());
             return true;
@@ -184,6 +185,7 @@ namespace lotus {
             if (states.has(KeyState::Lock)) {
                 keyRune = toUpper(keyRune);
             }
+            typedKeys_.push_back(keyRune);
             engine_.processKey(keyRune, getBambooInputMode());
             if (inKeyList(engine_.inputMethod().appendingKeys, keyRune)) {
                 const std::u32string fullSeq = getProcessedString(toMask(Mode::VietnameseMode));
@@ -229,6 +231,16 @@ namespace lotus {
                     std::u32string text = expandMacro(oldText, *macroVal);
                     text.push_back(keyRune);
                     return {std::move(text), true};
+                }
+            }
+            {
+                // Also for words that show no Vietnamese letter but lost a Telex undo key ("eror").
+                if (auto english = englishRestoreText()) {
+                    engine_.restoreLastWord(false);
+                    std::u32string newText = std::move(*english);
+                    newText.push_back(keyRune);
+                    engine_.processKey(keyRune, toMask(Mode::EnglishMode));
+                    return {std::move(newText), true};
                 }
             }
             if (utils::hasAnyVietnameseRune(oldText) && mustFallbackToEnglish()) {
@@ -472,27 +484,39 @@ namespace lotus {
     }
 
     void KeyProcessor::commitPreeditAndReset(std::u32string text) {
+        typedKeys_.clear();
+        typedKeysKnown_ = true;
         commit_ = std::move(text);
         preedit_.clear();
         engine_.reset();
     }
 
+    std::optional<std::u32string> KeyProcessor::englishRestoreText() const {
+        if (!options_.englishRestore) {
+            return std::nullopt;
+        }
+        const std::u32string vn = getProcessedString(toMask(Mode::VietnameseMode) | toMask(Mode::LowerCase));
+        // The keys as typed, Telex undo keys included ("error", not "eror"); after a rebuild only the
+        // engine's rendering of the keys is known.
+        std::u32string keys = typedKeysKnown_ && !typedKeys_.empty() ? typedKeys_ : getProcessedString(toMask(Mode::EnglishMode) | toMask(Mode::FullText));
+        std::string    raw;
+        for (const char32_t c : keys) {
+            const char32_t lower = case_map::toLower(c);
+            if (lower < U'a' || lower > U'z') {
+                return std::nullopt;
+            }
+            raw += static_cast<char>(lower);
+        }
+        std::u32string rawU(raw.begin(), raw.end());
+        if (vn == rawU || !preferEnglishWord(vn, raw)) {
+            return std::nullopt;
+        }
+        return keys;
+    }
+
     bool KeyProcessor::mustFallbackToEnglish() const {
-        if (options_.englishRestore) {
-            const std::u32string vn  = getProcessedString(toMask(Mode::VietnameseMode) | toMask(Mode::LowerCase));
-            const std::u32string raw = getProcessedString(toMask(Mode::EnglishMode) | toMask(Mode::LowerCase));
-            std::string          rawAscii;
-            bool                 ascii = true;
-            for (const char32_t c : raw) {
-                if (c > 0x7F) {
-                    ascii = false;
-                    break;
-                }
-                rawAscii += static_cast<char>(c);
-            }
-            if (ascii && vn != raw && preferEnglishWord(vn, rawAscii)) {
-                return true;
-            }
+        if (englishRestoreText().has_value()) {
+            return true;
         }
         if (!options_.autoNonVnRestore) {
             return false;
@@ -603,6 +627,8 @@ namespace lotus {
 
     void KeyProcessor::rebuildFromText(std::u32string_view text) {
         engine_.rebuildFromText(text);
+        typedKeys_.clear();
+        typedKeysKnown_ = false;
         // Go stores the raw rendering here (EngineRebuildFromText does not encode it), unlike
         // updatePreedit which stores the charset encoded text.
         preedit_ = getPreeditString();

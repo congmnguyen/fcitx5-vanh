@@ -1,0 +1,40 @@
+Tôi đang học tiếng Việt và cũng học English mỗi ngày.
+Hôm nay trời đẹp quá, mình đi uống cà phê nhé?
+Anh ấy làm software engineer ở một công ty startup tại Hà Nội.
+Chúng ta cần fix cái bug này trước khi deploy lên production.
+Cuộc họp lúc 3 giờ chiều đã bị dời sang thứ Năm.
+Em gửi file report qua email cho sếp chưa?
+Người Việt Nam rất hiếu khách và thân thiện.
+Tháng trước tôi đã đọc xong cuốn sách "Clean Code" của Robert Martin.
+Mua giúp mình hai ổ bánh mì với một ly trà đá nhé.
+Đường phố Sài Gòn vào giờ cao điểm luôn kẹt xe.
+This makes the code easier to read, nhưng hơi chậm hơn một chút.
+Bạn có thể review pull request của tôi được không?
+Thời tiết miền Bắc mùa đông lạnh và ẩm ướt.
+Ông bà ngoại sống ở quê, gần bờ sông Hồng.
+Hãy commit thường xuyên và viết message rõ ràng.
+Quyển từ điển này có hơn bảy nghìn từ.
+Chị ấy thích nghe nhạc jazz và đọc tiểu thuyết.
+The quick brown fox jumps over the lazy dog.
+Mình vừa cài Ubuntu mới, giờ phải setup lại terminal và font chữ.
+Khuya rồi, đi ngủ thôi, mai còn đi làm sớm.
+Phở bò Hà Nội ngon nhất là ở phố Bát Đàn.
+Xin lỗi, tôi không hiểu ý bạn lắm, bạn nói lại được không?
+Giáo sư hướng dẫn luận văn của tôi rất nghiêm khắc.
+Trường đại học Bách khoa nằm trên đường Đại Cồ Việt.
+Nguyễn Trãi viết Bình Ngô đại cáo năm 1428.
+Hương vị của quả sầu riêng khiến nhiều người khó chịu.
+Ước gì mình được đi du lịch Nhật Bản vào mùa hoa anh đào.
+Cái laptop này chạy Linux rất mượt, pin cũng trâu.
+Huyện Quỳnh Lưu thuộc tỉnh Nghệ An.
+Thuở nhỏ, tôi hay theo mẹ ra chợ quê mua rau.
+Khuỷu tay bị đau vì ngồi gõ phím quá lâu.
+Người ta khuyên uống nhiều nước và nghỉ ngơi đầy đủ.
+Let me know if you need anything else, cảm ơn nhiều!
+Đừng quên backup dữ liệu trước khi update hệ điều hành.
+Quốc ca Việt Nam là bài Tiến quân ca của Văn Cao.
+Gió mùa đông bắc tràn về làm nhiệt độ giảm mạnh.
+Tuyệt vời, chúng ta đã hoàn thành sprint này đúng hạn!
+Hỏi gì thì hỏi, đừng hỏi lương bao nhiêu.
+Nghiêng ngả, khuếch trương, ngoằn ngoèo, nguệch ngoạc.
+Thủy thủ, thuở xưa, quằn quại, khoẻ khoắn, hoà thuận.

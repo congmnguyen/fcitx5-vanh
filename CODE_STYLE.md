@@ -16,7 +16,7 @@ Tài liệu này là nguồn duy nhất cho quy tắc code của fcitx5-lotus. K
 
 ## 3. RAII & quyền sở hữu
 
-- Mọi tài nguyên phải có chủ sở hữu RAII: fd dùng `FdGuard`, handle/thừa kế C dùng `std::unique_ptr` + deleter (`LibevdevDevice`, `LibevdevUinput`, `LibinputEvent`, `UdevDeleter`…).
+- Mọi tài nguyên phải có chủ sở hữu RAII: fd dùng `FdGuard`, handle/thừa kế C dùng `std::unique_ptr` + deleter (`GErrorPtr`, `NotificationPtr`…). Các crate Rust (`engine-rs/`, `server-rs/`) giữ handle FFI bằng kiểu có `Drop` và gom `unsafe` vào vài module có chú thích.
 - Không để fd thô sống qua nhiều câu lệnh rồi `close()` tay; bọc ngay khi nhận (`FdGuard fd(open(...));`), kể cả trên nhánh lỗi.
 - Không `malloc`/`free`/`strdup`. `new`/`delete` chỉ được phép ở factory của fcitx5 (kèm `NOLINT`).
 - Class giữ tài nguyên: Rule of five tường minh (xoá copy, khai báo move); không viết destructor tay chỉ để `close()`/`free()`.

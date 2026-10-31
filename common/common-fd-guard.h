@@ -8,10 +8,9 @@
 
 /**
  * @file common-fd-guard.h
- * @brief RAII wrapper for Unix file descriptors, shared by the addon and the uinput server.
+ * @brief RAII wrapper for Unix file descriptors, shared by the addon and the tests.
  *
- * Header-only because the addon and the server are two separate targets that both include it from
- * common/, and the server must not link the addon core.
+ * Header-only so targets that must not link the addon core can use it too.
  */
 
 #ifndef _COMMON_FD_GUARD_H_

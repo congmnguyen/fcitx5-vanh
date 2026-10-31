@@ -6,8 +6,8 @@
  */
 
 /*
- * Header-only because the addon and the server are two separate targets that both include it from
- * common/, and the server must not link the addon core.
+ * Header-only, shared by the addon and the tests. The Rust server builds the same names from
+ * server-rs/src/names.rs (keep both in sync).
  */
 
 #ifndef _COMMON_SOCKET_NAME_H_

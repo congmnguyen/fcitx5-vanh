@@ -7,7 +7,8 @@
 
 /**
  * @file common-executable-path.h
- * @brief Peer executable path checks shared by the addon and the uinput server.
+ * @brief Peer executable path checks of the addon (the Rust server has its own copy,
+ *        server-rs/src/auth.rs, tested against the same cases).
  */
 
 #ifndef _COMMON_EXECUTABLE_PATH_H_

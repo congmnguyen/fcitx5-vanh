@@ -140,35 +140,14 @@ add_lotus_headless_test(TARGET replacement_delays SOURCES replacement-delays.cpp
 add_lotus_headless_test(TARGET merged_replacement_commit SOURCES merged-replacement-commit.cpp LABELS "integration;smooth")
 add_lotus_headless_test(TARGET dict_reload SOURCES dict-reload.cpp LABELS "integration;dictionary")
 add_lotus_headless_test(TARGET config_enum_names SOURCES config-enum-names.cpp LABELS "unit;config")
-add_lotus_headless_test(
-    TARGET uinput_device
-    SOURCES
-        uinput-device.cpp
-        ${PROJECT_SOURCE_DIR}/server/lotus-uinput-device.cpp
-    LABELS "unit;server"
-    INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR}/server
-    LINK_LIBRARIES PkgConfig::LIBEVDEV
-)
-add_lotus_headless_test(
-    TARGET select_shift_plan
-    SOURCES
-        select-shift-plan.cpp
-        ${PROJECT_SOURCE_DIR}/server/lotus-physical-shift.cpp
-        ${PROJECT_SOURCE_DIR}/server/lotus-logger.cpp
-    LABELS "unit;server"
-    INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR}/server
-    LINK_LIBRARIES PkgConfig::LIBEVDEV PkgConfig::LIBINPUT
-)
-add_lotus_headless_test(
-    TARGET server_socket_init
-    SOURCES
-        server-socket-init.cpp
-        ${PROJECT_SOURCE_DIR}/server/lotus-server-socket.cpp
-        ${PROJECT_SOURCE_DIR}/server/lotus-logger.cpp
-        ${PROJECT_SOURCE_DIR}/server/lotus-abstract-socket.cpp
-    LABELS "unit;server"
-    INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR}/server ${PROJECT_SOURCE_DIR}/common
-)
+# The uinput server is tested in Rust (server-rs, `cargo test`: wire format, planning, Shift
+# tracking, peer checks, socket setup, device identity); one ctest entry runs the whole suite.
+add_test(NAME lotus_server_rust_tests COMMAND ${LOTUS_SERVER_RUST_TEST_COMMAND})
+set_tests_properties(lotus_server_rust_tests PROPERTIES LABELS "unit;server" TIMEOUT 600)
+# The addon's KbSender and socket names against the server's Rust socket/protocol code.
+add_lotus_headless_test(TARGET server_wire_compat SOURCES server-wire-compat.cpp LABELS "integration;server;socket")
+target_compile_definitions(server_wire_compat PRIVATE LOTUS_SERVER_KB_REPLAY="${LOTUS_SERVER_KB_REPLAY}")
+add_dependencies(server_wire_compat lotus_server_rust)
 add_lotus_headless_test(TARGET status_icon SOURCES status-icon.cpp LABELS "integration;icons")
 add_test(NAME status_icon_gnome COMMAND status_icon gnome)
 set_tests_properties(status_icon_gnome PROPERTIES LABELS "integration;icons" TIMEOUT 20)
@@ -188,7 +167,7 @@ set_tests_properties(kb_sender PROPERTIES
     ENVIRONMENT "LOTUS_SOCKET_NAMESPACE=ctest-${LOTUS_CTEST_SOCKET_NAMESPACE}")
 
 string(MD5 LOTUS_CTEST_SOCKET_NAMESPACE "${PROJECT_BINARY_DIR}")
-set_tests_properties(smooth_buffered_key_replay focus_bounce_word_survival focus_out_mid_replacement uinput_auto_restore anchor_key_protocol uinput_server_probe select_mode_replacement select_modifier_replay chromium_address_bar select_anchor_completion select_cancel select_cancel_reconcile select_word_break replacement_delays app_rule_delay_wire dbus_deferred_commit merged_replacement_commit runtime_safety
+set_tests_properties(server_wire_compat smooth_buffered_key_replay focus_bounce_word_survival focus_out_mid_replacement uinput_auto_restore anchor_key_protocol uinput_server_probe select_mode_replacement select_modifier_replay chromium_address_bar select_anchor_completion select_cancel select_cancel_reconcile select_word_break replacement_delays app_rule_delay_wire dbus_deferred_commit merged_replacement_commit runtime_safety
     PROPERTIES RESOURCE_LOCK lotus_kb_socket
     ENVIRONMENT "LOTUS_SOCKET_NAMESPACE=ctest-${LOTUS_CTEST_SOCKET_NAMESPACE}")
 

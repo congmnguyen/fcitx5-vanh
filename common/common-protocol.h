@@ -23,6 +23,9 @@ enum class KbOp : int8_t {
 
 /**
  * @brief Message on the keyboard socket from the fcitx5 addon to uinput server.
+ *
+ * Native layout and byte order; the Rust server decodes it in server-rs/src/protocol.rs (keep both in
+ * sync, test/server-wire-compat.cpp checks them against each other).
  */
 struct KbMsg {
     KbOp     op;        ///< requested operation

@@ -107,19 +107,12 @@ target_compile_definitions(lotus_unit_tests PRIVATE LOTUS_TEST_GOLDEN_DIR="${PRO
 
 set_target_properties(lotus_unit_tests PROPERTIES UNITY_BUILD OFF)
 
+# The engine logic is tested in Rust (`cargo test`); one ctest entry runs the whole suite.
+add_test(NAME lotus_engine_rust_tests COMMAND ${LOTUS_RUST_TEST_COMMAND})
+set_tests_properties(lotus_engine_rust_tests PROPERTIES LABELS "unit;lotus;engine" TIMEOUT 900)
+
 add_lotus_unit_test(lotus_utf8 utf8 lotus-utf8-test.cpp "unit;lotus")
-add_lotus_unit_test(lotus_data data lotus-data-test.cpp "unit;lotus")
-add_lotus_unit_test(lotus_utils utils lotus-utils-test.cpp "unit;lotus")
-add_lotus_unit_test(lotus_encoder encoder lotus-encoder-test.cpp "unit;lotus;charset")
-add_lotus_unit_test(lotus_rules_parser rules_parser lotus-rules-parser-test.cpp "unit;lotus;rules")
-add_lotus_unit_test(lotus_flattener flattener lotus-flattener-test.cpp "unit;lotus;flattener")
-add_lotus_unit_test(lotus_spelling spelling lotus-spelling-test.cpp "unit;lotus;spelling")
-add_lotus_unit_test(lotus_engine_utils engine_utils lotus-engine-utils-test.cpp "unit;lotus;engine-utils")
-add_lotus_unit_test(lotus_engine_smoke engine_smoke lotus-engine-smoke.cpp "unit;lotus;engine")
-add_lotus_unit_test(lotus_engine_test engine lotus-engine-test.cpp "unit;lotus;engine")
-add_lotus_unit_test(lotus_rebuild rebuild lotus-rebuild-test.cpp "unit;lotus;rebuild")
-add_lotus_unit_test(lotus_macro_dictionary macro_dictionary lotus-macro-dictionary-test.cpp "unit;lotus;macro")
-add_lotus_unit_test(lotus_key_processor key_processor lotus-key-processor-test.cpp "unit;lotus;key-processor")
+add_lotus_unit_test(lotus_engine_api engine_api lotus-engine-api-test.cpp "unit;lotus")
 add_lotus_unit_test(lotus_golden_smoke golden_smoke lotus-golden-smoke.cpp "unit;lotus;golden")
 add_lotus_unit_test(numeric_macro_case_preservation numeric_macro_case numeric-macro-case-preservation.cpp "unit;macro")
 

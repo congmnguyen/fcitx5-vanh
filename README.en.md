@@ -18,7 +18,7 @@ The addon, package and config file are still named `lotus`, so an existing lotus
 ```bash
 sudo apt install --no-install-recommends debhelper dh-python cmake g++ extra-cmake-modules fcitx5-modules-dev \
   libfcitx5core-dev libfcitx5config-dev libfcitx5utils-dev libinput-dev libevdev-dev libnotify-dev \
-  libdbus-1-dev libudev-dev pkg-config python3 gettext
+  libdbus-1-dev libudev-dev pkg-config python3 gettext cargo rustc
 git clone https://github.com/congmnguyen/fcitx5-vanh && cd fcitx5-vanh
 cp -r packaging/debian debian && dpkg-buildpackage -b -us -uc -j$(nproc) && rm -rf debian obj-*
 sudo apt install ../fcitx5-lotus_*_amd64.deb python3-pyqt5
@@ -26,14 +26,14 @@ sudo systemctl enable --now fcitx5-lotus-server@$USER
 fcitx5 -r -d
 ```
 
-Other distros: `cmake -DCMAKE_INSTALL_PREFIX=/usr . && make && sudo make install` with the matching dev packages.
+Other distros (`cargo` and `rustc` are needed too): `cmake -DCMAKE_INSTALL_PREFIX=/usr . && make && sudo make install` with the matching dev packages.
 
 ## License and credits
 
 GPL-3.0-or-later, see [`LICENSE`](LICENSE). Vanh builds on:
 
 - **[fcitx5-lotus](https://github.com/LotusInputMethod/fcitx5-lotus)** (GPL-3.0-or-later), itself a fork of **[VMK](https://github.com/thanhpy2009/VMK)**.
-- **[bamboo-core](https://github.com/BambooEngine/bamboo-core)**: the original typing engine, MIT, © 2018 Luong Thanh Lam ([`lotus/LICENSE.bamboo-core`](lotus/LICENSE.bamboo-core)).
+- **[bamboo-core](https://github.com/BambooEngine/bamboo-core)**: the original typing engine, MIT, © 2018 Luong Thanh Lam ([`engine-rs/LICENSE.bamboo-core`](engine-rs/LICENSE.bamboo-core)).
 - **[fcitx5-bamboo](https://github.com/fcitx/fcitx5-bamboo)**: the fcitx5 glue is based on it, LGPL-2.1.
 - **[Vikey](https://github.com/tonyminibot/Vikey)** (GPL-3.0): word lists, frequencies and word pairs for English/Vietnamese switching. Original data sources: FrequencyWords/OpenSubtitles 2018 (CC BY-SA 4.0), FineWeb-2/FineWeb and MADLAD-400 (ODC-By), HPLT 2 (CC0).
 

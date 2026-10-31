@@ -12,7 +12,7 @@ Tài liệu này là nguồn duy nhất cho quy tắc code của fcitx5-lotus. K
 
 - C++20 (`CMAKE_CXX_STANDARD 20`), không hạ chuẩn.
 - Dùng thư viện chuẩn: `std::string_view`, `std::span`, `std::ranges`, `std::erase_if`, `std::optional`, `std::cmp_*`, designated initializer.
-- Không viết lại thứ thư viện chuẩn đã có. Không dùng `std::regex` trong engine (`lotus/`, phần `src/` nạp vào engine): nhị phân phình và không cần thiết.
+- Không viết lại thứ thư viện chuẩn đã có. Không dùng `std::regex` trong engine (phần `src/` nạp vào engine; engine Rust ở `engine-rs/` chỉ dùng std): nhị phân phình và không cần thiết.
 
 ## 3. RAII & quyền sở hữu
 
@@ -35,7 +35,7 @@ Tài liệu này là nguồn duy nhất cho quy tắc code của fcitx5-lotus. K
 
 ## 6. Cấu trúc file & header
 
-- Mỗi `.h` phải có `.cpp` cùng tên. Ngoại lệ: header chỉ chứa khai báo kiểu/`constexpr`/accessor một dòng/deleter/type alias/macro log (`common/*.h`, `src/lotus-config.h`, `src/lotus-mode.h`, `src/lotus-log.h`, `src/emoji-entry.h`, `lotus/types.h`, `lotus/transformation.h`, `lotus/rule.h`, `test/*.h`).
+- Mỗi `.h` phải có `.cpp` cùng tên. Ngoại lệ: header chỉ chứa khai báo kiểu/`constexpr`/accessor một dòng/deleter/type alias/macro log (`common/*.h`, `src/lotus-config.h`, `src/lotus-mode.h`, `src/lotus-log.h`, `src/emoji-entry.h`, `engine-rs/cxx/types.h`, `engine-rs/cxx/ffi_util.h`, `engine-rs/cxx/encoder.h`, `test/*.h`).
 - Header chỉ khai báo + doxygen; thân hàm để ở `.cpp`, trừ accessor một dòng, deleter, template, `inline constexpr`.
 - Code dùng chung giữa addon và server đặt ở `common/` với tên `common-xxx.{h,cpp}`.
 

@@ -19,7 +19,7 @@ Tên addon, tên gói và file cấu hình vẫn là `lotus`, nên cấu hình l
 sudo apt install --no-install-recommends debhelper dh-python cmake g++ extra-cmake-modules fcitx5-modules-dev \
   libfcitx5core-dev libfcitx5config-dev libfcitx5utils-dev libinput-dev libevdev-dev libnotify-dev \
   libdbus-1-dev libudev-dev pkg-config python3 gettext
-git clone -b auto-surrounding https://github.com/congmnguyen/fcitx5-vanh && cd fcitx5-vanh
+git clone https://github.com/congmnguyen/fcitx5-vanh && cd fcitx5-vanh
 cp -r packaging/debian debian && dpkg-buildpackage -b -us -uc -j$(nproc) && rm -rf debian obj-*
 sudo apt install ../fcitx5-lotus_*_amd64.deb python3-pyqt5
 sudo systemctl enable --now fcitx5-lotus-server@$USER

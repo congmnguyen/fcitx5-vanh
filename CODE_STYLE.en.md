@@ -16,7 +16,7 @@ This document is the single source of truth for the code rules of fcitx5-lotus. 
 
 ## 3. RAII & ownership
 
-- Every resource needs an RAII owner: file descriptors use `FdGuard`, C handles/inherited handles use `std::unique_ptr` + a deleter (`LibevdevDevice`, `LibevdevUinput`, `LibinputEvent`, `UdevDeleter`…).
+- Every resource needs an RAII owner: file descriptors use `FdGuard`, C handles/inherited handles use `std::unique_ptr` + a deleter (`GErrorPtr`, `NotificationPtr`…). The Rust crates (`engine-rs/`, `server-rs/`) own their FFI handles with `Drop` types and keep `unsafe` in a few documented modules.
 - Never keep a raw descriptor alive across statements and `close()` it by hand; wrap it as soon as it is obtained (`FdGuard fd(open(...));`), including on error paths.
 - No `malloc`/`free`/`strdup`. `new`/`delete` are allowed only in fcitx5 factories (with `NOLINT`).
 - Classes that own resources: explicit rule of five (delete copy, declare move); no hand-written destructor that only calls `close()`/`free()`.

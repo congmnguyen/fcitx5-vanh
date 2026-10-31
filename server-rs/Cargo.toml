@@ -1,0 +1,27 @@
+[package]
+name = "fcitx5-lotus-server"
+version = "6.0.4"
+edition = "2021"
+license = "GPL-3.0-or-later"
+description = "Privileged uinput helper of fcitx5-lotus (Vanh): injects the replacement keys and reports mouse clicks"
+publish = false
+build = "build.rs"
+
+# std only: the Debian build runs offline, so the crate must not depend on crates.io. libc,
+# libinput and libudev are reached through hand-written FFI (src/sys.rs, src/libinput.rs).
+[dependencies]
+
+[lib]
+name = "lotus_server"
+path = "src/lib.rs"
+
+[[bin]]
+name = "fcitx5-lotus-server"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+# A privileged daemon: abort instead of unwinding (cargo ignores this for test builds).
+panic = "abort"

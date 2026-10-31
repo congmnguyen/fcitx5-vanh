@@ -136,7 +136,7 @@ int main() {
         }
     }
     // Context (Vikey look-back, word pairs, English mode): the words around decide.
-    constexpr std::array<Case, 18> contextCases{
+    constexpr std::array<Case, 19> contextCases{
         Case{.keys = "video call this ", .want = "video call this "},
         Case{.keys = "this makes sense ", .want = "this makes sense "},
         Case{.keys = "this error ", .want = "this error "},
@@ -155,6 +155,7 @@ int main() {
         Case{.keys = "car release ", .want = "cả release "},
         Case{.keys = "xoas car release ", .want = "xoá cả release "},
         Case{.keys = "sex focus ", .want = "sẽ focus "},
+        Case{.keys = "hocj it been fpt ", .want = "học it bên fpt "},
     };
     for (const Case& test : contextCases) {
         const std::string got = typer.type(test.keys);

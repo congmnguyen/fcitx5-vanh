@@ -523,7 +523,7 @@ impl KeyProcessor {
         let vn = self.get_processed_string(Mode::VIETNAMESE | Mode::LOWER_CASE);
         let keys = self.current_keys();
         let w = english::analyze(&keys, &vn)?;
-        let prev = self.history.first();
+        let prev = english::context_prev(&self.history, self.english_mode);
         let restore = if self.english_mode { english::stay_english(&w, prev) } else { english::restore_in_vietnamese(&w, prev) };
         restore.then_some(keys)
     }

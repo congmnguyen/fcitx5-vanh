@@ -249,6 +249,23 @@ pub fn lookback_ok(w: &Word) -> bool {
     w.en != MISSING && w.vn != MISSING && w.en >= w.vn + LOOKBACK_EN_LEAD
 }
 
+/// The word before that may lean the current one English or Vietnamese. In Vietnamese mode a
+/// word that looks the same both ways ("it") right after a clearly Vietnamese word is read as
+/// Vietnamese text, so English word pairs with it do not count ("học it bên", not "it been").
+pub fn context_prev(history: &[Prev], english_mode: bool) -> Option<&Prev> {
+    let prev = history.first()?;
+    if !english_mode && !prev.english && prev.word.same {
+        if let Some(before) = history.get(1) {
+            let b = &before.word;
+            let vietnamese = !before.english && !b.same && b.vn != MISSING && (b.en == MISSING || b.vn - b.en >= PREFER);
+            if vietnamese {
+                return None;
+            }
+        }
+    }
+    Some(prev)
+}
+
 /// Vietnamese mode: should the word go back to its keys?
 pub fn restore_in_vietnamese(w: &Word, prev: Option<&Prev>) -> bool {
     let prev = prev.filter(|p| !p.english);

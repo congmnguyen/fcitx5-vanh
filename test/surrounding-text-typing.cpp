@@ -23,11 +23,14 @@ namespace {
         fcitx::InputMethodEntry* entry;
         TestInputContext*        context;
         std::string              text;
+        bool                     stale = false; ///< App never refreshes its surrounding text (fast typing)
 
         void                     typeKey(char ch) {
-            const size_t cursor = fcitx_utf8_strlen(text.c_str());
-            context->surroundingText().setText(text, cursor, cursor);
-            context->updateSurroundingText();
+            if (!stale || text.empty()) {
+                const size_t cursor = fcitx_utf8_strlen(text.c_str());
+                context->surroundingText().setText(text, cursor, cursor);
+                context->updateSurroundingText();
+            }
             const size_t    commitsBefore = context->commits().size();
             const size_t    deletesBefore = context->deletes().size();
 
@@ -98,6 +101,21 @@ int main() {
         const std::string got = typer.type(test.keys);
         if (got != test.want) {
             std::cerr << "Surrounding Text typing '" << test.keys << "': expected '" << test.want << "', got '" << got << "'\n";
+            ++failures;
+        }
+    }
+    // Fast typing: the app's surrounding text lags behind; the engine must rely on what it wrote.
+    typer.stale = true;
+    constexpr std::array<Case, 4> staleCases{
+        Case{.keys = "neen", .want = "nên"},
+        Case{.keys = "tieengs vieetj", .want = "tiếng việt"},
+        Case{.keys = "phoos hoir", .want = "phố hỏi"},
+        Case{.keys = "hangf aos", .want = "hàng áo"},
+    };
+    for (const Case& test : staleCases) {
+        const std::string got = typer.type(test.keys);
+        if (got != test.want) {
+            std::cerr << "Stale surrounding typing '" << test.keys << "': expected '" << test.want << "', got '" << got << "'\n";
             ++failures;
         }
     }

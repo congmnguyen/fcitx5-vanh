@@ -121,6 +121,9 @@ namespace fcitx {
         InputContext&                         ic_;     // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
         std::shared_ptr<lotus::KeyProcessor>  lotusEngine_;
         std::u32string                        oldPreBuffer_;
+        std::u32string                        surrWord_;            ///< Word before the cursor as we last wrote it (surrounding path)
+        bool                                  surrKnown_       = false;
+        int64_t                               surrSoftResetAt_ = 0;
         bool                                  hasHistory_            = false;
         size_t                                expectedBackspaces_    = 0;
         size_t                                currentBackspaceCount_ = 0;
@@ -390,6 +393,8 @@ namespace fcitx {
          */
         void handleSurroundingText(KeyEvent& keyEvent, KeySym currentSym);
         bool shouldUseSurroundingText(KeyEvent& keyEvent) const;
+        void invalidateSurroundingWord(bool hard);
+        bool commitTypedText(KeyEvent& keyEvent, KeySym currentSym);
 
         /**
          * @brief Handles Off mode with macro shadow processing.

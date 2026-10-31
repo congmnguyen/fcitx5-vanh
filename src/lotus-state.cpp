@@ -758,12 +758,41 @@ namespace fcitx {
         oldPreBuffer_ = preeditStr;
     }
 
-    void LotusState::handleSurroundingText(KeyEvent& keyEvent, KeySym currentSym) {
-        if (forwardSpecialKey(keyEvent, currentSym))
+    void LotusState::invalidateSurroundingWord(bool hard) {
+        if (hard || !surrKnown_) {
+            surrKnown_ = false;
+            surrWord_.clear();
+            surrSoftResetAt_ = 0;
             return;
+        }
+        // Soft: a reset/focus bounce. Chromium bounces focus on every key in some editors,
+        // so keep the tracked word if typing resumes right away.
+        surrSoftResetAt_ = nowMs();
+    }
+
+    bool LotusState::commitTypedText(KeyEvent& keyEvent, KeySym currentSym) {
+        // Send printable keys through the same channel as replacements (commit), so a forwarded
+        // key and a following deleteSurroundingText can never arrive at the app out of order.
+        const auto states = keyEvent.rawKey().states();
+        if (states.testAny(KeyStates{KeyState::Ctrl, KeyState::Alt, KeyState::Super, KeyState::Hyper, KeyState::Meta}))
+            return false;
+        const uint32_t cp = Key::keySymToUnicode(currentSym);
+        if (cp < 0x20 || cp == 0x7F)
+            return false;
+        lotus::fcitx_text::commit(keyEvent.inputContext(), std::u32string(1, static_cast<char32_t>(cp)), lastCommitTime_);
+        keyEvent.filterAndAccept();
+        return true;
+    }
+
+    void LotusState::handleSurroundingText(KeyEvent& keyEvent, KeySym currentSym) {
+        if (forwardSpecialKey(keyEvent, currentSym)) {
+            invalidateSurroundingWord(true);
+            return;
+        }
         auto* ic = keyEvent.inputContext();
         if ((ic == nullptr) || !ic->capabilityFlags().test(CapabilityFlag::SurroundingText)) {
             LOTUS_WARN("Surrounding text not supported");
+            invalidateSurroundingWord(true);
             keyEvent.forward();
             return;
         }
@@ -771,102 +800,103 @@ namespace fcitx {
         const auto& surrounding = ic->surroundingText();
         if (!surrounding.isValid()) {
             LOTUS_WARN("Surrounding text is invalid");
+            invalidateSurroundingWord(true);
             keyEvent.forward();
             return;
         }
 
         if (isBackspace(keyEvent.rawKey().sym())) {
             (*lotusEngine_).reset();
+            if (surrKnown_ && !surrWord_.empty())
+                surrWord_.pop_back();
+            else
+                invalidateSurroundingWord(true);
             keyEvent.forward();
             return;
         }
 
-        const std::string& text   = surrounding.text();
-        const unsigned int cursor = std::min(surrounding.anchor(), surrounding.cursor());
-
-        const size_t       textLen = lotus::utf8::length(text);
-
-        if (cursor <= 0 || cursor > textLen) {
-            processNormalKey(keyEvent, currentSym);
-            return;
-        }
-
-        {
-            // The whole surrounding text is never decoded: the byte scan stops after kMaxScanLength
-            // code points before the cursor, and only that slice is decoded for the engine.
+        auto readWordBeforeCursor = [&surrounding]() {
+            const std::string& text    = surrounding.text();
+            const unsigned int cursor  = std::min(surrounding.anchor(), surrounding.cursor());
+            const size_t       textLen = lotus::utf8::length(text);
+            if (cursor == 0 || cursor > textLen)
+                return std::u32string{};
+            // Only the slice before the cursor (at most kMaxScanLength code points) is decoded.
             auto startIter = utf8::nextNChar(text.begin(), cursor);
             auto endIter   = startIter;
-
             int  scanCount = 0;
             while (startIter != text.begin() && scanCount < kMaxScanLength) {
                 auto prev = startIter;
-                if (prev != text.begin()) {
+                --prev;
+                while (prev != text.begin() && ((static_cast<unsigned char>(*prev) & 0xC0U) == 0x80)) {
                     --prev;
-                    while (prev != text.begin() && ((static_cast<unsigned char>(*prev) & 0xC0U) == 0x80)) {
-                        --prev;
-                    }
                 }
-
-                const uint32_t ucs4 = utf8::getChar(prev, text.end());
-
-                if (isWordBreak(ucs4))
+                if (isWordBreak(utf8::getChar(prev, text.end())))
                     break;
-
                 startIter = prev;
                 ++scanCount;
             }
+            return lotus::utf8::decode(std::string(startIter, endIter));
+        };
 
-            const std::string oldWordText(startIter, endIter);
+        std::u32string oldWord;
+        if (surrKnown_ && surrSoftResetAt_ == 0) {
+            // No reset since our last key: our own record of the word is authoritative. The app's
+            // surrounding text lags behind when typing fast, and rebuilding from it then deletes or
+            // keeps the wrong characters.
+            oldWord = surrWord_;
+        } else {
+            // First key, or the app reset/refocused (it may have changed the text): trust the app,
+            // which re-sends its text on focus/reset.
+            oldWord = readWordBeforeCursor();
+            if (surrKnown_ && oldWord != surrWord_)
+                LOTUS_DEBUG("Surrounding reseed: tracked '" + lotus::utf8::encode(surrWord_) + "' app '" + lotus::utf8::encode(oldWord) + "'");
+        }
+        surrSoftResetAt_ = 0;
 
-            if (oldWordText.empty()) {
-                processNormalKey(keyEvent, currentSym);
-                return;
-            }
-
-            const std::u32string oldWord = lotus::utf8::decode(oldWordText);
-
+        (*lotusEngine_).reset();
+        if (!oldWord.empty())
             lotusEngine_->rebuildFromText(oldWord);
 
-            bool processed = lotusEngine_->processKey(engineKeyValue(currentSym), lotus::keyStatesFromBits(static_cast<uint32_t>(keyEvent.rawKey().states())));
+        const bool processed = lotusEngine_->processKey(engineKeyValue(currentSym), lotus::keyStatesFromBits(static_cast<uint32_t>(keyEvent.rawKey().states())));
 
-            if (!processed) {
-                keyEvent.forward();
-                (*lotusEngine_).reset();
-                return;
-            }
-
-            std::u32string newWord = pullCommitString();
-            newWord += pullPreeditString();
-
-            DiffPart diffPart = compareAndSplitU32(oldWord, newWord);
-            // Only a pure append of the typed key can go straight to the client. When the whole old
-            // word is replaced by the key ("ư" + "w" -> "w"), the old word must still be deleted.
-            if (diffPart.deletedPart.empty() && diffPart.addedPart == lotus::utf8::decode(keyEvent.key().toString())) {
-                (*lotusEngine_).reset();
-                keyEvent.forward();
-                return;
-            }
-
-            if (!diffPart.deletedPart.empty() || !diffPart.addedPart.empty()) {
-                const size_t charsToDelete = diffPart.deletedPart.size();
-
-                if (charsToDelete > 0) {
-                    ic->deleteSurroundingText(-static_cast<int>(charsToDelete), static_cast<int>(charsToDelete));
-                }
-
-                if (!diffPart.addedPart.empty()) {
-                    lotus::fcitx_text::commit(ic, diffPart.addedPart, lastCommitTime_);
-                }
-
-                (*lotusEngine_).reset();
-                keyEvent.filterAndAccept();
-                return;
-            }
-
+        if (!processed) {
+            // Word break (space, punctuation...) or a key the engine doesn't take.
             (*lotusEngine_).reset();
-            keyEvent.filterAndAccept();
+            surrKnown_ = true;
+            surrWord_.clear();
+            if (!commitTypedText(keyEvent, currentSym)) {
+                invalidateSurroundingWord(true);
+                keyEvent.forward();
+            }
             return;
         }
+
+        std::u32string newWord = pullCommitString();
+        newWord += pullPreeditString();
+        (*lotusEngine_).reset();
+
+        const DiffPart diffPart = compareAndSplitU32(oldWord, newWord);
+        const size_t   charsToDelete = diffPart.deletedPart.size();
+        if (charsToDelete > 0) {
+            ic->deleteSurroundingText(-static_cast<int>(charsToDelete), static_cast<int>(charsToDelete));
+        }
+        if (!diffPart.addedPart.empty()) {
+            lotus::fcitx_text::commit(ic, diffPart.addedPart, lastCommitTime_);
+        }
+        LOTUS_DEBUG("Surrounding: '" + lotus::utf8::encode(oldWord) + "' -> '" + lotus::utf8::encode(newWord) + "' del=" + std::to_string(charsToDelete));
+
+        // Keep only the part after the last word break as the tracked word.
+        std::u32string word = newWord;
+        for (size_t i = word.size(); i > 0; --i) {
+            if (isWordBreak(static_cast<uint32_t>(word[i - 1]))) {
+                word = word.substr(i);
+                break;
+            }
+        }
+        surrWord_  = std::move(word);
+        surrKnown_ = true;
+        keyEvent.filterAndAccept();
     }
 
     void LotusState::processNormalKey(KeyEvent& keyEvent, KeySym currentSym) {
@@ -1017,6 +1047,7 @@ namespace fcitx {
 
         if (g_mouseClicked.load(std::memory_order_acquire) && !g_isDeleting.load(std::memory_order_acquire)) {
             g_mouseClicked.store(false, std::memory_order_release);
+            invalidateSurroundingWord(true);
             clearAllBuffers();
         }
         reconcileAbortedUinputReplacement();
@@ -1395,6 +1426,7 @@ namespace fcitx {
             return;
         }
         resetMacroSkip();
+        invalidateSurroundingWord(false);
         oldPreBuffer_.clear();
         hasHistory_         = false;
         uinputAbortPending_ = false;

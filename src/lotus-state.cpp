@@ -1266,6 +1266,17 @@ namespace fcitx {
         // Password fields: let the uinput path (and its own guards) decide.
         if (ic->capabilityFlags().test(CapabilityFlag::Password) || ic->capabilityFlags().test(CapabilityFlag::Sensitive))
             return false;
+        // Chromium address bar: inline autocomplete keeps a selection after the cursor, and
+        // deleteSurroundingText first eats that selection, leaving one character too many
+        // ("chans" -> "chaán"). The uinput path already handles it with Select.
+        if (ic->capabilityFlags().test(CapabilityFlag::Url) || engine_.isLikeAddressBarChromium()) {
+            LOTUS_DEBUG("Auto surrounding: Chromium address bar, use uinput");
+            return false;
+        }
+        if (surrounding.anchor() != surrounding.cursor()) {
+            LOTUS_DEBUG("Auto surrounding: selection present, use uinput");
+            return false;
+        }
         return true;
     }
 

@@ -11,6 +11,13 @@
   GPL-3.0-or-later.
 - **fcitx5-bamboo** — <https://github.com/fcitx/fcitx5-bamboo> — the fcitx5 addon whose glue the
   forked addon layer follows, Copyright (C) 2022-2022 CSSlayer <wengxt@gmail.com>, LGPL-2.1.
+- **fcitx5-lotus** — <https://github.com/LotusInputMethod/fcitx5-lotus> — the project Vanh is
+  forked from, GPL-3.0-or-later.
+- **Vikey** — <https://github.com/tonyminibot/Vikey> — GPL-3.0. The automatic English/Vietnamese
+  switching follows its engine, and `lotus/data/vikey_autoswitch_data.h` and
+  `lotus/data/vikey_bigram_data.h` are its generated tables, copied unchanged. Their sources:
+  FrequencyWords (Hermit Dave) / OpenSubtitles 2018, CC BY-SA 4.0; FineWeb-2 / FineWeb and
+  MADLAD-400, ODC-By; HPLT 2, CC0; Reddit and Vikey's forum crawl.
 
 ## This repository
 
@@ -27,5 +34,11 @@
 Copyright (C) 2022-2022 CSSlayer <wengxt@gmail.com>
 Copyright (C) 2025 Võ Ngô Hoàng Thành <thanhpy2009@gmail.com>
 Copyright (C) 2026 Nguyen Hoàng Ky <nhktmdzhg@gmail.com>
+
+Licensed under GPL-3.0-or-later; see `LICENSE`.
+
+## Vanh
+
+Copyright (C) 2026 Cong Nguyen <congminhnguyen@proton.me>
 
 Licensed under GPL-3.0-or-later; see `LICENSE`.

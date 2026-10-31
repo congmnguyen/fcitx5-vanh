@@ -2,201 +2,39 @@
 
 # Vanh
 
-**Vanh** (Việt + Anh) là bản fork của [fcitx5-lotus](https://github.com/LotusInputMethod/fcitx5-lotus), bộ gõ tiếng Việt cho fcitx5. Vanh gõ được tiếng Việt và tiếng Anh xen kẽ mà không cần chuyển chế độ.
+**Vanh** (Việt + Anh) là bộ gõ tiếng Việt cho fcitx5 trên Linux, gõ được tiếng Việt và tiếng Anh xen kẽ mà không cần chuyển chế độ. Vanh là bản fork của [fcitx5-lotus](https://github.com/LotusInputMethod/fcitx5-lotus).
 
-Những gì Vanh thêm so với lotus:
+## Tính năng
 
 - **Tự chuyển Anh/Việt.** Đến cuối từ, nếu phím vừa gõ là một từ tiếng Anh thì trả lại đúng phím đã gõ: `test` không thành "tét", `error` không thành "eror". Từ tiếng Việt vẫn giữ nguyên: `cos` → "có".
-- **Nhìn ngữ cảnh.** Một từ đọc được cả hai cách thì dựa vào từ đứng cạnh để quyết định (`cho con bus` → "cho con bú", `the bus` → giữ nguyên). Từ trước cũng được sửa lại khi cần: `thí makes` → "this makes". Danh sách từ và bảng cặp từ lấy từ [Vikey](https://github.com/tonyminibot/Vikey).
-- **Surrounding text tự động** trong Uinput mode khi app hỗ trợ (Brave, Facebook, thanh địa chỉ): không còn mất chữ hay lặp chữ khi gõ nhanh.
+- **Nhìn ngữ cảnh.** Một từ đọc được cả hai cách thì dựa vào từ đứng cạnh để quyết định (`cho con bus` → "cho con bú", `the bus` → giữ nguyên). Từ trước cũng được sửa lại khi cần: `thí makes` → "this makes".
+- **Surrounding text tự động** trong Uinput mode khi app hỗ trợ (Brave, Facebook, thanh địa chỉ): không còn mất chữ hay lặp chữ khi gõ nhanh. Terminal vẫn dùng uinput.
+- Mọi tính năng còn lại của lotus: Telex/VNI và các kiểu gõ khác, gõ không gạch chân, macro, từ điển, đổi bảng mã, emoji.
 
-Tên addon, tên gói và file cấu hình vẫn giữ là `lotus`, để dễ lấy bản sửa từ upstream về.
+Tên addon, tên gói và file cấu hình vẫn là `lotus`, nên cấu hình lotus cũ dùng được luôn.
 
-Giấy phép GPL-3.0-or-later, như lotus. Ghi công: [lotus](https://github.com/LotusInputMethod/fcitx5-lotus), [bamboo](https://github.com/BambooEngine/ibus-bamboo), [Vikey](https://github.com/tonyminibot/Vikey) (dữ liệu tự chuyển Anh/Việt). Phần dưới đây là README gốc của lotus.
-
----
-
-<a id="readme-top"></a>
-
-<div align="center">
-  <a href="https://lotusinputmethod.github.io/">
-    <img src="data/fcitx-lotus-README.svg" alt="Logo" width="80" height="80">
-  </a>
-
-<h2 align="center">Fcitx5 Lotus</h2>
-
-<p align="center">
-    <b>Bộ gõ tiếng Việt đơn giản, hiệu năng cao cho Linux</b>
-    <br />
-    <a href="https://lotusinputmethod.github.io/"><strong>Khám phá trang chủ »</strong></a>
-    <br />
-    <br />
-    <a href="https://github.com/LotusInputMethod/fcitx5-lotus/releases">
-      <img src="https://img.shields.io/github/v/release/LotusInputMethod/fcitx5-lotus?style=flat&color=success" alt="Release">
-    </a>
-    <a href="https://github.com/LotusInputMethod/fcitx5-lotus/blob/main/LICENSE">
-      <img src="https://img.shields.io/github/license/LotusInputMethod/fcitx5-lotus?style=flat&color=blue" alt="License">
-    </a>
-    <a href="https://lotusinputmethod.github.io/">
-      <img src="https://img.shields.io/badge/website-live-brightgreen?style=flat&logo=firefox&logoColor=white" alt="Website">
-    </a>
-    <a href="https://github.com/LotusInputMethod/fcitx5-lotus/stargazers">
-      <img src="https://img.shields.io/github/stars/LotusInputMethod/fcitx5-lotus?style=flat&color=yellow" alt="Stars">
-    </a>
-    <a href="https://github.com/LotusInputMethod/fcitx5-lotus/network/members">
-      <img src="https://img.shields.io/github/forks/LotusInputMethod/fcitx5-lotus?style=flat&color=orange" alt="Forks">
-    </a>
-    <a href="https://github.com/LotusInputMethod/fcitx5-lotus/issues">
-      <img src="https://img.shields.io/github/issues/LotusInputMethod/fcitx5-lotus?style=flat&color=red" alt="Issues">
-    </a>
-    <a href="#contributors-">
-      <img src="https://img.shields.io/badge/all_contributors-22-orange.svg?style=flat-square" alt="All Contributors">
-    </a>
-    <a href="https://deepwiki.com/LotusInputMethod/fcitx5-lotus"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
-  </p>
-
-<p align="center">
-    <a href="https://lotusinputmethod.github.io/#installation"><strong>Cài đặt »</strong></a>
-    <br />
-    <br />
-    <a href="https://github.com/LotusInputMethod/fcitx5-lotus/issues/new?template=bug_report.yml">Báo lỗi</a>
-    ·
-    <a href="https://github.com/LotusInputMethod/fcitx5-lotus/issues/new?template=feature_request.yml">Yêu cầu tính năng</a>
-  </p>
-</div>
-
-<br />
-
-Dự án này là bản fork được tối ưu hóa từ [bộ gõ VMK](https://github.com/thanhpy2009/VMK). Chân thành cảm ơn tác giả Thành đã đặt nền móng cho bộ gõ này.
-
-## Cài đặt & Hướng dẫn sử dụng
-
-Để có trải nghiệm tốt nhất và nhận được các hướng dẫn cài đặt, cấu hình chi tiết, chính xác cho từng bản phân phối Linux (Arch, Debian, Ubuntu, Fedora, NixOS...), vui lòng truy cập trang chủ của dự án:
-
-**[Xem Hướng dẫn cài đặt chi tiết tại đây](https://lotusinputmethod.github.io/#installation)**
-
----
-
-## Biên dịch từ mã nguồn (Dành cho nhà phát triển)
-
-Nếu bạn muốn tự biên dịch bộ gõ từ mã nguồn để đóng góp hoặc tuỳ chỉnh:
-
-### Yêu cầu hệ thống
-
-- **Debian/Ubuntu:** `sudo apt-get install cmake extra-cmake-modules libfcitx5core-dev libfcitx5config-dev libfcitx5utils-dev libevdev-dev libinput-dev libnotify-dev libudev-dev g++ hicolor-icon-theme pkg-config fcitx5-modules-dev python3-qtpy python3-dbus acl`
-- **Fedora/RHEL:** `sudo dnf install cmake extra-cmake-modules fcitx5-devel libevdev-devel libinput-devel libnotify-devel libudev-devel gcc-c++ hicolor-icon-theme systemd-devel python3-pyside6 python3-QtPy python3-dbus acl`
-- **openSUSE:** `sudo zypper install cmake kf6-extra-cmake-modules fcitx5-devel libevdev-devel libinput-devel libnotify-devel systemd-devel gcc-c++ hicolor-icon-theme systemd-devel python3-pyside6 python3-QtPy python3-dbus-python acl`
-- **Arch:** `sudo pacman -S --needed cmake extra-cmake-modules gcc git python make pkgconf acl fcitx5 libevdev libinput libnotify hicolor-icon-theme python-qtpy python-dbus`
-
-### Cài đặt
+## Build và cài (Debian/Ubuntu)
 
 ```bash
-git clone https://github.com/LotusInputMethod/fcitx5-lotus.git
-cd fcitx5-lotus
-cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=/usr/lib . #LIBDIR tuỳ vào distro
-make
-sudo make install
+sudo apt install --no-install-recommends debhelper dh-python cmake g++ extra-cmake-modules fcitx5-modules-dev \
+  libfcitx5core-dev libfcitx5config-dev libfcitx5utils-dev libinput-dev libevdev-dev libnotify-dev \
+  libdbus-1-dev libudev-dev pkg-config python3 gettext
+git clone -b auto-surrounding https://github.com/congmnguyen/fcitx5-vanh && cd fcitx5-vanh
+cp -r packaging/debian debian && dpkg-buildpackage -b -us -uc -j$(nproc) && rm -rf debian obj-*
+sudo apt install ../fcitx5-lotus_*_amd64.deb python3-pyqt5
+sudo systemctl enable --now fcitx5-lotus-server@$USER
+fcitx5 -r -d
 ```
 
----
+Distro khác: `cmake -DCMAKE_INSTALL_PREFIX=/usr . && make && sudo make install` với các gói dev tương ứng.
 
-<a id="đóng-góp"></a>
+## Giấy phép và ghi công
 
-## 🤝 Đóng góp
+GPL-3.0-or-later, xem [`LICENSE`](LICENSE). Vanh dựa trên:
 
-Đóng góp là điều làm cho cộng đồng mã nguồn mở trở thành một nơi tuyệt vời để học hỏi, truyền cảm hứng và sáng tạo. Mọi đóng góp của bạn đều được **đánh giá cao**.
+- **[fcitx5-lotus](https://github.com/LotusInputMethod/fcitx5-lotus)** (GPL-3.0-or-later), fork từ **[VMK](https://github.com/thanhpy2009/VMK)**.
+- **[bamboo-core](https://github.com/BambooEngine/bamboo-core)**: engine gõ gốc, MIT, © 2018 Luong Thanh Lam ([`lotus/LICENSE.bamboo-core`](lotus/LICENSE.bamboo-core)).
+- **[fcitx5-bamboo](https://github.com/fcitx/fcitx5-bamboo)**: phần glue fcitx5 dựa theo, LGPL-2.1.
+- **[Vikey](https://github.com/tonyminibot/Vikey)** (GPL-3.0): danh sách từ, tần suất và cặp từ cho tự chuyển Anh/Việt. Nguồn dữ liệu gốc: FrequencyWords/OpenSubtitles 2018 (CC BY-SA 4.0), FineWeb-2/FineWeb và MADLAD-400 (ODC-By), HPLT 2 (CC0).
 
-Vui lòng xem hướng dẫn chi tiết [tại đây](CONTRIBUTING.md) để biết cách tham gia phát triển dự án, quy trình Pull Request, quy tắc code style và **quy tắc ứng xử**.
-
-Đừng quên tặng dự án một ⭐! Cảm ơn bạn rất nhiều!
-
----
-
-## Những người đóng góp ✨
-
-Cảm ơn những con người tuyệt vời ([chú thích emoji](https://allcontributors.org/en/reference/emoji-key)):
-
-<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
-<!-- prettier-ignore-start -->
-<!-- markdownlint-disable -->
-<table>
-  <tbody>
-    <tr>
-      <td align="center" valign="top" width="25%"><a href="https://github.com/nhktmdzhg"><img src="https://avatars.githubusercontent.com/u/57983253?v=4&size=100" width="100px" height="100px" alt="Nguyen Hoang Ky"/><br /><sub><b>Nguyen Hoang Ky</b></sub></a><br /><a href="#blog-nhktmdzhg" title="Blogposts">📝</a> <a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=nhktmdzhg" title="Code">💻</a> <a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=nhktmdzhg" title="Documentation">📖</a> <a href="#projectManagement-nhktmdzhg" title="Project Management">📆</a> <a href="https://github.com/LotusInputMethod/fcitx5-lotus/pulls?q=is%3Apr+reviewed-by%3Anhktmdzhg" title="Reviewed Pull Requests">👀</a></td>
-      <td align="center" valign="top" width="25%"><a href="https://github.com/hthienloc"><img src="https://avatars.githubusercontent.com/u/148019203?v=4&size=100" width="100px" height="100px" alt="Huỳnh Thiện Lộc"/><br /><sub><b>Huỳnh Thiện Lộc</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/issues?q=author%3Ahthienloc" title="Bug reports">🐛</a> <a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=hthienloc" title="Documentation">📖</a> <a href="#design-hthienloc" title="Design">🎨</a> <a href="#translation-hthienloc" title="Translation">🌍</a> <a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=hthienloc" title="Code">💻</a></td>
-      <td align="center" valign="top" width="25%"><a href="https://github.com/justanoobcoder"><img src="https://avatars.githubusercontent.com/u/57614330?v=4&size=100" width="100px" height="100px" alt="Nguyễn Hồng Hiệp"/><br /><sub><b>Nguyễn Hồng Hiệp</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=justanoobcoder" title="Documentation">📖</a></td>
-      <td align="center" valign="top" width="25%"><a href="https://github.com/Miho1254"><img src="https://avatars.githubusercontent.com/u/83270073?v=4&size=100" width="100px" height="100px" alt="Đặng Quang Hiển"/><br /><sub><b>Đặng Quang Hiển</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=Miho1254" title="Documentation">📖</a> <a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=Miho1254" title="Code">💻</a></td>
-    </tr>
-    <tr>
-      <td align="center" valign="top" width="25%"><a href="https://github.com/Zebra2711"><img src="https://avatars.githubusercontent.com/u/89755535?v=4&size=100" width="100px" height="100px" alt="Zebra2711"/><br /><sub><b>Zebra2711</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/issues?q=author%3AZebra2711" title="Bug reports">🐛</a> <a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=Zebra2711" title="Code">💻</a></td>
-      <td align="center" valign="top" width="25%"><a href="https://github.com/hien-ngo29"><img src="https://avatars.githubusercontent.com/u/98635550?v=4&size=100" width="100px" height="100px" alt="Ngo Phu Hien"/><br /><sub><b>Ngo Phu Hien</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=hien-ngo29" title="Code">💻</a></td>
-      <td align="center" valign="top" width="25%"><a href="https://github.com/minhtrancccp"><img src="https://avatars.githubusercontent.com/u/33189614?v=4&size=100" width="100px" height="100px" alt="Minh Tran"/><br /><sub><b>Minh Tran</b></sub></a><br /><a href="#platform-minhtrancccp" title="Packaging/porting to new platform">📦</a></td>
-      <td align="center" valign="top" width="25%"><a href="https://github.com/hieutran21198"><img src="https://avatars.githubusercontent.com/u/87953912?v=4&size=100" width="100px" height="100px" alt="Trần Minh Hiếu (Cirius)"/><br /><sub><b>Trần Minh Hiếu (Cirius)</b></sub></a><br /><a href="#platform-hieutran21198" title="Packaging/porting to new platform">📦</a></td>
-    </tr>
-    <tr>
-      <td align="center" valign="top" width="25%"><a href="https://github.com/namtao"><img src="https://avatars.githubusercontent.com/u/48555338?v=4&size=100" width="100px" height="100px" alt="namtao"/><br /><sub><b>namtao</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=namtao" title="Code">💻</a></td>
-      <td align="center" valign="top" width="25%"><a href="https://github.com/minhdaolesoez"><img src="https://avatars.githubusercontent.com/u/70090530?v=4&size=100" width="100px" height="100px" alt="Dao Le Minh"/><br /><sub><b>Dao Le Minh</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=minhdaolesoez" title="Code">💻</a></td>
-      <td align="center" valign="top" width="25%"><a href="https://github.com/xoaiPro235"><img src="https://avatars.githubusercontent.com/u/145014259?v=4&size=100" width="100px" height="100px" alt="Mai Văn Lực"/><br /><sub><b>Mai Văn Lực</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=xoaiPro235" title="Code">💻</a></td>
-      <td align="center" valign="top" width="25%"><a href="https://github.com/dismonjames"><img src="https://avatars.githubusercontent.com/u/158133523?v=4&size=100" width="100px" height="100px" alt="Lê Hùng Quang Minh"/><br /><sub><b>Lê Hùng Quang Minh</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=dismonjames" title="Code">💻</a></td>
-    </tr>
-    <tr>
-      <td align="center" valign="top" width="25%"><a href="https://github.com/naoNao89"><img src="https://avatars.githubusercontent.com/u/90588855?v=4&size=100" width="100px" height="100px" alt="Cả thế giới là Rust"/><br /><sub><b>Cả thế giới là Rust</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=naoNao89" title="Code">💻</a></td>
-      <td align="center" valign="top" width="25%"><a href="https://github.com/collyn"><img src="https://avatars.githubusercontent.com/u/13034759?v=4&size=100" width="100px" height="100px" alt="Nguyen Tien Huy"/><br /><sub><b>Nguyen Tien Huy</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=collyn" title="Code">💻</a></td>
-      <td align="center" valign="top" width="25%"><a href="https://github.com/ducky-duke"><img src="https://avatars.githubusercontent.com/u/96020037?v=4&size=100" width="100px" height="100px" alt="ducky-duke"/><br /><sub><b>ducky-duke</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=ducky-duke" title="Code">💻</a></td>
-      <td align="center" valign="top" width="25%"><a href="https://github.com/minhnbnt"><img src="https://avatars.githubusercontent.com/u/114562412?v=4&size=100" width="100px" height="100px" alt="Nguyễn Quang Minh"/><br /><sub><b>Nguyễn Quang Minh</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=minhnbnt" title="Code">💻</a></td>
-    </tr>
-    <tr>
-      <td align="center" valign="top" width="25%"><a href="https://github.com/nguyenphivn"><img src="https://avatars.githubusercontent.com/u/19565657?v=4&size=100" width="100px" height="100px" alt="nguyenphivn"/><br /><sub><b>nguyenphivn</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=nguyenphivn" title="Code">💻</a> <a href="https://github.com/LotusInputMethod/fcitx5-lotus/issues?q=author%3Anguyenphivn" title="Bug reports">🐛</a></td>
-      <td align="center" valign="top" width="25%"><a href="https://github.com/Coolllyn"><img src="https://avatars.githubusercontent.com/u/259352926?v=4&size=100" width="100px" height="100px" alt="Coolllyn"/><br /><sub><b>Coolllyn</b></sub></a><br /><a href="#platform-Coolllyn" title="Packaging/porting to new platform">📦</a> <a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=Coolllyn" title="Code">💻</a> <a href="https://github.com/LotusInputMethod/fcitx5-lotus/issues?q=author%3ACoolllyn" title="Bug reports">🐛</a></td>
-      <td align="center" valign="top" width="25%"><a href="https://github.com/vanphat111"><img src="https://avatars.githubusercontent.com/u/133842092?v=4&size=100" width="100px" height="100px" alt="Vanphat111"/><br /><sub><b>Vanphat111</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=vanphat111" title="Code">💻</a></td>
-      <td align="center" valign="top" width="25%"><a href="https://github.com/conqazht"><img src="https://avatars.githubusercontent.com/u/152205582?v=4&size=100" width="100px" height="100px" alt="Trương Công Anh"/><br /><sub><b>Trương Công Anh</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=conqazht" title="Code">💻</a></td>
-    </tr>
-    <tr>
-      <td align="center" valign="top" width="25%"><a href="https://github.com/ducvd89"><img src="https://avatars.githubusercontent.com/u/79311308?v=4&size=100" width="100px" height="100px" alt="Cid"/><br /><sub><b>Cid</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=ducvd89" title="Code">💻</a></td>
-      <td align="center" valign="top" width="25%"><a href="https://kimxuanhong.github.io/"><img src="https://avatars.githubusercontent.com/u/40137730?v=4&size=100" width="100px" height="100px" alt="Kim Xuân Hồng"/><br /><sub><b>Kim Xuân Hồng</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=kimxuanhong" title="Code">💻</a> <a href="https://github.com/LotusInputMethod/fcitx5-lotus/issues?q=author%3Akimxuanhong" title="Bug reports">🐛</a> <a href="#ideas-kimxuanhong" title="Ideas, Planning, & Feedback">🤔</a></td>
-    </tr>
-  </tbody>
-  <tfoot>
-    <tr>
-      <td align="center" size="13px" colspan="4">
-        <img src="https://raw.githubusercontent.com/all-contributors/all-contributors-cli/1b8533af435da9854653492b1327a23a4dbd0a10/assets/logo-small.svg">
-          <a href="https://all-contributors.js.org/docs/en/bot/usage">Add your contributions</a>
-        </img>
-      </td>
-    </tr>
-  </tfoot>
-</table>
-
-<!-- markdownlint-restore -->
-<!-- prettier-ignore-end -->
-
-<!-- ALL-CONTRIBUTORS-LIST:END -->
-
-Dự án này tuân thủ cấu trúc của [all-contributors](https://github.com/all-contributors/all-contributors). Mọi đóng góp đều được hoan nghênh!
-
----
-
-<a id="giấy-phép"></a>
-
-## 📃 Giấy phép
-
-Dự án được phân phối dưới giấy phép **GNU General Public License v3 (GPL-3.0-or-later)**. Xem [`LICENSE`](LICENSE) để biết thêm chi tiết.
-
-Các thư viện bên thứ ba (bao gồm các thành phần theo giấy phép MIT) vẫn giữ nguyên bản quyền của các tác giả gốc. Cụ thể:
-
-- **[bamboo-core](https://github.com/BambooEngine/bamboo-core)** — engine gõ tiếng Việt gốc bằng Go, MIT, © 2018 Luong Thanh Lam. Bản MIT được giữ tại [`lotus/LICENSE.bamboo-core`](lotus/LICENSE.bamboo-core).
-- **[VMK](https://github.com/thanhpy2009/VMK)** — dự án mà addon này fork trực tiếp, GPL-3.0-or-later.
-- **[fcitx5-bamboo](https://github.com/fcitx/fcitx5-bamboo)** — addon fcitx5 mà phần glue được dựa theo, LGPL-2.1.
-
-Phần C++ của engine (`lotus/`) là bản port từ bamboo-core và phát hành dưới GPL-3.0-or-later. Danh sách ghi công đầy đủ có trong [`CREDITS`](CREDITS) và trong mục **About** của ứng dụng.
-
----
-
-## ✨ Lịch sử sao
-
-<a href="https://github.com/LotusInputMethod/fcitx5-lotus">
-  <img
-    src="https://lotusinputmethod.github.io/starcharts.svg"
-    alt="Star History Chart"
-  />
-</a>
+Ghi công đầy đủ trong [`CREDITS`](CREDITS).

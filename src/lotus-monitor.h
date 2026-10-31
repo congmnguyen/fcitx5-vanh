@@ -8,7 +8,7 @@
 
 /**
  * @file lotus-monitor.h
- * @brief Input monitoring and timing utilities for fcitx5-lotus.
+ * @brief Input monitoring and timing utilities for fcitx5-vanh.
  */
 
 #ifndef _FCITX5_LOTUS_MONITOR_H_

@@ -29,7 +29,7 @@ namespace {
 } // namespace
 
 int main() {
-    configureTestPaths("fcitx5-lotus-anchor-key-protocol");
+    configureTestPaths("fcitx5-vanh-anchor-key-protocol");
     TestInstance       testInstance;
     fcitx::LotusEngine engine(&testInstance.instance);
     fcitx::RawConfig   config;
@@ -41,7 +41,7 @@ int main() {
     if (!listener.valid())
         return 1;
 
-    fcitx::InputMethodEntry entry("lotus", "Lotus", "vi", "lotus");
+    fcitx::InputMethodEntry entry("vanh", "Vanh", "vi", "vanh");
     auto                    context = std::make_unique<TestInputContext>(&testInstance.instance);
     context->focusIn();
     fcitx::InputContextEvent focus(context.get(), fcitx::EventType::InputContextFocusIn);
@@ -90,6 +90,6 @@ int main() {
         return 1;
     }
 
-    std::printf("lotus anchor key protocol: all checks passed\n");
+    std::printf("vanh anchor key protocol: all checks passed\n");
     return 0;
 }

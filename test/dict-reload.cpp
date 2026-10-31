@@ -5,7 +5,7 @@
  *        custom dictionary file.
  *
  * Editing the custom dictionary in the settings GUI rewrites
- * `$XDG_DATA_HOME/fcitx5/lotus/vietnamese.cm.dict` and then re-applies the
+ * `$XDG_DATA_HOME/fcitx5/vanh/vietnamese.cm.dict` and then re-applies the
  * configuration through D-Bus. The engine must pick the new words up on every
  * apply; loading only at startup forced users to restart fcitx5.
  *
@@ -34,10 +34,10 @@ namespace {
     }
 
     // Writes the word list to both places the engine may resolve
-    // "lotus/vietnamese.cm.dict" from, so the test does not depend on the
+    // "vanh/vietnamese.cm.dict" from, so the test does not depend on the
     // lookup order between the user data dir and the system data dirs.
     void writeDictionary(const std::filesystem::path& root, const std::string& words) {
-        for (const auto& path : {root / "data/fcitx5/lotus/vietnamese.cm.dict", root / "pkgdata/fcitx5/lotus/vietnamese.cm.dict"}) {
+        for (const auto& path : {root / "data/fcitx5/vanh/vietnamese.cm.dict", root / "pkgdata/fcitx5/vanh/vietnamese.cm.dict"}) {
             std::filesystem::create_directories(path.parent_path());
             std::ofstream file(path);
             file << words;
@@ -49,7 +49,7 @@ namespace {
         auto context = std::make_unique<TestInputContext>(instance);
         context->setCapabilityFlags(fcitx::CapabilityFlag::Preedit);
         context->focusIn();
-        fcitx::InputMethodEntry  entry("lotus", "Lotus", "vi", "lotus");
+        fcitx::InputMethodEntry  entry("vanh", "Vanh", "vi", "vanh");
         fcitx::InputContextEvent in(context.get(), fcitx::EventType::InputContextFocusIn);
         engine.activate(entry, in);
 
@@ -73,7 +73,7 @@ namespace {
 } // namespace
 
 int main() {
-    const char* testName = "fcitx5-lotus-dict-reload";
+    const char* testName = "fcitx5-vanh-dict-reload";
     configureTestPaths(testName);
 
     const auto root = std::filesystem::temp_directory_path() / testName;

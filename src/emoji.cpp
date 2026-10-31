@@ -23,7 +23,7 @@ EmojiLoader::EmojiLoader(fcitx::AddonManager* addonManager) {
     if (addonManager != nullptr) {
         emojiAddon_ = addonManager->addon("emoji", true);
     }
-    historyPath_ = lotusConfigDir() + "/lotus-emoji-history.conf";
+    historyPath_ = lotusConfigDir() + "/vanh-emoji-history.conf";
     loadFromFcitx5("en");
     loadHistory();
 }

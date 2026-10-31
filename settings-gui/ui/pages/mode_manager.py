@@ -9,7 +9,7 @@ import copy
 import os
 import re
 
-from core.dbus_handler import LotusDBusHandler
+from core.dbus_handler import VanhDBusHandler
 from i18n import _
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtGui import QIcon
@@ -134,7 +134,7 @@ class ModeCard(QFrame):
 class ModeManagerPage(QWidget):
     """Main Mode Manager page."""
 
-    def __init__(self, dbus_handler: LotusDBusHandler, parent=None):
+    def __init__(self, dbus_handler: VanhDBusHandler, parent=None):
         super().__init__(parent)
         self.dbus = dbus_handler
         self.app_rules = {}

@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(fcitx5-lotus VERSION 6.0.4)
+project(fcitx5-vanh VERSION 6.0.4)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-option(BUILD_TESTING "Build Lotus tests" OFF)
+option(BUILD_TESTING "Build Vanh tests" OFF)
 
 # The addon entry point is intentionally excluded: headless tests link the
 # production implementation through the lotus_test_core target, never the
@@ -22,6 +22,7 @@ set(fcitx_lotus_core_sources
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lotus-key-buffer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lotus-notify.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/emoji.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/vanh-migration.cpp
 )
 
 set(REQUIRED_FCITX_VERSION 5.0.14)
@@ -46,7 +47,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_definitions(-DFCITX_GETTEXT_DOMAIN=\"fcitx5-lotus\") 
+add_definitions(-DFCITX_GETTEXT_DOMAIN=\"fcitx5-vanh\") 
 
 if (Fcitx5Utils_VERSION VERSION_GREATER_EQUAL "5.1.13")
     add_definitions(-DLOTUS_USE_MODERN_FCITX_API)
@@ -58,9 +59,9 @@ fcitx5_add_i18n_definition()
 
 # Absolute paths that every packaging has to override.
 set(LOTUS_FCITX5_EXECUTABLE "/usr/bin/fcitx5" CACHE STRING
-    "fcitx5 executable allowed to connect to the Lotus uinput/mouse sockets")
-set(LOTUS_SERVER_EXECUTABLE "/usr/bin/fcitx5-lotus-server" CACHE STRING
-    "fcitx5-lotus-server executable allowed to connect to the Lotus mouse socket")
+    "fcitx5 executable allowed to connect to the Vanh uinput/mouse sockets")
+set(LOTUS_SERVER_EXECUTABLE "/usr/bin/fcitx5-vanh-server" CACHE STRING
+    "fcitx5-vanh-server executable allowed to connect to the Vanh mouse socket")
 set(LOTUS_ALT_EXECUTABLE_PREFIX "" CACHE STRING
     "Additional prefix whose <prefix>*bin/<name> executables are accepted too (NixOS: /nix/store/)")
 set(LOTUS_SETFACL_EXECUTABLE "/usr/bin/setfacl" CACHE FILEPATH
@@ -81,18 +82,18 @@ if (BUILD_TESTING)
 endif()
 
 configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/org.fcitx.Fcitx5.Addon.Lotus.metainfo.xml.in.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/org.fcitx.Fcitx5.Addon.Lotus.metainfo.xml.in"
+    "${CMAKE_CURRENT_SOURCE_DIR}/org.fcitx.Fcitx5.Addon.Vanh.metainfo.xml.in.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/org.fcitx.Fcitx5.Addon.Vanh.metainfo.xml.in"
     @ONLY
 )
 
 fcitx5_translate_desktop_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/org.fcitx.Fcitx5.Addon.Lotus.metainfo.xml.in"
-    org.fcitx.Fcitx5.Addon.Lotus.metainfo.xml
+    "${CMAKE_CURRENT_BINARY_DIR}/org.fcitx.Fcitx5.Addon.Vanh.metainfo.xml.in"
+    org.fcitx.Fcitx5.Addon.Vanh.metainfo.xml
     XML
 )
 
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/org.fcitx.Fcitx5.Addon.Lotus.metainfo.xml" DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/org.fcitx.Fcitx5.Addon.Vanh.metainfo.xml" DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo)
 
 install(FILES 
         LICENSE

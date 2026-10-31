@@ -16,7 +16,7 @@
 #include <thread>
 
 int main() {
-    configureTestPaths("fcitx5-lotus-kb-sender");
+    configureTestPaths("fcitx5-vanh-kb-sender");
 
     KbSocketListener listener;
     if (!listener.valid())
@@ -40,6 +40,6 @@ int main() {
         return 1;
     }
 
-    std::printf("lotus kb sender: all checks passed\n");
+    std::printf("vanh kb sender: all checks passed\n");
     return 0;
 }

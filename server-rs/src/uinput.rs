@@ -46,7 +46,7 @@ pub struct DeviceSpec {
     pub keys: &'static [u16],
 }
 
-/// The Lotus virtual keyboard, identical to the one the C++ server created.
+/// The Vanh virtual keyboard, identical to the one the C++ server created.
 pub fn lotus_keyboard() -> DeviceSpec {
     DeviceSpec {
         name: names::UINPUT_NAME,
@@ -150,14 +150,14 @@ mod tests {
     #[test]
     fn device_identity_matches_the_cxx_server() {
         let spec = lotus_keyboard();
-        assert_eq!(spec.name, "Lotus-Uinput-Server");
+        assert_eq!(spec.name, "Vanh-Uinput-Server");
         assert_eq!(spec.id, sys::InputId { bustype: 0x03, vendor: 0x1234, product: 0x5678, version: 0 });
         assert_eq!(spec.event_types, &[keys::EV_SYN, keys::EV_KEY], "EV_KEY only (EV_SYN is implicit), no EV_REL");
         assert_eq!(spec.keys, &[14, 105, 42, 111, 119], "BackSpace, Left, LeftShift, Delete, Pause");
         assert!(!spec.keys.contains(&30), "no unrelated key (KEY_A)");
         let setup = spec.setup();
-        assert_eq!(&setup.name[..19], b"Lotus-Uinput-Server");
-        assert!(setup.name[19..].iter().all(|&byte| byte == 0));
+        assert_eq!(&setup.name[..18], b"Vanh-Uinput-Server");
+        assert!(setup.name[18..].iter().all(|&byte| byte == 0));
         assert_eq!(setup.ff_effects_max, 0);
     }
 
@@ -173,7 +173,7 @@ mod tests {
     fn sysname_lookup_rejects_odd_names() {
         assert_eq!(find_event_node(b""), None);
         assert_eq!(find_event_node(b"../../etc"), None);
-        assert_eq!(find_event_node(b"no-such-lotus-input"), None);
+        assert_eq!(find_event_node(b"no-such-vanh-input"), None);
     }
 
     /// Creates the real device. Opt-in (LOTUS_TEST_UINPUT=1) and skipped without write access to

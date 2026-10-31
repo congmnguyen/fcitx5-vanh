@@ -4,4 +4,4 @@
 """Installation paths configured at build time."""
 
 LOCALE_DIR = "@CMAKE_INSTALL_FULL_LOCALEDIR@"
-DICTIONARY_PATH = "@CMAKE_INSTALL_FULL_DATADIR@/fcitx5/lotus/vietnamese.cm.dict"
+DICTIONARY_PATH = "@CMAKE_INSTALL_FULL_DATADIR@/fcitx5/vanh/vietnamese.cm.dict"

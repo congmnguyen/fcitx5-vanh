@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Fcitx5 Vanh Settings
+Comment=Configure Fcitx5 Vanh Input Method
+Exec=fcitx5-vanh-settings
+Icon=fcitx-vanh
+StartupWMClass=org.fcitx.Fcitx5.Addon.Vanh.Settings
+Terminal=false
+Type=Application
+Categories=Settings;DesktopSettings;

@@ -8,8 +8,8 @@ svc=$(basename "$svc")
 
 user="${svc#*.}"
 if [ "$user" = "$svc" ]; then
-    echo "fcitx5-lotus cannot be started directly." >&2
-    echo "Use symlink like: fcitx5-lotus.<user>" >&2
+    echo "fcitx5-vanh cannot be started directly." >&2
+    echo "Use symlink like: fcitx5-vanh.<user>" >&2
     exit 1
 fi
 
@@ -20,4 +20,4 @@ exec setpriv \
     --bounding-set -all,+sys_nice,+sys_ptrace \
     --inh-caps +sys_nice,+sys_ptrace \
     --ambient-caps +sys_nice,+sys_ptrace \
-    @CMAKE_INSTALL_FULL_BINDIR@/fcitx5-lotus-server -u "$user" 2>&1
+    @CMAKE_INSTALL_FULL_BINDIR@/fcitx5-vanh-server -u "$user" 2>&1

@@ -1,28 +1,114 @@
 #!/bin/sh
 set -e
 
+OLD_UNIT_PREFIX="fcitx5-lotus-server@"
+NEW_UNIT_PREFIX="fcitx5-vanh-server@"
+WANTS_DIR="/etc/systemd/system/multi-user.target.wants"
+
+# True when systemd is the running init (false in a chroot, a container without systemd, a build).
+systemd_running() {
+    [ -d /run/systemd/system ]
+}
+
+# Users whose fcitx5-lotus-server@<user>.service is enabled (one per line).
+old_server_users() {
+    for link in "$WANTS_DIR/$OLD_UNIT_PREFIX"*.service; do
+        # Unmatched glob, or a link that vanished meanwhile.
+        [ -L "$link" ] || [ -e "$link" ] || continue
+        user="${link##*/"$OLD_UNIT_PREFIX"}"
+        user="${user%.service}"
+        [ -n "$user" ] && printf '%s\n' "$user"
+    done
+    return 0
+}
+
+# Users whose fcitx5-vanh-server@<user>.service is already enabled (one per line).
+new_server_users() {
+    for link in "$WANTS_DIR/$NEW_UNIT_PREFIX"*.service; do
+        [ -L "$link" ] || [ -e "$link" ] || continue
+        user="${link##*/"$NEW_UNIT_PREFIX"}"
+        user="${user%.service}"
+        [ -n "$user" ] && printf '%s\n' "$user"
+    done
+    return 0
+}
+
+# Moves every enabled fcitx5-lotus-server@<user> instance to fcitx5-vanh-server@<user>. The old
+# package removed its unit file, so its wants/ links dangle; they are deleted here.
+migrate_old_server_units() {
+    users="$(old_server_users)"
+    [ -n "$users" ] || return 0
+    for user in $users; do
+        echo "fcitx5-vanh: moving ${OLD_UNIT_PREFIX}${user}.service to ${NEW_UNIT_PREFIX}${user}.service"
+        if systemd_running; then
+            # The old daemon may still run from the deleted binary: stop it before the new one
+            # takes /dev/uinput.
+            systemctl stop "${OLD_UNIT_PREFIX}${user}.service" >/dev/null 2>&1 || true
+        fi
+        rm -f "$WANTS_DIR/${OLD_UNIT_PREFIX}${user}.service"
+        if command -v systemctl >/dev/null 2>&1; then
+            # systemctl enable works offline (chroot) too: it only creates the wants/ link.
+            systemctl enable "${NEW_UNIT_PREFIX}${user}.service" >/dev/null 2>&1 \
+                || ln -sf /usr/lib/systemd/system/fcitx5-vanh-server@.service "$WANTS_DIR/${NEW_UNIT_PREFIX}${user}.service"
+        else
+            mkdir -p "$WANTS_DIR"
+            ln -sf /usr/lib/systemd/system/fcitx5-vanh-server@.service "$WANTS_DIR/${NEW_UNIT_PREFIX}${user}.service"
+        fi
+    done
+    if systemd_running; then
+        systemctl daemon-reload >/dev/null 2>&1 || true
+    fi
+}
+
+# (Re)starts every enabled fcitx5-vanh-server@<user> instance, so an upgrade runs the new binary.
+restart_server_units() {
+    systemd_running || return 0
+    for user in $(new_server_users); do
+        systemctl restart "${NEW_UNIT_PREFIX}${user}.service" || \
+            echo "fcitx5-vanh: could not restart ${NEW_UNIT_PREFIX}${user}.service" >&2
+    done
+}
+
 if [ "$1" = "configure" ]; then
     if command -v systemd-sysusers >/dev/null 2>&1; then
-        systemd-sysusers lotus.conf
+        systemd-sysusers vanh.conf || true
     fi
-    
-    if [ -z "$2" ]; then
-        echo "--- Cấu hình Lotus ---"
+
+    # Load the uinput module now (modules-load.d only acts at boot) and apply 99-vanh.rules.
+    if [ -d /run/udev ] && command -v udevadm >/dev/null 2>&1; then
+        modprobe uinput >/dev/null 2>&1 || true
+        udevadm control --reload-rules >/dev/null 2>&1 || true
+        udevadm trigger --subsystem-match=misc --sysname-match=uinput >/dev/null 2>&1 || true
+    fi
+
+    had_old_units=""
+    [ -n "$(old_server_users)" ] && had_old_units=1
+    migrate_old_server_units
+    restart_server_units
+
+    if [ -n "$had_old_units" ]; then
+        echo "--- Vanh ---"
+        echo "fcitx5-lotus đã được thay bằng fcitx5-vanh; dịch vụ server đã được chuyển sang"
+        echo "fcitx5-vanh-server@<user>.service. Khởi động lại Fcitx5 (fcitx5 -r) để nạp bộ gõ Vanh;"
+        echo "cấu hình và danh sách bộ gõ cũ sẽ tự được chuyển."
+        echo "------------------------------------------------"
+    elif [ -z "$2" ]; then
+        echo "--- Cấu hình Vanh ---"
         echo "Hướng dẫn sau cài đặt:"
         echo "1. Kích hoạt Server cho user của bạn:"
-        echo "   sudo systemctl enable --now fcitx5-lotus-server@\$(whoami).service"
+        echo "   sudo systemctl enable --now fcitx5-vanh-server@\$(whoami).service"
         echo ""
         echo "2. Cấu hình Fcitx5:"
-        echo "   - Mở 'Fcitx5 Configuration', thêm bộ gõ Lotus"
+        echo "   - Mở 'Fcitx5 Configuration', thêm bộ gõ Vanh"
         echo ""
         echo "3. Lưu ý cho Wayland (KDE):"
         echo "   - Hãy chọn 'Fcitx 5' trong phần Virtual Keyboard của hệ thống."
         echo "------------------------------------------------"
     else
-        echo "--- Cấu hình Lotus ---"
+        echo "--- Cấu hình Vanh ---"
         echo "Hướng dẫn sau cập nhật:"
-        echo "1. Khởi động lại Server cho user của bạn:"
-        echo "   sudo systemctl restart fcitx5-lotus-server@\$(whoami).service"
+        echo "1. Server đã được khởi động lại; nếu chưa bật, hãy chạy:"
+        echo "   sudo systemctl enable --now fcitx5-vanh-server@\$(whoami).service"
         echo ""
         echo "2. Cấu hình Fcitx5:"
         echo "   - Mở 'Fcitx5 Configuration', nhấn restart để khởi động lại."

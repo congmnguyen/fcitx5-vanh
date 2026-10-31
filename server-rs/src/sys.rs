@@ -28,7 +28,7 @@ use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 // ---------------------------------------------------------------------------------------------
 
 #[cfg(not(target_os = "linux"))]
-compile_error!("fcitx5-lotus-server only supports Linux");
+compile_error!("fcitx5-vanh-server only supports Linux");
 
 #[cfg(any(target_arch = "mips", target_arch = "mips64", target_arch = "mips32r6", target_arch = "mips64r6"))]
 mod arch {
@@ -659,9 +659,9 @@ mod tests {
 
     #[test]
     fn abstract_address_layout() {
-        let addr = AbstractAddr::new(b"lotussocket-alice-kbSocket");
-        assert_eq!(addr.name(), b"lotussocket-alice-kbSocket");
-        assert_eq!(addr.socklen() as usize, 2 + 1 + 26);
+        let addr = AbstractAddr::new(b"vanhsocket-alice-kbSocket");
+        assert_eq!(addr.name(), b"vanhsocket-alice-kbSocket");
+        assert_eq!(addr.socklen() as usize, 2 + 1 + 25);
         assert_eq!(addr.addr.sun_path[0], 0);
     }
 
@@ -688,7 +688,7 @@ mod tests {
         if let Some(name) = user_name_of(uid) {
             assert_eq!(uid_of_user(&name), Some(uid));
         }
-        assert_eq!(uid_of_user(b"no-such-user-\xff-lotus"), None);
+        assert_eq!(uid_of_user(b"no-such-user-\xff-vanh"), None);
         assert_eq!(uid_of_user(b"nul\0inside"), None);
     }
 

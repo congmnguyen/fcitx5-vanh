@@ -4,7 +4,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! `fcitx5-lotus-server [-u <user>]`; see the library documentation.
+//! `fcitx5-vanh-server [-u <user>]`; see the library documentation.
 
 fn main() {
     let args: Vec<std::ffi::OsString> = std::env::args_os().collect();

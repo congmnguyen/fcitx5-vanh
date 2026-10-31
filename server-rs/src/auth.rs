@@ -93,7 +93,7 @@ mod tests {
     use std::os::fd::AsFd;
 
     const FCITX5: &[u8] = b"/usr/bin/fcitx5";
-    const SERVER: &[u8] = b"/usr/bin/fcitx5-lotus-server";
+    const SERVER: &[u8] = b"/usr/bin/fcitx5-vanh-server";
     const NIX: &[u8] = b"/nix/store/";
 
     /// Same cases as test/executable-path-match.cpp, which keeps testing the C++ copy the addon uses.
@@ -111,8 +111,8 @@ mod tests {
             (b"/usr/libexec/fcitx5", FCITX5, NIX, false),
             (b"", FCITX5, NIX, false),
             (FCITX5, b"", NIX, false),
-            (b"/nix/store/abc-lotus/bin/fcitx5-lotus-server", SERVER, NIX, true),
-            (b"/nix/store/abc-lotus/bin/fcitx5", SERVER, NIX, false),
+            (b"/nix/store/abc-vanh/bin/fcitx5-vanh-server", SERVER, NIX, true),
+            (b"/nix/store/abc-vanh/bin/fcitx5", SERVER, NIX, false),
             (b"/nix/store/", FCITX5, NIX, false),
             (b"/nix/store/bin/fcitx5", FCITX5, NIX, true),
             (b"/nix/store/x/bin/fcitx5 (deleted)", FCITX5, NIX, false),

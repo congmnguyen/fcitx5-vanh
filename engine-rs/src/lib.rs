@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Vietnamese typing engine of fcitx5-lotus (Vanh).
+//! Vietnamese typing engine of fcitx5-vanh (Vanh).
 //!
 //! A port of the Go bamboo-core engine (MIT, (c) 2018 Luong Thanh Lam, kept in CREDITS) by way of
 //! the former C++ port, plus the fcitx glue logic of fcitx5-bamboo (`key_processor`) and the

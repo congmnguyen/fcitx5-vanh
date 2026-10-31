@@ -25,7 +25,7 @@ namespace fcitx {
          * @return New engine instance.
          */
         AddonInstance* create(AddonManager* manager) override {
-            registerDomain("fcitx5-lotus", FCITX_INSTALL_LOCALEDIR);
+            registerDomain("fcitx5-vanh", FCITX_INSTALL_LOCALEDIR);
             return new LotusEngine(manager->instance()); // NOLINT
         }
     };

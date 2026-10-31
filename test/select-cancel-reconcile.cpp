@@ -63,7 +63,7 @@ namespace {
 } // namespace
 
 int main() {
-    configureTestPaths("fcitx5-lotus-select-cancel-reconcile");
+    configureTestPaths("fcitx5-vanh-select-cancel-reconcile");
     TestInstance       testInstance;
     fcitx::LotusEngine engine(&testInstance.instance);
     fcitx::RawConfig   config;
@@ -75,7 +75,7 @@ int main() {
     if (!listener.valid())
         return 1;
 
-    fcitx::InputMethodEntry entry("lotus", "Lotus", "vi", "lotus");
+    fcitx::InputMethodEntry entry("vanh", "Vanh", "vi", "vanh");
 
     // Scenario 1: the burst is aborted by a focus bounce. The server finishes
     // the selection, so the first key after the bounce commits the stashed
@@ -163,6 +163,6 @@ int main() {
         }
     }
 
-    std::printf("lotus select cancel reconcile: all checks passed\n");
+    std::printf("vanh select cancel reconcile: all checks passed\n");
     return 0;
 }

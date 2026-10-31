@@ -8,7 +8,7 @@
 
 /**
  * @file lotus-utils.h
- * @brief Utility functions and global state for fcitx5-lotus.
+ * @brief Utility functions and global state for fcitx5-vanh.
  */
 
 #ifndef _FCITX5_LOTUS_UTILS_H_

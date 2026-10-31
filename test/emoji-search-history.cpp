@@ -65,7 +65,7 @@ int main() {
     // Seams link: point history at a missing file; history reloads empty.
     {
         EmojiLoader     loader(nullptr);
-        const auto      missing = std::filesystem::temp_directory_path() / "lotus-emoji-search-history-missing.conf";
+        const auto      missing = std::filesystem::temp_directory_path() / "vanh-emoji-search-history-missing.conf";
         std::error_code ec;
         std::filesystem::remove(missing, ec);
         loader.setHistoryPathForTest(missing.string());

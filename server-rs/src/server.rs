@@ -46,7 +46,7 @@ pub fn current_username() -> Vec<u8> {
     sys::user_name_of(sys::current_uid()).unwrap_or_else(|| b"unknown".to_vec())
 }
 
-/// User segment of the socket names: `LOTUS_SOCKET_NAMESPACE` when set and non-empty, the
+/// User segment of the socket names: `VANH_SOCKET_NAMESPACE` when set and non-empty, the
 /// user name otherwise (common/common-socket-name.h).
 pub fn socket_namespace(username: &[u8]) -> Vec<u8> {
     match std::env::var_os(names::SOCKET_NAMESPACE_ENV) {
@@ -55,7 +55,7 @@ pub fn socket_namespace(username: &[u8]) -> Vec<u8> {
     }
 }
 
-/// `lotussocket-<namespace>-<suffix>`, the name the addon's `buildSocketPath()` builds.
+/// `vanhsocket-<namespace>-<suffix>`, the name the addon's `buildSocketPath()` builds.
 pub fn socket_name(namespace: &[u8], suffix: &str) -> Vec<u8> {
     let mut name = names::SOCKET_PREFIX.as_bytes().to_vec();
     name.extend_from_slice(namespace);
@@ -346,24 +346,24 @@ mod tests {
 
     #[test]
     fn cli_matches_the_cxx_server() {
-        assert_eq!(target_user(&os(&["fcitx5-lotus-server", "-u", "alice"])), b"alice");
+        assert_eq!(target_user(&os(&["fcitx5-vanh-server", "-u", "alice"])), b"alice");
         let current = current_username();
-        assert_eq!(target_user(&os(&["fcitx5-lotus-server"])), current);
-        assert_eq!(target_user(&os(&["fcitx5-lotus-server", "-u"])), current, "flag without a user");
-        assert_eq!(target_user(&os(&["fcitx5-lotus-server", "--user", "alice"])), current);
-        assert_eq!(target_user(&os(&["fcitx5-lotus-server", "-u", "alice", "extra"])), current);
+        assert_eq!(target_user(&os(&["fcitx5-vanh-server"])), current);
+        assert_eq!(target_user(&os(&["fcitx5-vanh-server", "-u"])), current, "flag without a user");
+        assert_eq!(target_user(&os(&["fcitx5-vanh-server", "--user", "alice"])), current);
+        assert_eq!(target_user(&os(&["fcitx5-vanh-server", "-u", "alice", "extra"])), current);
     }
 
     #[test]
     fn socket_names_match_the_addon() {
-        assert_eq!(socket_name(b"alice", names::KB_SOCKET_SUFFIX), b"lotussocket-alice-kbSocket");
-        assert_eq!(socket_name(b"alice", names::MOUSE_SOCKET_SUFFIX), b"lotussocket-alice-mouseSocket");
+        assert_eq!(socket_name(b"alice", names::KB_SOCKET_SUFFIX), b"vanhsocket-alice-kbSocket");
+        assert_eq!(socket_name(b"alice", names::MOUSE_SOCKET_SUFFIX), b"vanhsocket-alice-mouseSocket");
     }
 
     /// Port of test/server-socket-init.cpp: a socket that fails bind()/listen() is reported.
     #[test]
     fn server_socket_init() {
-        let addr = AbstractAddr::new(format!("lotus-server-socket-init-{}", std::process::id()).as_bytes());
+        let addr = AbstractAddr::new(format!("vanh-server-socket-init-{}", std::process::id()).as_bytes());
         let first = bind_server_socket(&addr, "test socket").expect("bind fresh address");
         assert!(listen_server_socket(&first, "test socket"), "listen on bound socket");
         capture::take();

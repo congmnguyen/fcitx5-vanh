@@ -21,7 +21,7 @@ namespace {
         std::unique_ptr<TestInputContext> context;
         fcitx::InputMethodEntry           entry;
 
-        explicit Fixture(TestInstance& instance) : testInstance(instance), engine(&instance.instance), entry("lotus", "Lotus", "vi", "lotus") {
+        explicit Fixture(TestInstance& instance) : testInstance(instance), engine(&instance.instance), entry("vanh", "Vanh", "vi", "vanh") {
             fcitx::RawConfig config;
             config.setValueByPath("Mode", "Uinput (Smooth)");
             config.setValueByPath("InputMethod", "Telex");
@@ -53,7 +53,7 @@ namespace {
 } // namespace
 
 int main() {
-    configureTestPaths("fcitx5-lotus-auto-capitalize-shortcut");
+    configureTestPaths("fcitx5-vanh-auto-capitalize-shortcut");
     TestInstance testInstance;
 
     // (a) Shortcut punctuation never ends a sentence.
@@ -151,6 +151,6 @@ int main() {
         }
     }
 
-    std::printf("lotus auto capitalize shortcut: all checks passed\n");
+    std::printf("vanh auto capitalize shortcut: all checks passed\n");
     return 0;
 }

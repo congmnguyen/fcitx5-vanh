@@ -20,7 +20,8 @@ function(add_lotus_python_test name test_file labels)
             -p "${test_file}"
             -v
     )
-    set_tests_properties(${name} PROPERTIES LABELS "${labels}" TIMEOUT 60)
+    set_tests_properties(${name} PROPERTIES LABELS "${labels}" TIMEOUT 60
+        ENVIRONMENT "VANH_DISABLE_NOTIFICATIONS=1;VANH_SOCKET_NAMESPACE=ctest-${LOTUS_CTEST_SOCKET_NAMESPACE}-${name}")
 endfunction()
 
 add_lotus_python_test(settings_gui_i18n test_i18n.py "unit;settings-gui;python")

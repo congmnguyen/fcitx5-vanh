@@ -21,7 +21,7 @@ namespace {
 } // namespace
 
 int main() {
-    configureTestPaths("fcitx5-lotus-uinput-server-probe");
+    configureTestPaths("fcitx5-vanh-uinput-server-probe");
     KbSender sender(buildSocketPath("kbSocket"));
 
     check("no server is detected before the socket exists", !sender.ensureConnected());
@@ -38,6 +38,6 @@ int main() {
         std::printf("%d failure(s)\n", failures);
         return 1;
     }
-    std::printf("lotus uinput server probe: all checks passed\n");
+    std::printf("vanh uinput server probe: all checks passed\n");
     return 0;
 }

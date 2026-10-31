@@ -86,7 +86,7 @@ namespace {
 } // namespace
 
 int main() {
-    configureTestPaths("fcitx5-lotus-select-modifier-replay");
+    configureTestPaths("fcitx5-vanh-select-modifier-replay");
     TestInstance       testInstance;
     fcitx::LotusEngine engine(&testInstance.instance);
     fcitx::RawConfig   config;
@@ -98,7 +98,7 @@ int main() {
     if (!listener.valid())
         return 1;
 
-    fcitx::InputMethodEntry entry("lotus", "Lotus", "vi", "lotus");
+    fcitx::InputMethodEntry entry("vanh", "Vanh", "vi", "vanh");
 
     // Case 1: only the server's synthetic Shift is down -> the replayed 'N' must stay lowercase.
     if (!runCase(&testInstance.instance, engine, entry, listener, false, "án"))
@@ -108,6 +108,6 @@ int main() {
     if (!runCase(&testInstance.instance, engine, entry, listener, true, "áN"))
         return 1;
 
-    std::printf("lotus select modifier replay: all checks passed\n");
+    std::printf("vanh select modifier replay: all checks passed\n");
     return 0;
 }

@@ -63,7 +63,7 @@ namespace {
 } // namespace
 
 int main() {
-    configureTestPaths("fcitx5-lotus-runtime-safety");
+    configureTestPaths("fcitx5-vanh-runtime-safety");
     bool ok = true;
 
     // Step 1: $TIME follows TZ, so the local time is still read from the zone of the process and
@@ -106,7 +106,7 @@ int main() {
     auto context = std::make_unique<TestInputContext>(&testInstance.instance);
     context->setCapabilityFlags(fcitx::CapabilityFlag::Preedit);
     context->focusIn();
-    fcitx::InputMethodEntry  entry("lotus", "Lotus", "vi", "lotus");
+    fcitx::InputMethodEntry  entry("vanh", "Vanh", "vi", "vanh");
     fcitx::InputContextEvent focus(context.get(), fcitx::EventType::InputContextFocusIn);
     engine.activate(entry, focus);
     context->resetPreeditUpdateCount();

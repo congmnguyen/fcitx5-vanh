@@ -33,7 +33,7 @@ namespace {
 
 int main() {
     constexpr std::string_view kFcitx5    = "/usr/bin/fcitx5";
-    constexpr std::string_view kServer    = "/usr/bin/fcitx5-lotus-server";
+    constexpr std::string_view kServer    = "/usr/bin/fcitx5-vanh-server";
     constexpr std::string_view kNixStore  = "/nix/store/";
     constexpr std::string_view kStorePeer = "/nix/store/abc123-fcitx5-5.1.13/bin/fcitx5";
 
@@ -53,7 +53,7 @@ int main() {
     ok &= expect("", kFcitx5, kNixStore, false);
     ok &= expect(kFcitx5, "", kNixStore, false);
     // The server program name has a different basename and still matches its own store path.
-    ok &= expect("/nix/store/abc-lotus/bin/fcitx5-lotus-server", kServer, kNixStore, true);
-    ok &= expect("/nix/store/abc-lotus/bin/fcitx5", kServer, kNixStore, false);
+    ok &= expect("/nix/store/abc-vanh/bin/fcitx5-vanh-server", kServer, kNixStore, true);
+    ok &= expect("/nix/store/abc-vanh/bin/fcitx5", kServer, kNixStore, false);
     return ok ? 0 : 1;
 }

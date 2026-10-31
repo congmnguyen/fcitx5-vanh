@@ -4,7 +4,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! fcitx5-lotus-server: the privileged helper of the fcitx5-lotus (Vanh) addon, a Rust port of
+//! fcitx5-vanh-server: the privileged helper of the fcitx5-vanh addon, a Rust port of
 //! the former C++ server/.
 //!
 //! It runs as the uinput proxy user (rw ACL on /dev/uinput, group `input`) with ambient
@@ -12,9 +12,9 @@
 //! fcitx5), one instance per user (`-u <user>`), and:
 //!
 //! * injects BackSpace / Shift+Left / Delete / Pause bursts through a virtual keyboard on request
-//!   of the addon (abstract socket `lotussocket-<user>-kbSocket`), refusing a Shift+Left selection
+//!   of the addon (abstract socket `vanhsocket-<user>-kbSocket`), refusing a Shift+Left selection
 //!   while a physical Shift is held;
-//! * tells the addon about mouse clicks (abstract socket `lotussocket-<user>-mouseSocket`, one
+//! * tells the addon about mouse clicks (abstract socket `vanhsocket-<user>-mouseSocket`, one
 //!   byte `C` per button press), so it can reset its word buffer.
 //!
 //! Module map: [`names`] (every external name), [`protocol`] (wire format), [`planner`] (the

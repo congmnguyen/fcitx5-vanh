@@ -18,7 +18,7 @@ namespace {
 } // namespace
 
 int main() {
-    configureTestPaths("fcitx5-lotus-modifier-key-bypasses-surrounding-text");
+    configureTestPaths("fcitx5-vanh-modifier-key-bypasses-surrounding-text");
     TestInstance       testInstance;
     fcitx::LotusEngine engine(&testInstance.instance);
     fcitx::RawConfig   config;
@@ -34,7 +34,7 @@ int main() {
     auto context = std::make_unique<TestInputContext>(&testInstance.instance);
     context->setCapabilityFlags(fcitx::CapabilityFlag::SurroundingText);
     context->focusIn();
-    fcitx::InputMethodEntry  entry("lotus", "Lotus", "vi", "lotus");
+    fcitx::InputMethodEntry  entry("vanh", "Vanh", "vi", "vanh");
     fcitx::InputContextEvent focus(context.get(), fcitx::EventType::InputContextFocusIn);
     engine.activate(entry, focus);
     context->surroundingText().setText("abcdef", 2, 5);

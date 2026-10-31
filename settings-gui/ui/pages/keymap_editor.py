@@ -2,11 +2,11 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 """
-Keymap Editor Page. Edits lotus-custom-keymap.conf.
+Keymap Editor Page. Edits vanh-custom-keymap.conf.
 Implements custom keymap presets and TSV import/export.
 """
 
-from core.dbus_handler import LotusDBusHandler
+from core.dbus_handler import VanhDBusHandler
 from i18n import _
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
@@ -201,9 +201,9 @@ PRESETS = {
 
 
 class KeymapEditorPage(BaseEditorPage):
-    """UI for editing Lotus custom keymap."""
+    """UI for editing Vanh custom keymap."""
 
-    def __init__(self, dbus_handler: LotusDBusHandler, parent=None):
+    def __init__(self, dbus_handler: VanhDBusHandler, parent=None):
         super().__init__(parent)
         self.dbus = dbus_handler
         self.initial_state = {}

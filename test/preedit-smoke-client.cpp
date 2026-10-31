@@ -6,7 +6,7 @@
 #include <iostream>
 
 int main() {
-    configureTestPaths("fcitx5-lotus-preedit-client");
+    configureTestPaths("fcitx5-vanh-preedit-client");
     TestInstance       testInstance;
     fcitx::LotusEngine engine(&testInstance.instance);
     fcitx::RawConfig   config;
@@ -20,7 +20,7 @@ int main() {
     auto context = std::make_unique<TestInputContext>(&testInstance.instance);
     context->setCapabilityFlags(fcitx::CapabilityFlag::Preedit);
     context->focusIn();
-    fcitx::InputMethodEntry  entry("lotus", "Lotus", "vi", "lotus");
+    fcitx::InputMethodEntry  entry("vanh", "Vanh", "vi", "vanh");
     fcitx::InputContextEvent focus(context.get(), fcitx::EventType::InputContextFocusIn);
     engine.activate(entry, focus);
     context->resetPreeditUpdateCount();

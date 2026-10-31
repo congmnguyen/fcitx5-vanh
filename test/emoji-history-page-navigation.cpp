@@ -35,8 +35,8 @@ namespace {
 } // namespace
 
 int main() {
-    configureTestPaths("fcitx5-lotus-emoji-history-page-navigation");
-    const auto    historyPath = std::filesystem::path(getEnv("XDG_CONFIG_HOME")) / "fcitx5/conf/lotus-emoji-history.conf";
+    configureTestPaths("fcitx5-vanh-emoji-history-page-navigation");
+    const auto    historyPath = std::filesystem::path(getEnv("XDG_CONFIG_HOME")) / "fcitx5/conf/vanh-emoji-history.conf";
     std::ofstream history(historyPath);
     // History is capped at the newest 9 (EmojiLoader::kMaxEmojiHistory), so a
     // single page is the most this mode can show from history alone.
@@ -57,7 +57,7 @@ int main() {
 
     auto context = std::make_unique<TestInputContext>(&testInstance.instance);
     context->focusIn();
-    fcitx::InputMethodEntry  entry("lotus", "Lotus", "vi", "lotus");
+    fcitx::InputMethodEntry  entry("vanh", "Vanh", "vi", "vanh");
     fcitx::InputContextEvent focus(context.get(), fcitx::EventType::InputContextFocusIn);
     engine.activate(entry, focus);
 

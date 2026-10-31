@@ -5,7 +5,7 @@
 //! Test helper of the C++/Rust wire test (test/server-wire-compat.cpp), not installed.
 //!
 //! `kb_replay <allowed-exe> <messages>` binds the server's two abstract sockets for the current
-//! user (honouring LOTUS_SOCKET_NAMESPACE) with the server's own socket, authorization, decoding
+//! user (honouring VANH_SOCKET_NAMESPACE) with the server's own socket, authorization, decoding
 //! and planning code, prints `ready`, answers each authorized mouse client with one `C` byte,
 //! replays `<messages>` keyboard requests into a recorder (physical Shift released, paced keys
 //! drained before the next non-Cancel request) and prints the key transcript. No uinput, no libinput. Exit 0 on success,

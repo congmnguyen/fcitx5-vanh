@@ -6,6 +6,9 @@
  */
 
 #include "lotus-notify.h"
+
+#include <cstdlib>
+#include <string_view>
 #include "lotus-log.h"
 #include "lotus-utils.h"
 
@@ -43,7 +46,7 @@ namespace {
 
     class NotifyLibrary {
       public:
-        NotifyLibrary() : initialised_(notify_init("fcitx5-lotus") != FALSE) {}
+        NotifyLibrary() : initialised_(notify_init("fcitx5-vanh") != FALSE) {}
 
         ~NotifyLibrary() {
             if (initialised_) {
@@ -76,16 +79,21 @@ void notifyMissingUinputServer() {
         return;
     }
     lastNotifyMs = now;
+    // Set by ctest for every test: a test run must never pop a notification on the desktop.
+    if (const char* disabled = std::getenv("VANH_DISABLE_NOTIFICATIONS"); disabled != nullptr && *disabled != '\0' && std::string_view(disabled) != "0") {
+        LOTUS_INFO("Uinput server not running (notification disabled by VANH_DISABLE_NOTIFICATIONS)");
+        return;
+    }
     if (!notifyLibraryReady()) {
         LOTUS_WARN("Cannot initialise libnotify");
         return;
     }
-    constexpr std::string_view kLotusDocsUrl = "https://lotusinputmethod.github.io";
-    std::string                body          = _("Uinput modes need the Lotus uinput server. Enable the server service for your distribution and init system.");
+    constexpr std::string_view kLotusDocsUrl = "https://github.com/congmnguyen/fcitx5-vanh#readme";
+    std::string                body          = _("Uinput modes need the Vanh uinput server. Enable the server service for your distribution and init system.");
     body += '\n';
     body += kLotusDocsUrl;
 
-    NotificationPtr notification{notify_notification_new(_("Vanh: the uinput server is not running"), body.c_str(), "fcitx5-lotus")};
+    NotificationPtr notification{notify_notification_new(_("Vanh: the uinput server is not running"), body.c_str(), "fcitx-vanh")};
     if (notification == nullptr) {
         LOTUS_WARN("Cannot create the uinput server notification");
         return;

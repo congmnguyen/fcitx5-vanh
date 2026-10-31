@@ -1,6 +1,6 @@
 # Quy tắc code style
 
-Tài liệu này là nguồn duy nhất cho quy tắc code của fcitx5-lotus. Khi có xung đột, tài liệu này thắng.
+Tài liệu này là nguồn duy nhất cho quy tắc code của fcitx5-vanh. Khi có xung đột, tài liệu này thắng.
 
 ## 1. Format & lint (bắt buộc)
 
@@ -61,7 +61,7 @@ Tài liệu này là nguồn duy nhất cho quy tắc code của fcitx5-lotus. K
 
 - Hành vi mới hoặc bug fix phải có test trong `test/`, đăng ký bằng helper CMake (`add_lotus_headless_test` / `add_lotus_unit_test`).
 - Mẫu chung: `check(name, condition)` / `reportFailure(step, expected, actual, meaning)`, in `FAIL`, trả exit code khác 0 khi sai.
-- Test phải deterministic, không phụ thuộc mạng/màn hình; test cần bind socket thì chạy trong namespace riêng (`LOTUS_SOCKET_NAMESPACE`).
+- Test phải deterministic, không phụ thuộc mạng/màn hình; test cần bind socket thì chạy trong namespace riêng (`VANH_SOCKET_NAMESPACE`).
 
 ## 11. Phạm vi PR (một PR một vấn đề)
 

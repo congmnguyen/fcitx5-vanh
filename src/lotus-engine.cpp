@@ -19,6 +19,7 @@
 #include "lotus-notify.h"
 #include "lotus-utils.h"
 #include "lotus-plasma-theme.h"
+#include "vanh-migration.h"
 #include "window_focus_tracker.h"
 
 #include "dictionary.h"
@@ -51,9 +52,9 @@
 #include <sstream>
 
 namespace fcitx {
-    constexpr const char* CharsetActionPrefix = "lotus-charset-";
-    constexpr const char* CustomKeymapFile    = "conf/lotus-custom-keymap.conf";
-    constexpr const char* MacroTableFile      = "conf/lotus-macro-table.conf";
+    constexpr const char* CharsetActionPrefix = "vanh-charset-";
+    constexpr const char* CustomKeymapFile    = "conf/vanh-custom-keymap.conf";
+    constexpr const char* MacroTableFile      = "conf/vanh-macro-table.conf";
 
     EmojiLoader&          LotusEngine::emojiLoader() {
         if (!emojiLoader_) {
@@ -173,7 +174,7 @@ namespace fcitx {
         charsetAction_ = std::make_unique<SimpleAction>();
         charsetAction_->setShortText(_("Charset"));
         charsetAction_->setIcon("character-set");
-        uiManager.registerAction("lotus-charset", charsetAction_.get());
+        uiManager.registerAction("vanh-charset", charsetAction_.get());
         charsetMenu_ = std::make_unique<Menu>();
         charsetAction_->setMenu(charsetMenu_.get());
 
@@ -198,31 +199,36 @@ namespace fcitx {
             charsetMenu_->addAction(action);
         }
 
-        initToggleAction(spellCheckAction_, config_.spellCheck, "lotus-spellcheck", "tools-check-spelling", _("Spell Check"), _("Spell Check"), uiManager);
-        initToggleAction(macroAction_, config_.enableMacro, "lotus-macro", "document-edit", _("Macro"), _("Macro"), uiManager);
-        initToggleAction(capitalizeMacroAction_, config_.capitalizeMacro, "lotus-capitalizemacro", "format-text-uppercase", _("Capitalize Macro"), _("Capitalize Macro"),
+        initToggleAction(spellCheckAction_, config_.spellCheck, "vanh-spellcheck", "tools-check-spelling", _("Spell Check"), _("Spell Check"), uiManager);
+        initToggleAction(macroAction_, config_.enableMacro, "vanh-macro", "document-edit", _("Macro"), _("Macro"), uiManager);
+        initToggleAction(capitalizeMacroAction_, config_.capitalizeMacro, "vanh-capitalizemacro", "format-text-uppercase", _("Capitalize Macro"), _("Capitalize Macro"),
                          uiManager);
-        initToggleAction(autoNonVnRestoreAction_, config_.autoNonVnRestore, "lotus-autonvnrestore", "edit-undo", _("Auto Restore Invalid Words"), _("Auto Non-VN Restore"),
+        initToggleAction(autoNonVnRestoreAction_, config_.autoNonVnRestore, "vanh-autonvnrestore", "edit-undo", _("Auto Restore Invalid Words"), _("Auto Non-VN Restore"),
                          uiManager);
-        initToggleAction(enableDictionaryAction_, config_.enableDictionary, "lotus-dictionary", "accessories-dictionary", _("Custom Dictionary"), _("Custom Dictionary"),
+        initToggleAction(enableDictionaryAction_, config_.enableDictionary, "vanh-dictionary", "accessories-dictionary", _("Custom Dictionary"), _("Custom Dictionary"),
                          uiManager);
 
         settingsAction_ = std::make_unique<SimpleAction>();
         settingsAction_->setShortText(_("Settings"));
         settingsAction_->setIcon("configure");
         connections_.emplace_back(settingsAction_->connect<SimpleAction::Activated>([](InputContext*) { startProcess({FCITX5_LOTUS_SETTINGS_PATH}); }));
-        uiManager.registerAction("lotus-settings", settingsAction_.get());
+        uiManager.registerAction("vanh-settings", settingsAction_.get());
 
         std::string configDir = lotusConfigDir();
 
         if (!std::filesystem::exists(configDir)) {
             std::filesystem::create_directories(configDir);
         }
+        // Carry the files of the former "lotus" addon over before the first read. The vanh-migrate
+        // module normally did this already at fcitx5 startup; repeating it is a no-op.
+        for (const auto& line : vanh::migration::migrateUserFiles(vanh::migration::userConfigDir(), vanh::migration::userDataDir())) {
+            LOTUS_INFO(line);
+        }
         reloadConfig();
         setMode(config_.mode.value(), nullptr);
         checkServerForMode(config_.mode.value());
         instance_.inputContextManager().registerProperty("LotusState", &factory_);
-        appRulesPath_ = configDir + "/lotus-app-rules.conf";
+        appRulesPath_ = configDir + "/vanh-app-rules.conf";
         loadAppRules();
         toggleActions_ = {
             charsetAction_.get(),          spellCheckAction_.get(),       macroAction_.get(),    capitalizeMacroAction_.get(),
@@ -272,7 +278,7 @@ namespace fcitx {
     }
 
     void LotusEngine::reloadConfig() {
-        readAsIni(config_, "conf/lotus.conf");
+        readAsIni(config_, "conf/vanh.conf");
         readAsIni(customKeymap_, CustomKeymapFile);
         readAsIni(macroTables_, MacroTableFile);
         macroTable_ = buildMacroTable(macroTables_);
@@ -296,18 +302,18 @@ namespace fcitx {
         };
         if (config_.enableDictionary.value()) {
 #if LOTUS_USE_MODERN_FCITX_API
-            auto fd = StandardPaths::global().open(StandardPathsType::PkgData, "lotus/vietnamese.cm.dict");
+            auto fd = StandardPaths::global().open(StandardPathsType::PkgData, "vanh/vietnamese.cm.dict");
 #else
-            auto fd = StandardPath::global().open(StandardPath::Type::PkgData, "lotus/vietnamese.cm.dict", O_RDONLY);
+            auto fd = StandardPath::global().open(StandardPath::Type::PkgData, "vanh/vietnamese.cm.dict", O_RDONLY);
 #endif
             if (fd.isValid()) {
                 loadFromFd(fd.release());
             }
         } else {
 #if LOTUS_USE_MODERN_FCITX_API
-            auto paths = StandardPaths::global().locateAll(StandardPathsType::PkgData, "lotus/vietnamese.cm.dict");
+            auto paths = StandardPaths::global().locateAll(StandardPathsType::PkgData, "vanh/vietnamese.cm.dict");
 #else
-            auto paths = StandardPath::global().locateAll(StandardPath::Type::PkgData, "lotus/vietnamese.cm.dict");
+            auto paths = StandardPath::global().locateAll(StandardPath::Type::PkgData, "vanh/vietnamese.cm.dict");
 #endif
             for (const auto& p : paths) {
 #if LOTUS_USE_MODERN_FCITX_API
@@ -332,7 +338,7 @@ namespace fcitx {
     const Configuration* LotusEngine::getSubConfig(const std::string& path) const {
         if (path == "custom_keymap")
             return &customKeymap_;
-        if (path == "lotus-macro") {
+        if (path == "vanh-macro") {
             return &macroTables_;
         }
         if (path == "app_rules") {
@@ -364,7 +370,7 @@ namespace fcitx {
             customKeymap_.load(config, true);
             safeSaveAsIni(customKeymap_, CustomKeymapFile);
             refreshEngine();
-        } else if (path == "lotus-macro") {
+        } else if (path == "vanh-macro") {
             macroTables_.load(config, true);
             safeSaveAsIni(macroTables_, MacroTableFile);
             macroTable_ = buildMacroTable(macroTables_);
@@ -891,7 +897,7 @@ namespace fcitx {
         if (!file.is_open())
             return;
 
-        file << "# Lotus Per-App Configuration\n";
+        file << "# Vanh Per-App Configuration\n";
         file << "# 0 = Off, 1 = Uinput (Smooth), 2 = Uinput (Smooth, legacy), 3 = Uinput (Super Smooth), 4 = Surrounding Text, 5 = Preedit,\n";
         file << "# 6 = Emoji Picker, 7 = Uinput (Select)\n";
         file << "# app=mode[,commit_interval_ms[,backspace_interval_ms[,post_delay_ms]]]   0/omitted = use defaults\n";
@@ -1127,9 +1133,9 @@ namespace fcitx {
     std::string LotusEngine::subModeIconImpl(const InputMethodEntry& /*entry*/, InputContext& /*inputContext*/) {
         std::string baseIconName;
         switch (currentMode()) {
-            case LotusMode::Off: baseIconName = "fcitx-lotus-off"; break;
-            case LotusMode::Emoji: baseIconName = "fcitx-lotus-emoji"; break;
-            default: baseIconName = "fcitx-lotus"; break;
+            case LotusMode::Off: baseIconName = "fcitx-vanh-off"; break;
+            case LotusMode::Emoji: baseIconName = "fcitx-vanh-emoji"; break;
+            default: baseIconName = "fcitx-vanh"; break;
         }
 
         std::string iconName;

@@ -43,7 +43,7 @@ namespace {
 } // namespace
 
 int main() {
-    configureTestPaths("fcitx5-lotus-focus-out-mid-replacement");
+    configureTestPaths("fcitx5-vanh-focus-out-mid-replacement");
     TestInstance       testInstance;
     fcitx::LotusEngine engine(&testInstance.instance);
     fcitx::RawConfig   config;
@@ -56,7 +56,7 @@ int main() {
     if (!listener.valid())
         return 1;
 
-    fcitx::InputMethodEntry entry("lotus", "Lotus", "vi", "lotus");
+    fcitx::InputMethodEntry entry("vanh", "Vanh", "vi", "vanh");
     auto                    context = std::make_unique<TestInputContext>(&testInstance.instance);
     gainFocus(engine, entry, *context);
 
@@ -108,6 +108,6 @@ int main() {
     if (!send(engine, entry, *context, FcitxKey_q, false))
         return 1;
 
-    std::printf("lotus focus-out mid replacement: all checks passed\n");
+    std::printf("vanh focus-out mid replacement: all checks passed\n");
     return 0;
 }

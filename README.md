@@ -11,7 +11,7 @@
 - **Surrounding text tự động** trong Uinput mode khi app hỗ trợ (Brave, Facebook, thanh địa chỉ): không còn mất chữ hay lặp chữ khi gõ nhanh. Terminal vẫn dùng uinput.
 - Mọi tính năng còn lại của lotus: Telex/VNI và các kiểu gõ khác, gõ không gạch chân, macro, từ điển, đổi bảng mã, emoji.
 
-Tên addon, tên gói và file cấu hình vẫn là `lotus`, nên cấu hình lotus cũ dùng được luôn.
+Gói, addon, bộ gõ, server và file cấu hình đều tên `vanh` (`fcitx5-vanh`, `fcitx5-vanh-server@<user>.service`, `~/.config/fcitx5/conf/vanh.conf`). Gói `fcitx5-vanh` thay thế `fcitx5-lotus`; lần đầu chạy, Vanh tự chép cấu hình lotus cũ (cấu hình, macro, keymap, luật theo app, lịch sử emoji, từ điển người dùng) sang tên mới và đặt Vanh vào chỗ của lotus trong danh sách bộ gõ. File cũ được giữ nguyên.
 
 ## Build và cài (Debian/Ubuntu)
 
@@ -21,8 +21,8 @@ sudo apt install --no-install-recommends debhelper dh-python cmake g++ extra-cma
   libdbus-1-dev libudev-dev pkg-config python3 gettext cargo rustc
 git clone https://github.com/congmnguyen/fcitx5-vanh && cd fcitx5-vanh
 cp -r packaging/debian debian && dpkg-buildpackage -b -us -uc -j$(nproc) && rm -rf debian obj-*
-sudo apt install ../fcitx5-lotus_*_amd64.deb python3-pyqt5
-sudo systemctl enable --now fcitx5-lotus-server@$USER
+sudo apt install ../fcitx5-vanh_*_amd64.deb python3-pyqt5
+sudo systemctl enable --now fcitx5-vanh-server@$USER
 fcitx5 -r -d
 ```
 

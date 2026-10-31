@@ -9,7 +9,7 @@
 
 /**
  * @file lotus-state.h
- * @brief Input context state management for fcitx5-lotus.
+ * @brief Input context state management for fcitx5-vanh.
  */
 
 #ifndef _FCITX5_LOTUS_STATE_H_

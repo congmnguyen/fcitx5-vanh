@@ -67,7 +67,7 @@ class SetupI18nTests(unittest.TestCase):
         messages_dir = os.path.join(self.localedir, "vi", "LC_MESSAGES")
         os.makedirs(messages_dir)
         _write_mo(
-            os.path.join(messages_dir, "fcitx5-lotus.mo"),
+            os.path.join(messages_dir, "fcitx5-vanh.mo"),
             {
                 "": "Content-Type: text/plain; charset=UTF-8\n",
                 "Add": "Th\u00eam",
@@ -81,9 +81,9 @@ class SetupI18nTests(unittest.TestCase):
 
         i18n.setup_i18n()
 
-        found = gettext.find("fcitx5-lotus", self.localedir, languages=["vi"])
+        found = gettext.find("fcitx5-vanh", self.localedir, languages=["vi"])
         self.assertIsNotNone(found)
-        translation = gettext.translation("fcitx5-lotus", self.localedir, languages=["vi"])
+        translation = gettext.translation("fcitx5-vanh", self.localedir, languages=["vi"])
         self.assertEqual(translation.gettext("Add"), "Th\u00eam")
 
     def test_missing_locale_dir_does_not_raise(self):

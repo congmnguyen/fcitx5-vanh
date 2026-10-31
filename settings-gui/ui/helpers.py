@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 """
-Helper utilities and shared mappings for the Lotus settings GUI.
+Helper utilities and shared mappings for the Vanh settings GUI.
 """
 
 import os
@@ -85,7 +85,7 @@ def notify_parent_changed(widget) -> None:
 def local_dict_path() -> str:
     """Returns the path of the user dictionary edited by the settings GUI."""
     xdg_data_home = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
-    return os.path.join(xdg_data_home, "fcitx5/lotus/vietnamese.cm.dict")
+    return os.path.join(xdg_data_home, "fcitx5/vanh/vietnamese.cm.dict")
 
 
 def set_add_button_mode(

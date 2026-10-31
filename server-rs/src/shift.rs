@@ -262,7 +262,7 @@ mod tests {
 
     #[test]
     fn probing_a_missing_node_is_unreadable() {
-        assert!(matches!(EvdevKeyboard::probe("/dev/input/no-such-lotus-node"), Probe::Unreadable));
+        assert!(matches!(EvdevKeyboard::probe("/dev/input/no-such-vanh-node"), Probe::Unreadable));
     }
 
     #[test]

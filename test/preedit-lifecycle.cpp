@@ -41,8 +41,8 @@ namespace {
 } // namespace
 
 int main() {
-    // Step 0: Sandbox filesystem paths to /tmp/fcitx5-lotus-preedit-lifecycle
-    configureTestPaths("fcitx5-lotus-preedit-lifecycle");
+    // Step 0: Sandbox filesystem paths to /tmp/fcitx5-vanh-preedit-lifecycle
+    configureTestPaths("fcitx5-vanh-preedit-lifecycle");
     TestInstance       testInstance;
     fcitx::LotusEngine engine(&testInstance.instance);
 
@@ -61,7 +61,7 @@ int main() {
     auto context = std::make_unique<TestInputContext>(&testInstance.instance);
     context->setCapabilityFlags(fcitx::CapabilityFlag::Preedit);
     context->focusIn();
-    fcitx::InputMethodEntry  entry("lotus", "Lotus", "vi", "lotus");
+    fcitx::InputMethodEntry  entry("vanh", "Vanh", "vi", "vanh");
 
     fcitx::InputContextEvent in(context.get(), fcitx::EventType::InputContextFocusIn);
     engine.activate(entry, in);

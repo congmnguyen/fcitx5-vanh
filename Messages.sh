@@ -5,21 +5,21 @@ xgettext \
 --from-code=UTF-8 \
 --keyword=_ \
 --keyword=N_ \
--o /tmp/lotus-cpp.pot \
+-o /tmp/vanh-cpp.pot \
 $(find . \( -name "*.cpp" -o -name "*.h" \))
 
 xgettext \
 --language=appdata \
 --from-code=UTF-8 \
--o /tmp/lotus-xml.pot \
-org.fcitx.Fcitx5.Addon.Lotus.metainfo.xml.in.in
+-o /tmp/vanh-xml.pot \
+org.fcitx.Fcitx5.Addon.Vanh.metainfo.xml.in.in
 
 xgettext \
 --language=Python \
 --from-code=UTF-8 \
 --keyword=_ \
 --keyword=N_ \
--o /tmp/lotus-python.pot \
+-o /tmp/vanh-python.pot \
 $(find . -name "*.py")
 
 xgettext \
@@ -27,8 +27,8 @@ xgettext \
 --from-code=UTF-8 \
 --keyword=Name \
 --keyword=Comment \
--o /tmp/lotus-desktop.pot \
-settings-gui/org.fcitx.Fcitx5.Addon.Lotus.Settings.desktop.in
+-o /tmp/vanh-desktop.pot \
+settings-gui/org.fcitx.Fcitx5.Addon.Vanh.Settings.desktop.in
 
 {
     echo 'msgid ""'
@@ -36,19 +36,20 @@ settings-gui/org.fcitx.Fcitx5.Addon.Lotus.Settings.desktop.in
     echo '"Content-Type: text/plain; charset=UTF-8\n"'
     echo ""
     grep -hE "^Name=" \
-    src/lotus.conf.in \
-    src/lotus-addon.conf.in.in \
+    src/vanh.conf.in \
+    src/vanh-addon.conf.in.in \
+    src/vanh-migrate-addon.conf.in \
     | sed 's/^Name=\(.*\)/msgid "\1"\nmsgstr ""\n/'
-} > /tmp/lotus-conf.pot
+} > /tmp/vanh-conf.pot
 
 msgcat \
 --use-first \
 --sort-output \
-/tmp/lotus-cpp.pot \
-/tmp/lotus-xml.pot \
-/tmp/lotus-conf.pot \
-/tmp/lotus-python.pot \
-/tmp/lotus-desktop.pot \
--o po/fcitx5-lotus.pot
+/tmp/vanh-cpp.pot \
+/tmp/vanh-xml.pot \
+/tmp/vanh-conf.pot \
+/tmp/vanh-python.pot \
+/tmp/vanh-desktop.pot \
+-o po/fcitx5-vanh.pot
 
-rm -f /tmp/lotus-*.pot
+rm -f /tmp/vanh-*.pot

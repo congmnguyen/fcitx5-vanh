@@ -7,7 +7,7 @@ Dynamic Settings Page with Card-based Layout matching modern guidelines.
 
 from enum import Enum
 
-from core.dbus_handler import LotusDBusHandler
+from core.dbus_handler import VanhDBusHandler
 from i18n import _
 from qtpy.QtCore import QSize, Qt, QTimer
 from qtpy.QtGui import QIcon
@@ -48,7 +48,7 @@ SETTINGS_MAP = {
         "TYPING": ["W2U", "BracketTransform"],
     },
     SettingsCategory.APPEARANCE: {
-        "THEME & ICONS": ["UseLotusIcons", "IconTheme"],
+        "THEME & ICONS": ["UseVanhIcons", "IconTheme"],
     },
     SettingsCategory.TYPING: {
         "SPELLING & CORRECTIONS": ["SpellCheck", "AutoNonVnRestore", "DdFreeStyle"],
@@ -78,7 +78,7 @@ SETTINGS_MAP = {
 CATEGORY_DESCRIPTIONS = {
     SettingsCategory.GENERAL: _("Configure basic input method settings and behaviors."),
     SettingsCategory.APPEARANCE: _(
-        "Customize the look and feel of the Lotus status icons and theme."
+        "Customize the look and feel of the Vanh status icons and theme."
     ),
     SettingsCategory.TYPING: _("Fine-tune spelling corrections and advanced typing options."),
     SettingsCategory.SHORTCUTS: _("Manage input mode shortcuts, display order, and fast cycling."),
@@ -140,7 +140,7 @@ class CardWidget(QFrame):
 class DynamicSettingsPage(QWidget):
     def __init__(
         self,
-        dbus_handler: LotusDBusHandler,
+        dbus_handler: VanhDBusHandler,
         category: SettingsCategory = SettingsCategory.GENERAL,
         parent=None,
     ):
@@ -634,5 +634,5 @@ class DynamicSettingsPage(QWidget):
         if key in MODE_SHORTCUT_KEYS or key in MODE_SHORTCUT_TO_VISIBILITY.values():
             self._validate_mode_shortcuts()
 
-        # Notify the parent window (LotusSettingsWindow) if it exists
+        # Notify the parent window (VanhSettingsWindow) if it exists
         notify_parent_changed(self)

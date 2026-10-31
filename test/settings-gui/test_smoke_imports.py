@@ -41,11 +41,11 @@ class SmokeImportTests(unittest.TestCase):
 
     def test_settings_window_class_is_exposed(self):
         module = importlib.import_module("ui.main_window")
-        self.assertTrue(hasattr(module, "LotusSettingsWindow"))
+        self.assertTrue(hasattr(module, "VanhSettingsWindow"))
 
     def test_dbus_handler_class_is_exposed(self):
         module = importlib.import_module("core.dbus_handler")
-        self.assertTrue(hasattr(module, "LotusDBusHandler"))
+        self.assertTrue(hasattr(module, "VanhDBusHandler"))
 
 
 if __name__ == "__main__":

@@ -110,6 +110,6 @@ int run_utf8() {
         std::printf("%d failure(s)\n", failures);
         return 1;
     }
-    std::printf("lotus utf8: all checks passed\n");
+    std::printf("vanh utf8: all checks passed\n");
     return 0;
 }

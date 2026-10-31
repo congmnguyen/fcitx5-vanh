@@ -36,7 +36,7 @@ namespace {
 } // namespace
 
 int main() {
-    configureTestPaths("fcitx5-lotus-auto-capitalize-reset");
+    configureTestPaths("fcitx5-vanh-auto-capitalize-reset");
     TestInstance       testInstance;
     fcitx::LotusEngine engine(&testInstance.instance);
     fcitx::RawConfig   config;
@@ -51,7 +51,7 @@ int main() {
 
     auto context = std::make_unique<TestInputContext>(&testInstance.instance);
     context->focusIn();
-    fcitx::InputMethodEntry  entry("lotus", "Lotus", "vi", "lotus");
+    fcitx::InputMethodEntry  entry("vanh", "Vanh", "vi", "vanh");
     fcitx::InputContextEvent focus(context.get(), fcitx::EventType::InputContextFocusIn);
     engine.activate(entry, focus);
 
@@ -89,6 +89,6 @@ int main() {
         return 1;
     }
 
-    std::printf("lotus auto capitalize reset: all checks passed\n");
+    std::printf("vanh auto capitalize reset: all checks passed\n");
     return 0;
 }

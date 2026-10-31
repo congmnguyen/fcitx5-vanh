@@ -86,7 +86,7 @@ namespace {
 } // namespace
 
 int main() {
-    configureTestPaths("fcitx5-lotus-chromium-address-bar");
+    configureTestPaths("fcitx5-vanh-chromium-address-bar");
     TestInstance       testInstance;
     fcitx::LotusEngine engine(&testInstance.instance);
     fcitx::RawConfig   config;
@@ -98,7 +98,7 @@ int main() {
     if (!listener.valid())
         return 1;
 
-    fcitx::InputMethodEntry entry("lotus", "Lotus", "vi", "lotus");
+    fcitx::InputMethodEntry entry("vanh", "Vanh", "vi", "vanh");
 
     if (!runAddressBarReplacement(&testInstance.instance, engine, entry, listener, std::nullopt))
         return 1;
@@ -106,6 +106,6 @@ int main() {
     if (!runAddressBarReplacement(&testInstance.instance, engine, entry, listener, fcitx::Key(FcitxKey_N, fcitx::KeyState::Shift)))
         return 1;
 
-    std::printf("lotus chromium address bar: all checks passed\n");
+    std::printf("vanh chromium address bar: all checks passed\n");
     return 0;
 }

@@ -9,7 +9,7 @@
 
 /**
  * @file lotus-config.h
- * @brief Configuration definitions for fcitx5-lotus input method.
+ * @brief Configuration definitions for fcitx5-vanh input method.
  */
 
 #ifndef _FCITX5_LOTUS_CONFIG_H_
@@ -177,7 +177,7 @@ namespace fcitx {
         OptionWithAnnotation<Charset, EnumAnnotation> outputCharset{this, "OutputCharset", _("Output Charset"), Charset::Unicode}; KeyListOption modeMenuKey{
             this, "ModeMenuKey", _("Mode Menu Hotkey"), {Key("grave")}, KeyListConstrain({KeyConstrainFlag::AllowModifierLess, KeyConstrainFlag::AllowModifierOnly})};
         KeyListOption cycleModeKey{this, "CycleModeKey", _("Cycle Mode Hotkey"), {}, KeyListConstrain({KeyConstrainFlag::AllowModifierLess, KeyConstrainFlag::AllowModifierOnly})};
-        SubConfigOption                                                                appRules{this, "AppRules", _("App Rules"), "fcitx://config/addon/lotus/app_rules"};
+        SubConfigOption                                                                appRules{this, "AppRules", _("App Rules"), "fcitx://config/addon/vanh/app_rules"};
         OptionWithAnnotation<W2uMode, W2uModeI18NAnnotation>                           w2u{this, "W2U", _("Type w to Produce ư"), W2uMode::NonStart};
         OptionWithAnnotation<BracketTransformMode, BracketTransformModeI18NAnnotation> bracketTransform{this, "BracketTransform", _("Type [ -> ơ, ] -> ư, { -> Ơ, } -> Ư"),
                                                                                                         BracketTransformMode::Disabled};
@@ -195,7 +195,7 @@ namespace fcitx {
         Option<bool>        modernStyle{this, "ModernStyle", _("Use oà, uý (Instead Of òa, úy)"), true};
         Option<bool>        freeMarking{this, "FreeMarking", _("Allow Type With More Freedom"), true};
         Option<bool>        ddFreeStyle{this, "DdFreeStyle", _("Allow dd To Produce đ When Auto Restore Invalid Words Is On"), true};
-        Option<bool>        useLotusIcons{this, "UseLotusIcons", _("Use Lotus Status Icons"), false};
+        Option<bool>        useLotusIcons{this, "UseVanhIcons", _("Use Vanh Status Icons"), false};
 
         Option<bool>        enableDictionary{this, "EnableDictionary", _("Custom Dictionary"), false};
         Option<bool>        enableCustomKeymap{this, "EnableCustomKeymap", _("Custom Keymap"), false};
@@ -222,8 +222,8 @@ namespace fcitx {
         OptionWithAnnotation<std::string, TimeFormatAnnotation>  timeFormat{this, "TimeFormat", _("Time Format ($TIME in macro)"), "%H:%M", {}, {}, TimeFormatAnnotation()};
         OptionWithAnnotation<std::string, DateFormatAnnotation>  dateFormat{this, "DateFormat", _("Date Format ($DATE in macro)"), "%d/%m/%Y", {}, {}, DateFormatAnnotation()};
 
-        SubConfigOption                                          macroEditor{this, "MacroEditor", _("Macro"), "fcitx://config/addon/lotus/lotus-macro"};
-        SubConfigOption                                          customKeymap{this, "CustomKeymap", _("Custom Keymap"), "fcitx://config/addon/lotus/custom_keymap"};
+        SubConfigOption                                          macroEditor{this, "MacroEditor", _("Macro"), "fcitx://config/addon/vanh/vanh-macro"};
+        SubConfigOption                                          customKeymap{this, "CustomKeymap", _("Custom Keymap"), "fcitx://config/addon/vanh/custom_keymap"};
         OptionWithAnnotation<IconTheme, IconThemeI18NAnnotation> iconTheme{this, "IconTheme", _("Icon Color"), IconTheme::Auto};);
 
 } // namespace fcitx

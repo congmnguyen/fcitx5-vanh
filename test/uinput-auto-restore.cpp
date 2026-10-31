@@ -153,14 +153,14 @@ namespace {
 } // namespace
 
 int main() {
-    configureTestPaths("fcitx5-lotus-uinput-auto-restore");
+    configureTestPaths("fcitx5-vanh-uinput-auto-restore");
     TestInstance       testInstance;
     fcitx::LotusEngine engine(&testInstance.instance);
     KbSocketListener   listener;
     if (!listener.valid())
         return 1;
 
-    const fcitx::InputMethodEntry entry("lotus", "Lotus", "vi", "lotus");
+    const fcitx::InputMethodEntry entry("vanh", "Vanh", "vi", "vanh");
 
     struct Case {
         std::string_view    keys;
@@ -212,6 +212,6 @@ int main() {
         std::printf("%d failure(s)\n", failures);
         return 1;
     }
-    std::printf("lotus uinput auto restore: all checks passed\n");
+    std::printf("vanh uinput auto restore: all checks passed\n");
     return 0;
 }

@@ -56,7 +56,7 @@ namespace {
 } // namespace
 
 int main() {
-    configureTestPaths("fcitx5-lotus-select-word-break");
+    configureTestPaths("fcitx5-vanh-select-word-break");
     TestInstance       testInstance;
     fcitx::LotusEngine engine(&testInstance.instance);
     fcitx::RawConfig   config;
@@ -68,7 +68,7 @@ int main() {
     if (!listener.valid())
         return 1;
 
-    fcitx::InputMethodEntry entry("lotus", "Lotus", "vi", "lotus");
+    fcitx::InputMethodEntry entry("vanh", "Vanh", "vi", "vanh");
     auto                    context = std::make_unique<TestInputContext>(&testInstance.instance);
     context->focusIn();
     fcitx::InputContextEvent focus(context.get(), fcitx::EventType::InputContextFocusIn);
@@ -128,6 +128,6 @@ int main() {
     if (!completeBurst(engine, entry, *context, 2))
         return 1;
 
-    std::printf("lotus select word break: all checks passed\n");
+    std::printf("vanh select word break: all checks passed\n");
     return 0;
 }

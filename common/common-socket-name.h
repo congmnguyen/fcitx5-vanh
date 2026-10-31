@@ -20,15 +20,15 @@
 /**
  * @brief Environment variable that replaces the user segment of the abstract socket names.
  */
-inline constexpr const char* LOTUS_SOCKET_NAMESPACE_ENV = "LOTUS_SOCKET_NAMESPACE";
+inline constexpr const char* VANH_SOCKET_NAMESPACE_ENV = "VANH_SOCKET_NAMESPACE";
 
 /**
  * @brief Resolves the user segment of the abstract socket name.
  * @param username Default segment, the name of the current user.
- * @return Value of LOTUS_SOCKET_NAMESPACE_ENV when set and non-empty, @p username otherwise.
+ * @return Value of VANH_SOCKET_NAMESPACE_ENV when set and non-empty, @p username otherwise.
  */
 inline std::string lotusSocketNamespace(std::string_view username) {
-    const char* override_value = std::getenv(LOTUS_SOCKET_NAMESPACE_ENV);
+    const char* override_value = std::getenv(VANH_SOCKET_NAMESPACE_ENV);
     if (override_value != nullptr && *override_value != '\0') {
         return override_value;
     }

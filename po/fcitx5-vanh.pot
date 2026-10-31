@@ -215,8 +215,8 @@ msgstr ""
 msgid "Commit Interval"
 msgstr ""
 
-#: settings-gui/org.fcitx.Fcitx5.Addon.Lotus.Settings.desktop.in:3
-msgid "Configure Fcitx5 Lotus Input Method"
+#: settings-gui/org.fcitx.Fcitx5.Addon.Vanh.Settings.desktop.in:3
+msgid "Configure Fcitx5 Vanh Input Method"
 msgstr ""
 
 #: settings-gui/ui/pages/dynamic_settings.py:79
@@ -257,7 +257,7 @@ msgid "Custom Keymaps"
 msgstr ""
 
 #: settings-gui/ui/pages/dynamic_settings.py:81
-msgid "Customize the look and feel of the Lotus status icons and theme."
+msgid "Customize the look and feel of the Vanh status icons and theme."
 msgstr ""
 
 #: src/lotus-config.h:179
@@ -409,11 +409,11 @@ msgid "Failed to save settings. Please check if Fcitx5 is running."
 msgstr ""
 
 #: settings-gui/ui/pages/about.py:144
-msgid "Fcitx5 Lotus Contributors"
+msgid "Based on fcitx5-lotus by its contributors"
 msgstr ""
 
-#: settings-gui/org.fcitx.Fcitx5.Addon.Lotus.Settings.desktop.in:2
-msgid "Fcitx5 Lotus Settings"
+#: settings-gui/org.fcitx.Fcitx5.Addon.Vanh.Settings.desktop.in:2
+msgid "Fcitx5 Vanh Settings"
 msgstr ""
 
 #: settings-gui/ui/pages/dynamic_settings.py:83
@@ -477,8 +477,8 @@ msgstr ""
 msgid "Light"
 msgstr ""
 
-#: org.fcitx.Fcitx5.Addon.Lotus.metainfo.xml.in.in:7
-msgid "Lotus"
+#: org.fcitx.Fcitx5.Addon.Vanh.metainfo.xml.in.in:7
+msgid "Vanh"
 msgstr ""
 
 #: src/lotus-engine.cpp:1140
@@ -486,15 +486,15 @@ msgid "Vanh - Off"
 msgstr ""
 
 #: settings-gui/ui/main_window.py:33
-msgid "Lotus Settings"
+msgid "Vanh Settings"
 msgstr ""
 
-msgid "Lotus Wrapper For Fcitx"
+msgid "Vanh Wrapper For Fcitx"
 msgstr ""
 
-#: org.fcitx.Fcitx5.Addon.Lotus.metainfo.xml.in.in:10
+#: org.fcitx.Fcitx5.Addon.Vanh.metainfo.xml.in.in:10
 msgid ""
-"Lotus is a Vietnamese input method for Fcitx5, supporting multiple typing "
+"Vanh is a Vietnamese input method for Fcitx5, supporting multiple typing "
 "modes and input methods."
 msgstr ""
 
@@ -842,7 +842,7 @@ msgstr ""
 
 #: src/lotus-notify.cpp:82
 msgid ""
-"Uinput modes need the Lotus uinput server. Enable the server service for "
+"Uinput modes need the Vanh uinput server. Enable the server service for "
 "your distribution and init system."
 msgstr ""
 
@@ -856,7 +856,7 @@ msgid "Update Keymap"
 msgstr ""
 
 #: src/lotus-config.h:196
-msgid "Use Lotus Status Icons"
+msgid "Use Vanh Status Icons"
 msgstr ""
 
 #: src/lotus-config.h:193
@@ -876,8 +876,8 @@ msgstr ""
 msgid "Version {}"
 msgstr ""
 
-#: org.fcitx.Fcitx5.Addon.Lotus.metainfo.xml.in.in:8
-msgid "Vietnamese input method (Lotus)"
+#: org.fcitx.Fcitx5.Addon.Vanh.metainfo.xml.in.in:8
+msgid "Vietnamese input method (Vanh)"
 msgstr ""
 
 #: settings-gui/ui/pages/backup.py:120 settings-gui/ui/pages/backup.py:229

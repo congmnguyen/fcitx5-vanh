@@ -1,11 +1,11 @@
-# Vietnamese translations for fcitx-lotus package.
-# Copyright (C) 2026 THE fcitx-lotus'S COPYRIGHT HOLDER
-# This file is distributed under the same license as the fcitx-lotus package.
+# Vietnamese translations for fcitx-vanh package.
+# Copyright (C) 2026 THE fcitx-vanh'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the fcitx-vanh package.
 # Automatically generated, 2026.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: fcitx5-lotus\n"
+"Project-Id-Version: fcitx5-vanh\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-10-21 08:19+0700\n"
 "PO-Revision-Date: 2026-10-21 08:22+0700\n"
@@ -234,9 +234,9 @@ msgstr "Xoá phím tắt"
 msgid "Commit Interval"
 msgstr "Khoảng cách giữa 2 commit"
 
-#: settings-gui/org.fcitx.Fcitx5.Addon.Lotus.Settings.desktop.in:3
-msgid "Configure Fcitx5 Lotus Input Method"
-msgstr "Tuỳ chỉnh bộ gõ Fcitx5 Lotus"
+#: settings-gui/org.fcitx.Fcitx5.Addon.Vanh.Settings.desktop.in:3
+msgid "Configure Fcitx5 Vanh Input Method"
+msgstr "Tuỳ chỉnh bộ gõ Fcitx5 Vanh"
 
 #: settings-gui/ui/pages/dynamic_settings.py:79
 msgid "Configure basic input method settings and behaviors."
@@ -276,8 +276,8 @@ msgid "Custom Keymaps"
 msgstr "Keymap tuỳ chỉnh"
 
 #: settings-gui/ui/pages/dynamic_settings.py:81
-msgid "Customize the look and feel of the Lotus status icons and theme."
-msgstr "Tùy chỉnh giao diện, biểu tượng trạng thái và chủ đề của Lotus."
+msgid "Customize the look and feel of the Vanh status icons and theme."
+msgstr "Tùy chỉnh giao diện, biểu tượng trạng thái và chủ đề của Vanh."
 
 #: src/lotus-config.h:179
 msgid "Cycle Mode Hotkey"
@@ -434,12 +434,12 @@ msgid "Failed to save settings. Please check if Fcitx5 is running."
 msgstr "Lưu cài đặt thất bại. Hãy kiểm tra xem Fcitx5 có đang chạy hay không."
 
 #: settings-gui/ui/pages/about.py:144
-msgid "Fcitx5 Lotus Contributors"
-msgstr "Những người đóng góp cho Fcitx5 Lotus"
+msgid "Based on fcitx5-lotus by its contributors"
+msgstr "Dựa trên fcitx5-lotus của những người đóng góp"
 
-#: settings-gui/org.fcitx.Fcitx5.Addon.Lotus.Settings.desktop.in:2
-msgid "Fcitx5 Lotus Settings"
-msgstr "Cài đặt Fcitx5 Lotus"
+#: settings-gui/org.fcitx.Fcitx5.Addon.Vanh.Settings.desktop.in:2
+msgid "Fcitx5 Vanh Settings"
+msgstr "Cài đặt Fcitx5 Vanh"
 
 #: settings-gui/ui/pages/dynamic_settings.py:83
 msgid "Fine-tune spelling corrections and advanced typing options."
@@ -502,26 +502,26 @@ msgstr "Keymap"
 msgid "Light"
 msgstr "Sáng"
 
-#: org.fcitx.Fcitx5.Addon.Lotus.metainfo.xml.in.in:7
-msgid "Lotus"
-msgstr "Lotus"
+#: org.fcitx.Fcitx5.Addon.Vanh.metainfo.xml.in.in:7
+msgid "Vanh"
+msgstr "Vanh"
 
 #: src/lotus-engine.cpp:1140
 msgid "Vanh - Off"
 msgstr "Vanh - Tắt"
 
 #: settings-gui/ui/main_window.py:33
-msgid "Lotus Settings"
-msgstr "Cài đặt Lotus"
+msgid "Vanh Settings"
+msgstr "Cài đặt Vanh"
 
-msgid "Lotus Wrapper For Fcitx"
-msgstr "Bộ gõ Lotus cho Fcitx"
+msgid "Vanh Wrapper For Fcitx"
+msgstr "Bộ gõ Vanh cho Fcitx"
 
-#: org.fcitx.Fcitx5.Addon.Lotus.metainfo.xml.in.in:10
+#: org.fcitx.Fcitx5.Addon.Vanh.metainfo.xml.in.in:10
 msgid ""
-"Lotus is a Vietnamese input method for Fcitx5, supporting multiple typing "
+"Vanh is a Vietnamese input method for Fcitx5, supporting multiple typing "
 "modes and input methods."
-msgstr "Lotus là bộ gõ tiếng Việt cho Fcitx5, hỗ trợ nhiều chế độ và kiểu gõ."
+msgstr "Vanh là bộ gõ tiếng Việt cho Fcitx5, hỗ trợ nhiều chế độ và kiểu gõ."
 
 #: src/lotus-notify.cpp:86
 msgid "Vanh: the uinput server is not running"
@@ -877,10 +877,10 @@ msgstr "Uinput (Siêu mượt)"
 
 #: src/lotus-notify.cpp:82
 msgid ""
-"Uinput modes need the Lotus uinput server. Enable the server service for "
+"Uinput modes need the Vanh uinput server. Enable the server service for "
 "your distribution and init system."
 msgstr ""
-"Chế độ uinput cần máy chủ uinput Lotus. Bật dịch vụ máy chủ cho bản phân "
+"Chế độ uinput cần máy chủ uinput Vanh. Bật dịch vụ máy chủ cho bản phân "
 "phối và hệ thống init của bạn."
 
 #: settings-gui/ui/pages/keymap_editor.py:435
@@ -893,8 +893,8 @@ msgid "Update Keymap"
 msgstr "Cập Nhật Keymap"
 
 #: src/lotus-config.h:196
-msgid "Use Lotus Status Icons"
-msgstr "Sử dụng biểu tượng trạng thái Lotus"
+msgid "Use Vanh Status Icons"
+msgstr "Sử dụng biểu tượng trạng thái Vanh"
 
 #: src/lotus-config.h:193
 msgid "Use oà, uý (Instead Of òa, úy)"
@@ -913,9 +913,9 @@ msgstr "Giá trị:"
 msgid "Version {}"
 msgstr "Phiên bản {}"
 
-#: org.fcitx.Fcitx5.Addon.Lotus.metainfo.xml.in.in:8
-msgid "Vietnamese input method (Lotus)"
-msgstr "Bộ gõ tiếng Việt (Lotus)"
+#: org.fcitx.Fcitx5.Addon.Vanh.metainfo.xml.in.in:8
+msgid "Vietnamese input method (Vanh)"
+msgstr "Bộ gõ tiếng Việt (Vanh)"
 
 #: settings-gui/ui/pages/backup.py:120 settings-gui/ui/pages/backup.py:229
 #: settings-gui/ui/pages/dict_editor.py:186

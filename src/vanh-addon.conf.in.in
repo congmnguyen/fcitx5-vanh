@@ -1,9 +1,9 @@
 [Addon]
-Name=Lotus Wrapper For Fcitx
+Name=Vanh Wrapper For Fcitx
 Category=InputMethod
 Version=@PROJECT_VERSION@
 Enabled=True
-Library=liblotus
+Library=libvanh
 Type=SharedLibrary
 OnDemand=True
 Configurable=True

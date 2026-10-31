@@ -68,7 +68,7 @@ namespace {
 } // namespace
 
 int main() {
-    const auto      root = std::filesystem::temp_directory_path() / ("fcitx5-lotus-emoji-history-unit-" + std::to_string(::getpid()));
+    const auto      root = std::filesystem::temp_directory_path() / ("fcitx5-vanh-emoji-history-unit-" + std::to_string(::getpid()));
     std::error_code ec;
     std::filesystem::create_directories(root, ec);
 

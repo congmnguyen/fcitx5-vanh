@@ -44,12 +44,12 @@ namespace {
 } // namespace
 
 int main() {
-    const char* testName = "fcitx5-lotus-app-rule-delay-wire";
+    const char* testName = "fcitx5-vanh-app-rule-delay-wire";
     configureTestPaths(testName);
 
     // The mock input context reports the program name "test"; its rule sets the
     // backspace interval to 20 ms and the post delay to 25 ms.
-    const auto rulesFile = std::filesystem::temp_directory_path() / testName / "config/fcitx5/conf/lotus-app-rules.conf";
+    const auto rulesFile = std::filesystem::temp_directory_path() / testName / "config/fcitx5/conf/vanh-app-rules.conf";
     {
         std::filesystem::create_directories(rulesFile.parent_path());
         std::ofstream file(rulesFile);
@@ -70,7 +70,7 @@ int main() {
         return 1;
     auto context = std::make_unique<TestInputContext>(&testInstance.instance);
     context->focusIn();
-    fcitx::InputMethodEntry  entry("lotus", "Lotus", "vi", "lotus");
+    fcitx::InputMethodEntry  entry("vanh", "Vanh", "vi", "vanh");
     fcitx::InputContextEvent focus(context.get(), fcitx::EventType::InputContextFocusIn);
     engine.activate(entry, focus);
     context->resetPreeditUpdateCount();

@@ -1,20 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Nguyen Hoang Ky <nhktmdzhg@gmail.com>
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Unit tests for core.dbus_handler.LotusDBusHandler."""
+"""Unit tests for core.dbus_handler.VanhDBusHandler."""
 
 import unittest
 from unittest import mock
 
 import _stubs
-from core.dbus_handler import LotusDBusHandler
+from core.dbus_handler import VanhDBusHandler
 
-ADDON_NAME = "fcitx://config/addon/lotus"
+ADDON_NAME = "fcitx://config/addon/vanh"
 
 
 def _handler(iface):
     """Builds a handler around an explicit controller interface fake."""
-    handler = LotusDBusHandler.__new__(LotusDBusHandler)
+    handler = VanhDBusHandler.__new__(VanhDBusHandler)
     handler.addon_name = ADDON_NAME
     handler.iface = iface
     return handler
@@ -43,7 +43,7 @@ class FakeController:
             raise self.set_error
 
 
-class LotusDBusHandlerInitTests(unittest.TestCase):
+class VanhDBusHandlerInitTests(unittest.TestCase):
     def setUp(self):
         self.dbus = _stubs.dbus_stub()
         self._session_bus = self.dbus.SessionBus
@@ -61,7 +61,7 @@ class LotusDBusHandlerInitTests(unittest.TestCase):
         self.dbus.SessionBus = mock.MagicMock(return_value=bus)
         self.dbus.Interface = mock.MagicMock(return_value=iface)
 
-        handler = LotusDBusHandler()
+        handler = VanhDBusHandler()
 
         self.assertIs(handler.iface, iface)
         self.assertEqual(handler.addon_name, ADDON_NAME)
@@ -71,7 +71,7 @@ class LotusDBusHandlerInitTests(unittest.TestCase):
     def test_missing_session_bus_degrades_gracefully(self):
         self.dbus.SessionBus = mock.MagicMock(side_effect=self.dbus.DBusException("no session bus"))
 
-        handler = LotusDBusHandler()
+        handler = VanhDBusHandler()
 
         self.assertIsNone(handler.iface)
         self.assertEqual(handler.get_config(), {})

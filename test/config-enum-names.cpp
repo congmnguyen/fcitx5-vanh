@@ -45,7 +45,7 @@ namespace {
      * @return Configuration read back from the file.
      */
     fcitx::lotusConfig roundTrip(const fcitx::lotusConfig& config, std::string& savedText) {
-        const auto path = std::filesystem::temp_directory_path() / "lotus-config-enum-names.conf";
+        const auto path = std::filesystem::temp_directory_path() / "vanh-config-enum-names.conf";
         check("config saves", fcitx::safeSaveAsIni(config, path.string()));
         savedText = readText(path);
         fcitx::lotusConfig reloaded;

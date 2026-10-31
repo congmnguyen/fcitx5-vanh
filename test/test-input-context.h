@@ -31,8 +31,8 @@
  * Example — Writing a new integration test:
  * @code
  * int main() {
- *     // 1. Sandbox filesystem paths to /tmp/fcitx5-lotus-my-test
- *     configureTestPaths("fcitx5-lotus-my-test");
+ *     // 1. Sandbox filesystem paths to /tmp/fcitx5-vanh-my-test
+ *     configureTestPaths("fcitx5-vanh-my-test");
  *
  *     // 2. Initialize headless Fcitx instance and Lotus engine
  *     TestInstance testInstance;
@@ -48,7 +48,7 @@
  *     auto context = std::make_unique<TestInputContext>(&testInstance.instance);
  *     context->setCapabilityFlags(fcitx::CapabilityFlag::Preedit);
  *     context->focusIn();
- *     fcitx::InputMethodEntry entry("lotus", "Lotus", "vi", "lotus");
+ *     fcitx::InputMethodEntry entry("vanh", "Vanh", "vi", "vanh");
  *     fcitx::InputContextEvent in(context.get(), fcitx::EventType::InputContextFocusIn);
  *     engine.activate(entry, in);
  *
@@ -170,6 +170,11 @@ inline void configureTestPaths(const char* name) {
     std::filesystem::create_directories(root / "config/fcitx5/conf", ec);
     std::filesystem::create_directories(root / "data", ec);
     std::filesystem::create_directories(root / "cache", ec);
+#ifdef VANH_TEST_DICTIONARY
+    // The dictionary of the source tree, not whatever the host has installed.
+    std::filesystem::create_directories(root / "data/fcitx5/vanh", ec);
+    std::filesystem::copy_file(VANH_TEST_DICTIONARY, root / "data/fcitx5/vanh/vietnamese.cm.dict", std::filesystem::copy_options::overwrite_existing, ec);
+#endif
 
     setenv("HOME", root.c_str(), 1);
     setenv("XDG_CONFIG_HOME", (root / "config").c_str(), 1);
@@ -202,7 +207,7 @@ struct TestInstance {
         instance.addonManager().registerDefaultLoader(nullptr);
         instance.initialize();
     }
-    std::array<char, 64> program{"lotus-headless-test"};
+    std::array<char, 64> program{"vanh-headless-test"};
     std::array<char, 16> disableAll{"--disable=all"};
     std::array<char*, 3> argv{program.data(), disableAll.data(), nullptr};
     fcitx::Instance      instance;

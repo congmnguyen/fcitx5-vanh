@@ -33,7 +33,7 @@ std::atomic<unsigned int>     g_realTextLen{0};
 std::atomic<int>              g_mouseSocketFd{-1};
 
 namespace fcitx {
-    FCITX_DEFINE_LOG_CATEGORY(lotusLog, "lotus", fcitx::LogLevel::NoLog);
+    FCITX_DEFINE_LOG_CATEGORY(lotusLog, "vanh", fcitx::LogLevel::NoLog);
 } // namespace fcitx
 
 void setRealMode(fcitx::LotusMode mode) {
@@ -57,7 +57,7 @@ std::string buildSocketPath(std::string_view base_path_suffix) {
     }
     std::string path;
     path.reserve(32);
-    path += "lotussocket-";
+    path += "vanhsocket-";
     path += lotusSocketNamespace(username);
     path += '-';
     path += base_path_suffix;

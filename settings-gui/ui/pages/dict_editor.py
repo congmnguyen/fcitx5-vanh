@@ -2,14 +2,14 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 """
-Dictionary Editor Page. Edits lotus-dict-table.conf.
+Dictionary Editor Page. Edits vanh-dict-table.conf.
 Implements UI with row reordering and TSV import/export.
 """
 
 import os
 import tempfile
 
-from core.dbus_handler import LotusDBusHandler
+from core.dbus_handler import VanhDBusHandler
 from i18n import _
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QColor, QIcon
@@ -33,16 +33,16 @@ from ui.pages.base_editor import BaseEditorPage
 try:
     from paths import DICTIONARY_PATH
 except ImportError:
-    DICTIONARY_PATH = "/usr/share/fcitx5/lotus/vietnamese.cm.dict"
+    DICTIONARY_PATH = "/usr/share/fcitx5/vanh/vietnamese.cm.dict"
 from ui.pages.dynamic_settings import CardWidget
 
 
 class DictEditorPage(BaseEditorPage):
-    """UI for editing Lotus dictionary."""
+    """UI for editing Vanh dictionary."""
 
     def __init__(
         self,
-        dbus_handler: LotusDBusHandler,
+        dbus_handler: VanhDBusHandler,
         parent=None,
     ):
         super().__init__(parent)
@@ -57,8 +57,8 @@ class DictEditorPage(BaseEditorPage):
         # Common locations for fcitx5 pkgdata
         paths = [
             DICTIONARY_PATH,
-            "/usr/share/fcitx5/lotus/vietnamese.cm.dict",
-            "/usr/local/share/fcitx5/lotus/vietnamese.cm.dict",
+            "/usr/share/fcitx5/vanh/vietnamese.cm.dict",
+            "/usr/local/share/fcitx5/vanh/vietnamese.cm.dict",
         ]
         for p in paths:
             if os.path.exists(p):

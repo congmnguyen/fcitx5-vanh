@@ -60,7 +60,7 @@ namespace {
 } // namespace
 
 int main() {
-    configureTestPaths("fcitx5-lotus-server-wire-compat");
+    configureTestPaths("fcitx5-vanh-server-wire-compat");
     const std::string self = selfExecutable();
     check("own executable resolves", !self.empty());
 

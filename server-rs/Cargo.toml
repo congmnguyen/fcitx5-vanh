@@ -1,9 +1,9 @@
 [package]
-name = "fcitx5-lotus-server"
+name = "fcitx5-vanh-server"
 version = "6.0.4"
 edition = "2021"
 license = "GPL-3.0-or-later"
-description = "Privileged uinput helper of fcitx5-lotus (Vanh): injects the replacement keys and reports mouse clicks"
+description = "Privileged uinput helper of fcitx5-vanh: injects the replacement keys and reports mouse clicks"
 publish = false
 build = "build.rs"
 
@@ -16,7 +16,7 @@ name = "lotus_server"
 path = "src/lib.rs"
 
 [[bin]]
-name = "fcitx5-lotus-server"
+name = "fcitx5-vanh-server"
 path = "src/main.rs"
 
 [profile.release]

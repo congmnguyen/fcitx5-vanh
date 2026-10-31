@@ -2,11 +2,11 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 """
-Macro Editor Page. Edits lotus-macro-table.conf.
+Macro Editor Page. Edits vanh-macro-table.conf.
 Implements UI with row reordering and TSV import/export.
 """
 
-from core.dbus_handler import LotusDBusHandler
+from core.dbus_handler import VanhDBusHandler
 from i18n import _
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QColor, QIcon
@@ -31,11 +31,11 @@ from ui.pages.dynamic_settings import CardWidget
 
 
 class MacroEditorPage(BaseEditorPage):
-    """UI for editing Lotus macros."""
+    """UI for editing Vanh macros."""
 
     def __init__(
         self,
-        dbus_handler: LotusDBusHandler,
+        dbus_handler: VanhDBusHandler,
         parent=None,
     ):
         super().__init__(parent)
@@ -281,7 +281,7 @@ class MacroEditorPage(BaseEditorPage):
                     )
 
             self.table.setRowCount(0)
-            data = self.dbus.get_sub_config_list("lotus-macro", "Macro")
+            data = self.dbus.get_sub_config_list("vanh-macro", "Macro")
             for item in data:
                 self.upsert_row(item.get("Key", ""), item.get("Value", ""), sort=False)
             self.on_search_changed()
@@ -363,7 +363,7 @@ class MacroEditorPage(BaseEditorPage):
                 continue
             data.append({"Key": key_item.text(), "Value": val_item.text() if val_item else ""})
 
-        if not self.dbus.set_sub_config_list("lotus-macro", "Macro", data):
+        if not self.dbus.set_sub_config_list("vanh-macro", "Macro", data):
             return False
 
         self.initial_state = self._get_current_state()

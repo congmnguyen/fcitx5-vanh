@@ -10,22 +10,22 @@
 //! in CMakeLists.txt (`LOTUS_SERVER_BINARY_NAME`).
 
 /// syslog identity (`openlog` ident), also the program name of the daemon.
-pub const SYSLOG_IDENT: &std::ffi::CStr = c"fcitx5-lotus-server";
+pub const SYSLOG_IDENT: &std::ffi::CStr = c"fcitx5-vanh-server";
 
 /// Prefix of both abstract socket names: `<prefix><namespace>-<suffix>`.
-pub const SOCKET_PREFIX: &str = "lotussocket-";
+pub const SOCKET_PREFIX: &str = "vanhsocket-";
 /// Suffix of the keyboard request socket.
 pub const KB_SOCKET_SUFFIX: &str = "kbSocket";
 /// Suffix of the mouse click notification socket.
 pub const MOUSE_SOCKET_SUFFIX: &str = "mouseSocket";
 /// Environment variable that replaces the user segment of the socket names.
-pub const SOCKET_NAMESPACE_ENV: &str = "LOTUS_SOCKET_NAMESPACE";
+pub const SOCKET_NAMESPACE_ENV: &str = "VANH_SOCKET_NAMESPACE";
 
 /// Command line flag naming the user the server works for.
 pub const USER_FLAG: &str = "-u";
 
 /// Name of the virtual keyboard; the physical Shift tracker skips the device with this name.
-pub const UINPUT_NAME: &str = "Lotus-Uinput-Server";
+pub const UINPUT_NAME: &str = "Vanh-Uinput-Server";
 /// Vendor id of the virtual keyboard.
 pub const UINPUT_VENDOR: u16 = 0x1234;
 /// Product id of the virtual keyboard.

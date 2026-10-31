@@ -1,5 +1,7 @@
-fcitx5-lotus (6.0.4-1) unstable; urgency=medium
+fcitx5-vanh (6.0.4-1) unstable; urgency=medium
 
+  * Rename the package, addon, input method, server and data paths from lotus
+    to vanh; migrate the old user configuration and service enablement.
   * Add detection of the address bar in Chromium-based browsers on X11.
   * Fix bug w2u in surrounding text mode
   * Fix bug cannot restore invalid word on uinput mode

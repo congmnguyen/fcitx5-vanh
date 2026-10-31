@@ -10,7 +10,7 @@
 
 /**
  * @file lotus-engine.h
- * @brief Main engine implementation for fcitx5-lotus Vietnamese input method.
+ * @brief Main engine implementation for fcitx5-vanh Vietnamese input method.
  */
 
 #ifndef _FCITX5_LOTUS_ENGINE_H_
@@ -280,7 +280,7 @@ namespace fcitx {
          * @brief Saves current configuration to disk.
          */
         void saveConfig() {
-            safeSaveAsIni(config_, "conf/lotus.conf");
+            safeSaveAsIni(config_, "conf/vanh.conf");
         }
 
         /**

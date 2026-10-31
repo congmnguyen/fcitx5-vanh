@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 """
-Backup and Restore page for Lotus settings.
+Backup and Restore page for Vanh settings.
 Supports JSON-based backups and selective export/import.
 """
 
@@ -10,7 +10,7 @@ import json
 import os
 from datetime import datetime
 
-from core.dbus_handler import LotusDBusHandler
+from core.dbus_handler import VanhDBusHandler
 from i18n import _
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
@@ -33,7 +33,7 @@ from ui.pages.dynamic_settings import CardWidget
 
 
 class BackupPage(QWidget):
-    def __init__(self, dbus_handler: LotusDBusHandler, parent=None):
+    def __init__(self, dbus_handler: VanhDBusHandler, parent=None):
         super().__init__(parent)
         self.dbus = dbus_handler
         self.restore_data = None  # Stores data from opened backup for selective restore
@@ -120,7 +120,7 @@ class BackupPage(QWidget):
             QMessageBox.warning(self, _("Warning"), _("Select at least one item to export."))
             return
 
-        default_filename = f"lotus-backup-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
+        default_filename = f"vanh-backup-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
         path, _filter = QFileDialog.getSaveFileName(
             self,
             _("Export Backup"),
@@ -144,7 +144,7 @@ class BackupPage(QWidget):
                 backup["config"] = config_data
 
             if selected["macros"]:
-                macros = self.dbus.get_sub_config_list("lotus-macro", "Macro")
+                macros = self.dbus.get_sub_config_list("vanh-macro", "Macro")
                 backup["macros"] = macros
 
             if selected["keymaps"]:
@@ -251,7 +251,7 @@ class BackupPage(QWidget):
                     failed_components.append(_("Main Settings"))
 
             if "macros" in selected_keys and "macros" in backup:
-                if not self.dbus.set_sub_config_list("lotus-macro", "Macro", backup["macros"]):
+                if not self.dbus.set_sub_config_list("vanh-macro", "Macro", backup["macros"]):
                     failed_components.append(_("Macros"))
 
             if "keymaps" in selected_keys and "keymaps" in backup:

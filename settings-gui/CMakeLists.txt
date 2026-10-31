@@ -28,7 +28,7 @@ install(FILES main.py
         DESTINATION "${SETTINGS_GUI_INSTALL_DIR}"
         PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 
-set(LAUNCHER_SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/fcitx5-lotus-settings")
+set(LAUNCHER_SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/fcitx5-vanh-settings")
 
 file(WRITE "${LAUNCHER_SCRIPT}"
 "#!/bin/sh
@@ -49,10 +49,10 @@ if(LOTUS_BYTECOMPILE_PYTHON)
 endif()
 
 fcitx5_translate_desktop_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/org.fcitx.Fcitx5.Addon.Lotus.Settings.desktop.in"
-    org.fcitx.Fcitx5.Addon.Lotus.Settings.desktop
+    "${CMAKE_CURRENT_SOURCE_DIR}/org.fcitx.Fcitx5.Addon.Vanh.Settings.desktop.in"
+    org.fcitx.Fcitx5.Addon.Vanh.Settings.desktop
     DESKTOP
 )
 
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/org.fcitx.Fcitx5.Addon.Lotus.Settings.desktop"
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/org.fcitx.Fcitx5.Addon.Vanh.Settings.desktop"
         DESTINATION "${CMAKE_INSTALL_DATADIR}/applications")

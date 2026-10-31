@@ -1,3 +1,8 @@
+# Socket namespace of the tests that share the fake uinput server of test/kb-socket-listener.h
+# (RESOURCE_LOCK lotus_kb_socket below); unique per build tree, never the user's live server.
+string(MD5 LOTUS_CTEST_SOCKET_NAMESPACE "${PROJECT_BINARY_DIR}")
+string(SUBSTRING "${LOTUS_CTEST_SOCKET_NAMESPACE}" 0 12 LOTUS_CTEST_SOCKET_NAMESPACE)
+
 # Wraps the core objects compiled once in src/lotus_core_objects for the headless tests.
 add_library(lotus_test_core SHARED
     $<TARGET_OBJECTS:lotus_core_objects>
@@ -34,7 +39,7 @@ target_link_libraries(lotus_test_pch PRIVATE
     Pthread::Pthread
 )
 target_compile_definitions(lotus_test_pch PRIVATE
-    FCITX5_LOTUS_SETTINGS_PATH="${CMAKE_INSTALL_FULL_BINDIR}/fcitx5-lotus-settings"
+    FCITX5_LOTUS_SETTINGS_PATH="${CMAKE_INSTALL_FULL_BINDIR}/fcitx5-vanh-settings"
     LOTUS_SERVER_EXECUTABLE="${LOTUS_SERVER_EXECUTABLE}"
     LOTUS_ALT_EXECUTABLE_PREFIX="${LOTUS_ALT_EXECUTABLE_PREFIX}"
 )
@@ -68,10 +73,14 @@ function(add_lotus_headless_test)
     # lotus_test_pch mirrors the executables' flags, so its prebuilt PCH is
     # reused, not rejected.
     target_compile_definitions(${ARG_TARGET} PRIVATE
-        FCITX5_LOTUS_SETTINGS_PATH="${CMAKE_INSTALL_FULL_BINDIR}/fcitx5-lotus-settings"
+        FCITX5_LOTUS_SETTINGS_PATH="${CMAKE_INSTALL_FULL_BINDIR}/fcitx5-vanh-settings"
         LOTUS_SERVER_EXECUTABLE="${LOTUS_SERVER_EXECUTABLE}"
         LOTUS_ALT_EXECUTABLE_PREFIX="${LOTUS_ALT_EXECUTABLE_PREFIX}"
     )
+    # configureTestPaths() installs the source dictionary into the test's own data dir, so no
+    # test depends on a dictionary installed on the host.
+    set_property(SOURCE ${ARG_SOURCES} APPEND PROPERTY COMPILE_DEFINITIONS
+        VANH_TEST_DICTIONARY="${PROJECT_SOURCE_DIR}/data/dictionaries/vietnamese.cm.dict")
     target_precompile_headers(${ARG_TARGET} REUSE_FROM lotus_test_pch)
     target_link_libraries(${ARG_TARGET} PRIVATE
         lotus_test_core
@@ -140,6 +149,19 @@ add_lotus_headless_test(TARGET replacement_delays SOURCES replacement-delays.cpp
 add_lotus_headless_test(TARGET merged_replacement_commit SOURCES merged-replacement-commit.cpp LABELS "integration;smooth")
 add_lotus_headless_test(TARGET dict_reload SOURCES dict-reload.cpp LABELS "integration;dictionary")
 add_lotus_headless_test(TARGET config_enum_names SOURCES config-enum-names.cpp LABELS "unit;config")
+add_lotus_headless_test(TARGET vanh_migration SOURCES vanh-migration.cpp LABELS "unit;config;migration")
+# The built vanh-migrate module, loaded by a real Instance from a temporary tree.
+add_executable(vanh_migrate_module vanh-migrate-module.cpp)
+target_link_libraries(vanh_migrate_module PRIVATE Fcitx5::Core Fcitx5::Utils)
+target_compile_definitions(vanh_migrate_module PRIVATE
+    VANH_MIGRATE_MODULE_DIR="$<TARGET_FILE_DIR:vanh_migrate>"
+    VANH_MIGRATE_ADDON_CONF="${PROJECT_BINARY_DIR}/src/vanh-migrate-addon.conf"
+    VANH_ADDON_CONF="${PROJECT_BINARY_DIR}/src/vanh-addon.conf"
+    VANH_INPUTMETHOD_CONF="${PROJECT_BINARY_DIR}/src/vanh.conf"
+)
+add_dependencies(vanh_migrate_module vanh_migrate)
+add_test(NAME vanh_migrate_module COMMAND vanh_migrate_module)
+set_tests_properties(vanh_migrate_module PROPERTIES LABELS "integration;migration" TIMEOUT 20)
 # The uinput server is tested in Rust (server-rs, `cargo test`: wire format, planning, Shift
 # tracking, peer checks, socket setup, device identity); one ctest entry runs the whole suite.
 add_test(NAME lotus_server_rust_tests COMMAND ${LOTUS_SERVER_RUST_TEST_COMMAND})
@@ -164,12 +186,11 @@ add_lotus_headless_test(TARGET emoji_history_unit SOURCES emoji-history-unit.cpp
 add_lotus_headless_test(TARGET kb_sender SOURCES kb-sender.cpp LABELS "unit;socket")
 set_tests_properties(kb_sender PROPERTIES
     RESOURCE_LOCK lotus_kb_socket
-    ENVIRONMENT "LOTUS_SOCKET_NAMESPACE=ctest-${LOTUS_CTEST_SOCKET_NAMESPACE}")
+    ENVIRONMENT "VANH_SOCKET_NAMESPACE=ctest-${LOTUS_CTEST_SOCKET_NAMESPACE}")
 
-string(MD5 LOTUS_CTEST_SOCKET_NAMESPACE "${PROJECT_BINARY_DIR}")
 set_tests_properties(server_wire_compat smooth_buffered_key_replay focus_bounce_word_survival focus_out_mid_replacement uinput_auto_restore anchor_key_protocol uinput_server_probe select_mode_replacement select_modifier_replay chromium_address_bar select_anchor_completion select_cancel select_cancel_reconcile select_word_break replacement_delays app_rule_delay_wire dbus_deferred_commit merged_replacement_commit runtime_safety
     PROPERTIES RESOURCE_LOCK lotus_kb_socket
-    ENVIRONMENT "LOTUS_SOCKET_NAMESPACE=ctest-${LOTUS_CTEST_SOCKET_NAMESPACE}")
+    ENVIRONMENT "VANH_SOCKET_NAMESPACE=ctest-${LOTUS_CTEST_SOCKET_NAMESPACE}")
 
 add_executable(executable_path_match
     executable-path-match.cpp
@@ -183,3 +204,18 @@ set_tests_properties(executable_path_match PROPERTIES
 
 # Headless Python unit tests for the settings-gui, one CTest entry per module.
 add_subdirectory(settings-gui)
+
+# Hermetic environment for every test of this directory (the settings-gui/ Python tests neither
+# load the addon nor open sockets):
+# - VANH_DISABLE_NOTIFICATIONS: the addon never shows a desktop notification under ctest;
+# - VANH_SOCKET_NAMESPACE: a test without the shared fake server above gets a namespace of its
+#   own, so no test ever connects to the uinput server of the logged-in user.
+get_property(VANH_ALL_TESTS DIRECTORY PROPERTY TESTS)
+foreach(test_name IN LISTS VANH_ALL_TESTS)
+    set_property(TEST ${test_name} APPEND PROPERTY ENVIRONMENT "VANH_DISABLE_NOTIFICATIONS=1")
+    get_property(test_env TEST ${test_name} PROPERTY ENVIRONMENT)
+    if(NOT test_env MATCHES "VANH_SOCKET_NAMESPACE=")
+        set_property(TEST ${test_name} APPEND PROPERTY ENVIRONMENT
+            "VANH_SOCKET_NAMESPACE=ctest-${LOTUS_CTEST_SOCKET_NAMESPACE}-${test_name}")
+    endif()
+endforeach()

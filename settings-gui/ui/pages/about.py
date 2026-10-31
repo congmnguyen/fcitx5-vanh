@@ -50,7 +50,7 @@ class AboutPage(QWidget):
 
         # Logo/Icon
         try:
-            pixmap = QIcon.fromTheme("fcitx-lotus").pixmap(80, 80)
+            pixmap = QIcon.fromTheme("fcitx-vanh").pixmap(80, 80)
             if pixmap.isNull():
                 logo = QLabel("🪷")
                 logo.setStyleSheet("font-size: 64px; margin-bottom: 5px;")
@@ -64,7 +64,7 @@ class AboutPage(QWidget):
 
         layout.addWidget(logo, alignment=Qt.AlignCenter)
 
-        title = QLabel("Fcitx5 Lotus")
+        title = QLabel("Fcitx5 Vanh")
         title.setObjectName("AboutTitle")
         layout.addWidget(title, alignment=Qt.AlignCenter)
 
@@ -92,7 +92,7 @@ class AboutPage(QWidget):
 
         # GitHub Project Link
         github_link = QLabel(
-            '<a href="https://github.com/LotusInputMethod/fcitx5-lotus" style="text-decoration: none;">https://github.com/LotusInputMethod/fcitx5-lotus</a>'
+            '<a href="https://github.com/congmnguyen/fcitx5-vanh" style="text-decoration: none;">https://github.com/congmnguyen/fcitx5-vanh</a>'
         )
         github_link.setOpenExternalLinks(True)
         layout.addWidget(github_link, alignment=Qt.AlignCenter)
@@ -108,7 +108,7 @@ class AboutPage(QWidget):
         btn_bug.clicked.connect(
             lambda: QDesktopServices.openUrl(
                 QUrl(
-                    "https://github.com/LotusInputMethod/fcitx5-lotus/issues/new?template=bug_report.yml"
+                    "https://github.com/congmnguyen/fcitx5-vanh/issues/new"
                 )
             )
         )
@@ -119,7 +119,7 @@ class AboutPage(QWidget):
         btn_feature.clicked.connect(
             lambda: QDesktopServices.openUrl(
                 QUrl(
-                    "https://github.com/LotusInputMethod/fcitx5-lotus/issues/new?template=feature_request.yml"
+                    "https://github.com/congmnguyen/fcitx5-vanh/issues/new"
                 )
             )
         )
@@ -138,10 +138,10 @@ class AboutPage(QWidget):
         credits_title.setObjectName("CreditsTitle")
         layout.addWidget(credits_title, alignment=Qt.AlignCenter)
 
-        # General Contributors Link
+        # Credit to the upstream project Vanh was forked from
         contributors_link = QLabel(
             '<a href="https://github.com/LotusInputMethod/fcitx5-lotus/graphs/contributors" style="text-decoration: none;">'
-            + _("Fcitx5 Lotus Contributors")
+            + _("Based on fcitx5-lotus by its contributors")
             + "</a>"
         )
         contributors_link.setOpenExternalLinks(True)

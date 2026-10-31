@@ -1,6 +1,6 @@
 [InputMethod]
 Name=Vanh
-Icon=fcitx-lotus
+Icon=fcitx-vanh
 LangCode=vi
-Addon=lotus
+Addon=vanh
 Configurable=True

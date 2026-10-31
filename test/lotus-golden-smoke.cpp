@@ -78,6 +78,6 @@ int run_golden_smoke() {
         std::printf("%d failure(s)\n", failures);
         return 1;
     }
-    std::printf("lotus golden smoke: charset=%zu core=%zu key_processor=%zu rows\n", charset.size(), core.size(), wrapper.size());
+    std::printf("vanh golden smoke: charset=%zu core=%zu key_processor=%zu rows\n", charset.size(), core.size(), wrapper.size());
     return 0;
 }

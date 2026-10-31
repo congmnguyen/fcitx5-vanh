@@ -8,9 +8,9 @@ D-Bus handler to communicate with Fcitx5 Controller.
 import dbus
 
 
-class LotusDBusHandler:
+class VanhDBusHandler:
     def __init__(self):
-        self.addon_name = "fcitx://config/addon/lotus"
+        self.addon_name = "fcitx://config/addon/vanh"
         try:
             self.bus = dbus.SessionBus()
             self.proxy = self.bus.get_object("org.fcitx.Fcitx5", "/controller")

@@ -11,7 +11,7 @@
 - **Automatic surrounding text** in Uinput mode when the app supports it (Brave, Facebook, the address bar), so fast typing no longer drops or doubles letters. Terminals keep using uinput.
 - Everything else from lotus: Telex/VNI and other input methods, typing without underline, macros, dictionary, charsets, emoji.
 
-The addon, package and config file are still named `lotus`, so an existing lotus configuration works as is.
+The package, addon, input method, server and config files are named `vanh` (`fcitx5-vanh`, `fcitx5-vanh-server@<user>.service`, `~/.config/fcitx5/conf/vanh.conf`). The `fcitx5-vanh` package replaces `fcitx5-lotus`; on the first start Vanh copies an existing lotus configuration (config, macros, keymap, app rules, emoji history, user dictionary) to the new names and puts Vanh in place of lotus in the input method list. The old files are kept.
 
 ## Build and install (Debian/Ubuntu)
 
@@ -21,8 +21,8 @@ sudo apt install --no-install-recommends debhelper dh-python cmake g++ extra-cma
   libdbus-1-dev libudev-dev pkg-config python3 gettext cargo rustc
 git clone https://github.com/congmnguyen/fcitx5-vanh && cd fcitx5-vanh
 cp -r packaging/debian debian && dpkg-buildpackage -b -us -uc -j$(nproc) && rm -rf debian obj-*
-sudo apt install ../fcitx5-lotus_*_amd64.deb python3-pyqt5
-sudo systemctl enable --now fcitx5-lotus-server@$USER
+sudo apt install ../fcitx5-vanh_*_amd64.deb python3-pyqt5
+sudo systemctl enable --now fcitx5-vanh-server@$USER
 fcitx5 -r -d
 ```
 

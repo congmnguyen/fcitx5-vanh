@@ -20,7 +20,7 @@
 int main(int argc, char** argv) {
     const auto args  = std::span(argv, static_cast<std::size_t>(argc));
     const bool gnome = args.size() > 1 && std::string_view(args[1]) == "gnome";
-    configureTestPaths(gnome ? "fcitx5-lotus-status-icon-gnome" : "fcitx5-lotus-status-icon-other");
+    configureTestPaths(gnome ? "fcitx5-vanh-status-icon-gnome" : "fcitx5-vanh-status-icon-other");
     setenv("XDG_CURRENT_DESKTOP", gnome ? "ubuntu:GNOME" : "XFCE", 1);
     // A deterministic dark application preference must not decide the colour
     // of GNOME's independently themed panel. Other desktops keep this probe.
@@ -29,15 +29,15 @@ int main(int argc, char** argv) {
     TestInstance            testInstance;
     fcitx::LotusEngine      engine(&testInstance.instance);
     TestInputContext        context(&testInstance.instance);
-    fcitx::InputMethodEntry entry("lotus", "Lotus", "vi", "lotus");
+    fcitx::InputMethodEntry entry("vanh", "Vanh", "vi", "vanh");
     context.focusIn();
     bool                                            ok = true;
 
     const std::array<std::array<const char*, 2>, 3> modes{
         {
-            {"Preedit", "fcitx-lotus"},
-            {"OFF", "fcitx-lotus-off"},
-            {"Emoji Picker", "fcitx-lotus-emoji"},
+            {"Preedit", "fcitx-vanh"},
+            {"OFF", "fcitx-vanh-off"},
+            {"Emoji Picker", "fcitx-vanh-emoji"},
         },
     };
     for (const auto& [mode, base] : modes) {
@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
                 fcitx::RawConfig config;
                 config.setValueByPath("Mode", mode);
                 config.setValueByPath("IconTheme", theme);
-                config.setValueByPath("UseLotusIcons", lotusIcons ? "True" : "False");
+                config.setValueByPath("UseVanhIcons", lotusIcons ? "True" : "False");
                 engine.setConfig(config);
                 fcitx::InputContextEvent focus(&context, fcitx::EventType::InputContextFocusIn);
                 engine.activate(entry, focus);
@@ -63,7 +63,7 @@ int main(int argc, char** argv) {
                 }
                 const auto actual = engine.subModeIcon(entry, context);
                 if (actual != expected) {
-                    std::fprintf(stderr, "FAIL %s/%s/%s: expected %s, got %s\n", mode, theme, lotusIcons ? "Lotus" : "text", expected.c_str(), actual.c_str());
+                    std::fprintf(stderr, "FAIL %s/%s/%s: expected %s, got %s\n", mode, theme, lotusIcons ? "Vanh" : "text", expected.c_str(), actual.c_str());
                     ok = false;
                 }
             }

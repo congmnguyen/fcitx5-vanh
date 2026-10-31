@@ -5,7 +5,7 @@
 Main window assembling all configuration tabs with a modern layout.
 """
 
-from core.dbus_handler import LotusDBusHandler
+from core.dbus_handler import VanhDBusHandler
 from i18n import _
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtGui import QIcon
@@ -25,14 +25,14 @@ from qtpy.QtWidgets import (
 # Lazy loading pages on demand
 
 
-class LotusSettingsWindow(QMainWindow):
-    """Main entry window for Lotus Configuration GUI."""
+class VanhSettingsWindow(QMainWindow):
+    """Main entry window for Vanh Configuration GUI."""
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(_("Lotus Settings"))
+        self.setWindowTitle(_("Vanh Settings"))
 
-        self.dbus_handler = LotusDBusHandler()
+        self.dbus_handler = VanhDBusHandler()
 
         self._setup_ui()
         self._setup_window_size()

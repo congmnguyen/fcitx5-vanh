@@ -1,0 +1,23 @@
+#!/bin/sh
+set -e
+
+# On removal (not on upgrade) stop and disable every fcitx5-vanh-server@<user> instance, so no
+# wants/ link is left pointing at the removed unit file.
+if [ "$1" = "remove" ]; then
+    for link in /etc/systemd/system/multi-user.target.wants/fcitx5-vanh-server@*.service; do
+        [ -L "$link" ] || [ -e "$link" ] || continue
+        unit="${link##*/}"
+        if [ -d /run/systemd/system ]; then
+            systemctl stop "$unit" >/dev/null 2>&1 || true
+        fi
+        if command -v systemctl >/dev/null 2>&1; then
+            systemctl disable "$unit" >/dev/null 2>&1 || rm -f "$link"
+        else
+            rm -f "$link"
+        fi
+    done
+fi
+
+#DEBHELPER#
+
+exit 0

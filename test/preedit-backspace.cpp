@@ -32,7 +32,7 @@ namespace {
 } // namespace
 
 int main() {
-    configureTestPaths("fcitx5-lotus-preedit-backspace");
+    configureTestPaths("fcitx5-vanh-preedit-backspace");
     TestInstance       testInstance;
     fcitx::LotusEngine engine(&testInstance.instance);
     fcitx::RawConfig   config;
@@ -40,7 +40,7 @@ int main() {
     config.setValueByPath("InputMethod", "Telex");
     engine.setConfig(config);
 
-    fcitx::InputMethodEntry entry("lotus", "Lotus", "vi", "lotus");
+    fcitx::InputMethodEntry entry("vanh", "Vanh", "vi", "vanh");
     auto                    context = std::make_unique<TestInputContext>(&testInstance.instance);
     context->setCapabilityFlags(fcitx::CapabilityFlag::Preedit);
     context->focusIn();
@@ -84,6 +84,6 @@ int main() {
     if (!send(engine, entry, *context, FcitxKey_BackSpace, false))
         return 1;
 
-    std::printf("lotus preedit backspace: all checks passed\n");
+    std::printf("vanh preedit backspace: all checks passed\n");
     return 0;
 }

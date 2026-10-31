@@ -1,6 +1,6 @@
 # Code style rules
 
-This document is the single source of truth for the code rules of fcitx5-lotus. On conflict, this document wins.
+This document is the single source of truth for the code rules of fcitx5-vanh. On conflict, this document wins.
 
 ## 1. Format & lint (mandatory)
 
@@ -61,7 +61,7 @@ This document is the single source of truth for the code rules of fcitx5-lotus. 
 
 - New behaviour or bug fixes need a test in `test/`, registered through the CMake helpers (`add_lotus_headless_test` / `add_lotus_unit_test`).
 - Common pattern: `check(name, condition)` / `reportFailure(step, expected, actual, meaning)`, print `FAIL`, and return a non-zero exit code on failure.
-- Tests must be deterministic and independent of network/display; tests that bind sockets run in their own namespace (`LOTUS_SOCKET_NAMESPACE`).
+- Tests must be deterministic and independent of network/display; tests that bind sockets run in their own namespace (`VANH_SOCKET_NAMESPACE`).
 
 ## 11. PR scope (one PR, one problem)
 

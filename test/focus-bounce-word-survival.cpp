@@ -71,7 +71,7 @@ namespace {
 } // namespace
 
 int main() {
-    configureTestPaths("fcitx5-lotus-focus-bounce-word-survival");
+    configureTestPaths("fcitx5-vanh-focus-bounce-word-survival");
     TestInstance       testInstance;
     fcitx::LotusEngine engine(&testInstance.instance);
     fcitx::RawConfig   config;
@@ -87,7 +87,7 @@ int main() {
     if (!listener.valid())
         return 1;
 
-    fcitx::InputMethodEntry entry("lotus", "Lotus", "vi", "lotus");
+    fcitx::InputMethodEntry entry("vanh", "Vanh", "vi", "vanh");
     auto                    context = std::make_unique<TestInputContext>(&testInstance.instance);
     // #610 fidelity: Brave on Wayland drives Lotus through an ibus context.
     // Note: engine branches on frontend == "dbus" (lotus-engine.cpp:394,735) and on
@@ -170,6 +170,6 @@ int main() {
         return 1;
     }
 
-    std::printf("lotus focus bounce word survival: all checks passed\n");
+    std::printf("vanh focus bounce word survival: all checks passed\n");
     return 0;
 }

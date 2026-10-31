@@ -2,7 +2,7 @@
 /**
  * @file app-rule-delays.cpp
  * @brief Headless test: per-app rules parse the mode plus the three delay
- *        overrides (commit/backspace/post) from lotus-app-rules.conf, treat
+ *        overrides (commit/backspace/post) from vanh-app-rules.conf, treat
  *        omitted fields as "use defaults", keep the legacy mode id 2 working,
  *        and skip malformed lines without breaking the load.
  */
@@ -42,10 +42,10 @@ namespace {
 } // namespace
 
 int main() {
-    const char* testName = "fcitx5-lotus-app-rule-delays";
+    const char* testName = "fcitx5-vanh-app-rule-delays";
     configureTestPaths(testName);
 
-    const auto rulesFile = std::filesystem::temp_directory_path() / testName / "config/fcitx5/conf/lotus-app-rules.conf";
+    const auto rulesFile = std::filesystem::temp_directory_path() / testName / "config/fcitx5/conf/vanh-app-rules.conf";
     {
         std::filesystem::create_directories(rulesFile.parent_path());
         std::ofstream file(rulesFile);

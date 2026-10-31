@@ -49,13 +49,13 @@ namespace {
 } // namespace
 
 int main() {
-    const char* testName = "fcitx5-lotus-app-rule-reset";
+    const char* testName = "fcitx5-vanh-app-rule-reset";
     configureTestPaths(testName);
 
     // Per-app rule for the mock context's program name ("test"): Off.
     // Must be on disk before the engine is constructed (loadAppRules runs in
     // the constructor).
-    const auto rulesFile = std::filesystem::temp_directory_path() / testName / "config/fcitx5/conf/lotus-app-rules.conf";
+    const auto rulesFile = std::filesystem::temp_directory_path() / testName / "config/fcitx5/conf/vanh-app-rules.conf";
     {
         std::ofstream file(rulesFile, std::ios::trunc);
         if (!file.is_open()) {
@@ -80,7 +80,7 @@ int main() {
 
     auto context = std::make_unique<TestInputContext>(&testInstance.instance);
     context->focusIn();
-    fcitx::InputMethodEntry  entry("lotus", "Lotus", "vi", "lotus");
+    fcitx::InputMethodEntry  entry("vanh", "Vanh", "vi", "vanh");
     fcitx::InputContextEvent focus(context.get(), fcitx::EventType::InputContextFocusIn);
     engine.activate(entry, focus);
 

@@ -1162,7 +1162,7 @@ namespace fcitx {
         switch (currentMode()) {
             case LotusMode::Off: return _("Vanh - Off");
             case LotusMode::Emoji: return "😄";
-            default: return isGnome_ ? "vi" : "🪷";
+            default: return "vi";
         }
     }
 

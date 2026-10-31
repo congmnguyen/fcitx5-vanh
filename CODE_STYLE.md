@@ -61,7 +61,7 @@ Tài liệu này là nguồn duy nhất cho quy tắc code của fcitx5-vanh. Kh
 
 - Hành vi mới hoặc bug fix phải có test trong `test/`, đăng ký bằng helper CMake (`add_lotus_headless_test` / `add_lotus_unit_test`).
 - Mẫu chung: `check(name, condition)` / `reportFailure(step, expected, actual, meaning)`, in `FAIL`, trả exit code khác 0 khi sai.
-- Test phải deterministic, không phụ thuộc mạng/màn hình; test cần bind socket thì chạy trong namespace riêng (`VANH_SOCKET_NAMESPACE`).
+- Test phải deterministic, không phụ thuộc mạng/màn hình; test cần bind socket thì chạy trong namespace riêng (`VANH_SOCKET_NAMESPACE`) và thư mục socket riêng (`VANH_SOCKET_DIR`, do `configureTestPaths()` đặt cùng `VANH_SERVER_UID`), không bao giờ trong `/run/vanh`.
 
 ## 11. Phạm vi PR (một PR một vấn đề)
 

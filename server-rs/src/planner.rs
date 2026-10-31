@@ -14,7 +14,10 @@
 //!   ms, then the anchor key.
 //! * Cancel: drop what is pending. A selection already started is completed and deleted (a
 //!   half-selected word must not stay behind), and Shift is never left down.
-//! * `interval` is clamped to 1..=1000 ms (0 means the default 5 ms).
+//! * `interval` is clamped to 1..=1000 ms (0 means the default 5 ms); `preDelay` and
+//!   `postDelay` to 0..=1000 ms, the range the addon sends (`clampDelay()` of
+//!   src/lotus-state.cpp). The waits block the event loop, so an unclamped value from a confused
+//!   or hostile client could freeze the server for up to 49 days.
 
 use crate::log::Level;
 use crate::protocol::{KbMsg, KbOp};
@@ -25,6 +28,8 @@ use crate::uinput::keys;
 pub const DEFAULT_INTERVAL_MS: u32 = 5;
 /// Longest accepted interval.
 pub const MAX_INTERVAL_MS: u32 = 1000;
+/// Longest accepted pre/post delay (`kMaxDelayMs` of src/lotus-state.cpp).
+pub const MAX_DELAY_MS: u32 = 1000;
 /// Pause between the last Shift+Left and the Shift release.
 pub const SHIFT_RELEASE_DELAY_MS: u32 = 10;
 
@@ -144,6 +149,8 @@ impl Planner {
     /// Handles one well-formed request. `shift` is the live physical Shift state.
     pub fn handle(&mut self, msg: &KbMsg, shift: ShiftState, out: &mut impl Output) {
         self.interval = if msg.interval > 0 { msg.interval.min(MAX_INTERVAL_MS) } else { DEFAULT_INTERVAL_MS };
+        let pre_delay = msg.pre_delay.min(MAX_DELAY_MS);
+        let post_delay = msg.post_delay.min(MAX_DELAY_MS);
         let op = resolve_keyboard_op(msg.op, shift);
         if op != msg.op {
             if shift == ShiftState::Held {
@@ -156,10 +163,10 @@ impl Planner {
             KbOp::Cancel => self.cancel(out),
             _ if msg.count == 0 => {}
             KbOp::Select => {
-                if msg.pre_delay > 0 {
-                    out.sleep_ms(msg.pre_delay);
+                if pre_delay > 0 {
+                    out.sleep_ms(pre_delay);
                 }
-                self.post_delay = msg.post_delay;
+                self.post_delay = post_delay;
                 self.press_shift(out);
                 out.sleep_ms(self.interval);
                 out.tap(keys::LEFT);
@@ -169,10 +176,10 @@ impl Planner {
                 self.pending_anchor = false;
             }
             KbOp::Backspace => {
-                if msg.pre_delay > 0 {
-                    out.sleep_ms(msg.pre_delay);
+                if pre_delay > 0 {
+                    out.sleep_ms(pre_delay);
                 }
-                self.post_delay = msg.post_delay;
+                self.post_delay = post_delay;
                 if self.shift_held {
                     self.release_shift(out);
                     self.pending_selects = 0;
@@ -323,6 +330,27 @@ mod tests {
         // Even a no-op message updates the pacing, as in the C++ server.
         planner.handle(&msg(KbOp::Backspace, 0, 0, 9, 0), Released, &mut out);
         assert_eq!(planner.tick_interval(), Some(9));
+    }
+
+    #[test]
+    fn pre_and_post_delays_are_clamped() {
+        let mut planner = Planner::default();
+        let mut out = Recorder::default();
+        planner.handle(&msg(KbOp::Backspace, 1, u32::MAX, 0, u32::MAX), Released, &mut out);
+        drain(&mut planner, &mut out);
+        assert_eq!(out.events, vec![Sleep(MAX_DELAY_MS), Tap(BS), Sleep(MAX_DELAY_MS), Tap(PAUSE)]);
+
+        out.events.clear();
+        planner.handle(&msg(KbOp::Select, 1, 1001, 3, 4_000_000), Released, &mut out);
+        drain(&mut planner, &mut out);
+        assert_eq!(out.events.first(), Some(&Sleep(MAX_DELAY_MS)));
+        assert!(out.events.contains(&Sleep(MAX_DELAY_MS)) && !out.events.iter().any(|event| matches!(event, Sleep(ms) if *ms > MAX_DELAY_MS)), "{:?}", out.events);
+
+        // In-range values pass unchanged.
+        out.events.clear();
+        planner.handle(&msg(KbOp::Backspace, 1, MAX_DELAY_MS, 0, 1), Released, &mut out);
+        drain(&mut planner, &mut out);
+        assert_eq!(out.events, vec![Sleep(MAX_DELAY_MS), Tap(BS), Sleep(1), Tap(PAUSE)]);
     }
 
     #[test]

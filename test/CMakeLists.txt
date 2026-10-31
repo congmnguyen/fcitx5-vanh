@@ -10,9 +10,9 @@ add_library(lotus_test_core SHARED
 target_include_directories(lotus_test_core PUBLIC
     ${PROJECT_BINARY_DIR}
     ${PROJECT_SOURCE_DIR}/src
+    ${PROJECT_SOURCE_DIR}/common
 )
 target_link_libraries(lotus_test_core PUBLIC
-    lotus_common_executable_path
     Fcitx5::Core
     Fcitx5::Config
     Fcitx5::Module::Emoji
@@ -40,8 +40,7 @@ target_link_libraries(lotus_test_pch PRIVATE
 )
 target_compile_definitions(lotus_test_pch PRIVATE
     FCITX5_LOTUS_SETTINGS_PATH="${CMAKE_INSTALL_FULL_BINDIR}/fcitx5-vanh-settings"
-    LOTUS_SERVER_EXECUTABLE="${LOTUS_SERVER_EXECUTABLE}"
-    LOTUS_ALT_EXECUTABLE_PREFIX="${LOTUS_ALT_EXECUTABLE_PREFIX}"
+    LOTUS_UINPUT_PROXY_USER="${LOTUS_UINPUT_PROXY_USER}"
 )
 target_precompile_headers(lotus_test_pch PRIVATE ${LOTUS_PCH_HEADERS})
 
@@ -74,8 +73,7 @@ function(add_lotus_headless_test)
     # reused, not rejected.
     target_compile_definitions(${ARG_TARGET} PRIVATE
         FCITX5_LOTUS_SETTINGS_PATH="${CMAKE_INSTALL_FULL_BINDIR}/fcitx5-vanh-settings"
-        LOTUS_SERVER_EXECUTABLE="${LOTUS_SERVER_EXECUTABLE}"
-        LOTUS_ALT_EXECUTABLE_PREFIX="${LOTUS_ALT_EXECUTABLE_PREFIX}"
+        LOTUS_UINPUT_PROXY_USER="${LOTUS_UINPUT_PROXY_USER}"
     )
     # configureTestPaths() installs the source dictionary into the test's own data dir, so no
     # test depends on a dictionary installed on the host.
@@ -183,6 +181,7 @@ add_lotus_headless_test(TARGET runtime_safety SOURCES runtime-safety.cpp LABELS 
 add_lotus_headless_test(TARGET emoji_history_page_navigation SOURCES emoji-history-page-navigation.cpp LABELS "integration;emoji")
 add_lotus_headless_test(TARGET emoji_search_history SOURCES emoji-search-history.cpp LABELS "unit;emoji")
 add_lotus_headless_test(TARGET emoji_history_unit SOURCES emoji-history-unit.cpp LABELS "unit;emoji")
+add_lotus_headless_test(TARGET server_peer_auth SOURCES server-peer-auth.cpp LABELS "unit;socket;security")
 add_lotus_headless_test(TARGET kb_sender SOURCES kb-sender.cpp LABELS "unit;socket")
 set_tests_properties(kb_sender PROPERTIES
     RESOURCE_LOCK lotus_kb_socket
@@ -192,16 +191,6 @@ set_tests_properties(server_wire_compat smooth_buffered_key_replay focus_bounce_
     PROPERTIES RESOURCE_LOCK lotus_kb_socket
     ENVIRONMENT "VANH_SOCKET_NAMESPACE=ctest-${LOTUS_CTEST_SOCKET_NAMESPACE}")
 
-add_executable(executable_path_match
-    executable-path-match.cpp
-)
-target_link_libraries(executable_path_match PRIVATE lotus_common_executable_path)
-add_test(NAME executable_path_match COMMAND executable_path_match)
-set_tests_properties(executable_path_match PROPERTIES
-    LABELS "unit;packaging"
-    TIMEOUT 20
-)
-
 # Headless Python unit tests for the settings-gui, one CTest entry per module.
 add_subdirectory(settings-gui)
 
@@ -209,7 +198,10 @@ add_subdirectory(settings-gui)
 # load the addon nor open sockets):
 # - VANH_DISABLE_NOTIFICATIONS: the addon never shows a desktop notification under ctest;
 # - VANH_SOCKET_NAMESPACE: a test without the shared fake server above gets a namespace of its
-#   own, so no test ever connects to the uinput server of the logged-in user.
+#   own, so no test ever connects to the uinput server of the logged-in user. On top of that,
+#   configureTestPaths() (test-input-context.h) moves the sockets to a private mkdtemp() directory
+#   (VANH_SOCKET_DIR) instead of /run/vanh, and the addon only accepts a server socket owned by
+#   the uinput proxy user unless VANH_SERVER_UID says otherwise (set to the test's own uid there).
 get_property(VANH_ALL_TESTS DIRECTORY PROPERTY TESTS)
 foreach(test_name IN LISTS VANH_ALL_TESTS)
     set_property(TEST ${test_name} APPEND PROPERTY ENVIRONMENT "VANH_DISABLE_NOTIFICATIONS=1")

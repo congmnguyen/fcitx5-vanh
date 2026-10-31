@@ -104,6 +104,7 @@ const MSG_NOSIGNAL: c_int = 0x4000;
 const PRIO_PROCESS: c_int = 0;
 const R_OK: c_int = 4;
 const ERANGE: c_int = 34;
+const ENAMETOOLONG: i32 = 36;
 const EINVAL: i32 = 22;
 const SIGINT: c_int = 2;
 const SIGTERM: c_int = 15;
@@ -250,6 +251,10 @@ extern "C" {
     fn setpriority(which: c_int, who: c_uint, prio: c_int) -> c_int;
     fn sched_setaffinity(pid: c_int, size: usize, mask: *const CpuSet) -> c_int;
     fn getuid() -> u32;
+    fn geteuid() -> u32;
+    fn capget(header: *mut CapHeader, data: *mut CapData) -> c_int;
+    fn capset(header: *mut CapHeader, data: *const CapData) -> c_int;
+    fn prctl(option: c_int, ...) -> c_int;
     fn getpwuid_r(uid: u32, pwd: *mut passwd, buf: *mut c_char, len: usize, result: *mut *mut passwd) -> c_int;
     fn getpwnam_r(name: *const c_char, pwd: *mut passwd, buf: *mut c_char, len: usize, result: *mut *mut passwd) -> c_int;
     fn access(path: *const c_char, mode: c_int) -> c_int;
@@ -294,35 +299,42 @@ pub fn error_text(error: &io::Error) -> String {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Abstract AF_UNIX sockets.
+// Filesystem AF_UNIX sockets.
 // ---------------------------------------------------------------------------------------------
 
-/// Longest abstract name: `sun_path` minus the leading NUL. The addon truncates its names to this
-/// length (`UNIX_PATH_MAX - 1`); the C++ server truncated one byte shorter, see the README of the
-/// port.
-pub const MAX_ABSTRACT_NAME: usize = SUN_PATH_LEN - 1;
+/// Longest socket path: `sun_path` minus the terminating NUL.
+pub const MAX_SOCKET_PATH: usize = SUN_PATH_LEN - 1;
 
-/// An abstract-namespace AF_UNIX address together with the length `bind()` needs.
+/// A filesystem AF_UNIX address together with the length `bind()`/`connect()` need.
 #[derive(Clone, Copy)]
-pub struct AbstractAddr {
+pub struct UnixAddr {
     addr: sockaddr_un,
     len: u32,
 }
 
-impl AbstractAddr {
-    /// Builds the address of `name` (without the leading NUL), truncating to the kernel limit.
-    pub fn new(name: &[u8]) -> Self {
-        let length = name.len().min(MAX_ABSTRACT_NAME);
+impl UnixAddr {
+    /// Builds the address of `path`. Fails with `ENAMETOOLONG` for a path longer than
+    /// [`MAX_SOCKET_PATH`] (never truncated: a truncated path would name another file) and with
+    /// `EINVAL` for an empty path or one with a NUL byte.
+    pub fn new(path: &std::path::Path) -> io::Result<Self> {
+        use std::os::unix::ffi::OsStrExt;
+        let bytes = path.as_os_str().as_bytes();
+        if bytes.is_empty() || bytes.contains(&0) {
+            return Err(io::Error::from_raw_os_error(EINVAL));
+        }
+        if bytes.len() > MAX_SOCKET_PATH {
+            return Err(io::Error::from_raw_os_error(ENAMETOOLONG));
+        }
         let mut addr = sockaddr_un { sun_family: AF_UNIX as u16, sun_path: [0; SUN_PATH_LEN] };
-        addr.sun_path[1..=length].copy_from_slice(&name[..length]);
-        let len = (std::mem::offset_of!(sockaddr_un, sun_path) + length + 1) as u32;
-        AbstractAddr { addr, len }
+        addr.sun_path[..bytes.len()].copy_from_slice(bytes);
+        let len = (std::mem::offset_of!(sockaddr_un, sun_path) + bytes.len() + 1) as u32;
+        Ok(UnixAddr { addr, len })
     }
 
-    /// The abstract name the address designates (without the leading NUL).
-    pub fn name(&self) -> &[u8] {
-        let path_len = self.len as usize - std::mem::offset_of!(sockaddr_un, sun_path);
-        &self.addr.sun_path[1..path_len]
+    /// The path the address designates.
+    pub fn path(&self) -> &[u8] {
+        let path_len = self.len as usize - std::mem::offset_of!(sockaddr_un, sun_path) - 1;
+        &self.addr.sun_path[..path_len]
     }
 
     /// Length passed to `bind()`/`connect()`.
@@ -340,15 +352,15 @@ pub fn seqpacket_socket(nonblocking: bool) -> io::Result<OwnedFd> {
     Ok(unsafe { OwnedFd::from_raw_fd(fd) })
 }
 
-/// `bind()` to an abstract address.
-pub fn bind_abstract(fd: BorrowedFd<'_>, addr: &AbstractAddr) -> io::Result<()> {
+/// `bind()` to a filesystem address (creates the socket file).
+pub fn bind_unix(fd: BorrowedFd<'_>, addr: &UnixAddr) -> io::Result<()> {
     // SAFETY: addr points to a valid sockaddr_un of at least `len` bytes.
     cvt(unsafe { bind(fd.as_raw_fd(), &addr.addr, addr.len) }).map(drop)
 }
 
-/// `connect()` to an abstract address (used by the tests and the replay helper).
-pub fn connect_abstract(fd: BorrowedFd<'_>, addr: &AbstractAddr) -> io::Result<()> {
-    // SAFETY: as in bind_abstract.
+/// `connect()` to a filesystem address (used by the tests).
+pub fn connect_unix(fd: BorrowedFd<'_>, addr: &UnixAddr) -> io::Result<()> {
+    // SAFETY: as in bind_unix.
     cvt(unsafe { connect(fd.as_raw_fd(), &addr.addr, addr.len) }).map(drop)
 }
 
@@ -527,6 +539,12 @@ pub fn current_uid() -> u32 {
     unsafe { getuid() }
 }
 
+/// Effective uid of the process (the owner of the files it creates).
+pub fn effective_uid() -> u32 {
+    // SAFETY: geteuid() cannot fail.
+    unsafe { geteuid() }
+}
+
 /// Runs a `getpw*_r` lookup, growing the buffer on `ERANGE` (the C++ server gave up on long
 /// entries with its fixed 1 KiB buffer).
 fn lookup_passwd<T>(
@@ -599,6 +617,108 @@ pub fn is_readable(path: &std::path::Path) -> bool {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Capabilities and process hardening.
+// ---------------------------------------------------------------------------------------------
+
+/// `struct __user_cap_header_struct`.
+#[repr(C)]
+struct CapHeader {
+    version: u32,
+    pid: c_int,
+}
+
+/// `struct __user_cap_data_struct`; version 3 uses two of them (capabilities 0-31 and 32-63).
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+struct CapData {
+    effective: u32,
+    permitted: u32,
+    inheritable: u32,
+}
+
+const LINUX_CAPABILITY_VERSION_3: u32 = 0x2008_0522;
+const PR_GET_DUMPABLE: c_int = 3;
+const PR_SET_DUMPABLE: c_int = 4;
+const PR_SET_NO_NEW_PRIVS: c_int = 38;
+const PR_GET_NO_NEW_PRIVS: c_int = 39;
+const PR_CAP_AMBIENT: c_int = 47;
+const PR_CAP_AMBIENT_IS_SET: c_ulong = 1;
+const PR_CAP_AMBIENT_CLEAR_ALL: c_ulong = 4;
+/// `CAP_SYS_NICE`.
+pub const CAP_SYS_NICE: u32 = 23;
+/// `CAP_SYS_PTRACE`.
+pub const CAP_SYS_PTRACE: u32 = 19;
+
+/// Effective, permitted and inheritable sets of the calling thread, as 64-bit masks.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CapSets {
+    pub effective: u64,
+    pub permitted: u64,
+    pub inheritable: u64,
+}
+
+/// `capget()` of the calling thread.
+pub fn capabilities() -> io::Result<CapSets> {
+    let mut header = CapHeader { version: LINUX_CAPABILITY_VERSION_3, pid: 0 };
+    let mut data = [CapData::default(); 2];
+    // SAFETY: header is valid and data holds the two structs version 3 writes.
+    cvt(unsafe { capget(&mut header, data.as_mut_ptr()) })?;
+    let join = |low: u32, high: u32| u64::from(low) | (u64::from(high) << 32);
+    Ok(CapSets {
+        effective: join(data[0].effective, data[1].effective),
+        permitted: join(data[0].permitted, data[1].permitted),
+        inheritable: join(data[0].inheritable, data[1].inheritable),
+    })
+}
+
+/// Whether `cap` is in the ambient set of the calling thread.
+pub fn ambient_capability_is_set(cap: u32) -> io::Result<bool> {
+    // SAFETY: plain prctl() with integer arguments.
+    cvt(unsafe { prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_IS_SET, c_ulong::from(cap), 0 as c_ulong, 0 as c_ulong) }).map(|set| set == 1)
+}
+
+/// Empties the ambient set, then the effective, permitted and inheritable sets of the calling
+/// thread (lowering capabilities never needs a privilege). The server is single-threaded when it
+/// calls this, so the whole process ends up without capabilities.
+pub fn drop_all_capabilities() -> io::Result<()> {
+    // SAFETY: plain prctl() with integer arguments.
+    cvt(unsafe { prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0 as c_ulong, 0 as c_ulong, 0 as c_ulong) })?;
+    let mut header = CapHeader { version: LINUX_CAPABILITY_VERSION_3, pid: 0 };
+    let data = [CapData::default(); 2];
+    // SAFETY: header is valid and data holds the two structs version 3 reads.
+    cvt(unsafe { capset(&mut header, data.as_ptr()) }).map(drop)
+}
+
+/// `PR_SET_NO_NEW_PRIVS`: no later `execve()` can gain privileges (setuid bits, file caps).
+pub fn set_no_new_privs() -> io::Result<()> {
+    // SAFETY: plain prctl() with integer arguments.
+    cvt(unsafe { prctl(PR_SET_NO_NEW_PRIVS, 1 as c_ulong, 0 as c_ulong, 0 as c_ulong, 0 as c_ulong) }).map(drop)
+}
+
+/// `PR_GET_NO_NEW_PRIVS`.
+pub fn no_new_privs() -> io::Result<bool> {
+    // SAFETY: plain prctl() with integer arguments.
+    cvt(unsafe { prctl(PR_GET_NO_NEW_PRIVS, 0 as c_ulong, 0 as c_ulong, 0 as c_ulong, 0 as c_ulong) }).map(|set| set == 1)
+}
+
+/// `PR_SET_DUMPABLE`: with `false`, no core dump and no ptrace attach by other processes of the
+/// same uid.
+pub fn set_dumpable(dumpable: bool) -> io::Result<()> {
+    // SAFETY: plain prctl() with integer arguments.
+    cvt(unsafe { prctl(PR_SET_DUMPABLE, c_ulong::from(dumpable), 0 as c_ulong, 0 as c_ulong, 0 as c_ulong) }).map(drop)
+}
+
+/// Serializes the tests that flip the process-wide dumpable flag.
+#[cfg(test)]
+pub(crate) static DUMPABLE_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/// `PR_GET_DUMPABLE`.
+pub fn dumpable() -> io::Result<bool> {
+    // SAFETY: plain prctl() with integer arguments.
+    cvt(unsafe { prctl(PR_GET_DUMPABLE, 0 as c_ulong, 0 as c_ulong, 0 as c_ulong, 0 as c_ulong) }).map(|value| value == 1)
+}
+
+// ---------------------------------------------------------------------------------------------
 // SIGTERM / SIGINT: self-pipe, so a signal that lands between the "running?" check and poll()
 // still wakes the loop up (the C++ server could sleep through it until the next event).
 // ---------------------------------------------------------------------------------------------
@@ -658,19 +778,50 @@ mod tests {
     }
 
     #[test]
-    fn abstract_address_layout() {
-        let addr = AbstractAddr::new(b"vanhsocket-alice-kbSocket");
-        assert_eq!(addr.name(), b"vanhsocket-alice-kbSocket");
-        assert_eq!(addr.socklen() as usize, 2 + 1 + 25);
-        assert_eq!(addr.addr.sun_path[0], 0);
+    fn unix_address_layout() {
+        let addr = UnixAddr::new(std::path::Path::new("/run/vanh/alice/kb.sock")).unwrap();
+        assert_eq!(addr.path(), b"/run/vanh/alice/kb.sock");
+        assert_eq!(addr.socklen() as usize, 2 + 23 + 1);
+        assert_eq!(addr.addr.sun_path[0], b'/');
+        assert_eq!(addr.addr.sun_path[23], 0);
     }
 
     #[test]
-    fn abstract_address_truncates_like_the_addon() {
-        let long = vec![b'a'; 200];
-        let addr = AbstractAddr::new(&long);
-        assert_eq!(addr.name().len(), MAX_ABSTRACT_NAME);
-        assert_eq!(addr.socklen() as usize, size_of::<sockaddr_un>());
+    fn unix_address_is_never_truncated() {
+        let longest = format!("/{}", "a".repeat(MAX_SOCKET_PATH - 1));
+        assert_eq!(UnixAddr::new(std::path::Path::new(&longest)).unwrap().socklen() as usize, size_of::<sockaddr_un>());
+        let too_long = format!("/{}", "a".repeat(MAX_SOCKET_PATH));
+        assert_eq!(UnixAddr::new(std::path::Path::new(&too_long)).err().and_then(|e| e.raw_os_error()), Some(ENAMETOOLONG));
+        assert_eq!(UnixAddr::new(std::path::Path::new("")).err().and_then(|e| e.raw_os_error()), Some(EINVAL));
+    }
+
+    /// Runs in its own thread: capabilities and no_new_privs are per thread, so the other tests of
+    /// the process keep theirs.
+    #[test]
+    fn dropping_privileges_empties_every_set() {
+        std::thread::spawn(|| {
+            drop_all_capabilities().unwrap();
+            assert_eq!(capabilities().unwrap(), CapSets::default());
+            assert!(!ambient_capability_is_set(CAP_SYS_NICE).unwrap());
+            assert!(!ambient_capability_is_set(CAP_SYS_PTRACE).unwrap());
+            // Lowering is idempotent.
+            drop_all_capabilities().unwrap();
+            set_no_new_privs().unwrap();
+            assert!(no_new_privs().unwrap());
+        })
+        .join()
+        .unwrap();
+    }
+
+    #[test]
+    fn dumpable_flag_round_trips() {
+        // Process wide: restore it so a failing test can still dump core.
+        let _guard = DUMPABLE_TEST_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let before = dumpable().unwrap();
+        set_dumpable(false).unwrap();
+        assert!(!dumpable().unwrap());
+        set_dumpable(before).unwrap();
+        assert_eq!(dumpable().unwrap(), before);
     }
 
     #[test]

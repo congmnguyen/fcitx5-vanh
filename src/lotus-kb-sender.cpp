@@ -7,11 +7,11 @@
 #include "lotus-kb-sender.h"
 
 #include "lotus-log.h"
+#include "lotus-utils.h"
 
 #include <cerrno>
 #include <cstring>
 #include <sys/socket.h>
-#include <sys/un.h>
 #include <utility>
 
 KbSender::KbSender(std::string socketPath) : socketPath_(std::move(socketPath)) {}
@@ -66,20 +66,9 @@ void KbSender::close() {
 }
 
 bool KbSender::connectLocked() {
-    sockaddr_un address{};
-    address.sun_family    = AF_UNIX;
-    address.sun_path[0]   = '\0';
-    const auto socketPath = socketPath_;
-    std::memcpy(&address.sun_path[1], socketPath.data(), socketPath.size());
-    const auto length = static_cast<socklen_t>(offsetof(sockaddr_un, sun_path) + socketPath.size() + 1);
-
-    FdGuard    candidate(socket(AF_UNIX, SOCK_SEQPACKET, 0));
+    // Refuses a socket whose owner is not the uinput server user (verifyServerPeer()).
+    FdGuard candidate(connectServerSocket(socketPath_, false, "keyboard socket"));
     if (!candidate.isValid()) {
-        LOTUS_ERROR("Failed to create keyboard socket: " + std::string(std::strerror(errno)));
-        return false;
-    }
-    if (connect(candidate.get(), reinterpret_cast<const sockaddr*>(&address), length) != 0) {
-        LOTUS_ERROR("Failed to connect to socket: " + std::string(std::strerror(errno)));
         return false;
     }
     fd_ = std::move(candidate);

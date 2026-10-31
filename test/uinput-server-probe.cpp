@@ -22,7 +22,7 @@ namespace {
 
 int main() {
     configureTestPaths("fcitx5-vanh-uinput-server-probe");
-    KbSender sender(buildSocketPath("kbSocket"));
+    KbSender sender(buildSocketPath(VANH_KB_SOCKET_FILE));
 
     check("no server is detected before the socket exists", !sender.ensureConnected());
 

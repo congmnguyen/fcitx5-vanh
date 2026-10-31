@@ -16,12 +16,15 @@
 
 #include <atomic>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <sys/un.h>
 
 #include "common-export.h"
+#include "common-socket-name.h"
 #include "lotus-mode.h"
 
 /**
@@ -62,25 +65,57 @@ struct DiffPart {
 };
 
 /**
- * @brief Builds socket path from base suffix.
- * @param base_path_suffix Suffix to append to base path.
- * @return Full socket path.
+ * @brief Builds the path of one uinput server socket of the current user.
+ *
+ * `<dir>/<namespace>/<fileName>`: dir is /run/vanh (VANH_SOCKET_DIR in the tests), namespace the
+ * user name (VANH_SOCKET_NAMESPACE in the tests).
+ * @param fileName VANH_KB_SOCKET_FILE or VANH_MOUSE_SOCKET_FILE.
+ * @return The path, or an empty string when the namespace is not a single path component or the
+ *         path does not fit in sockaddr_un (never truncated: that would name another file).
  */
-std::string LOTUS_EXPORT buildSocketPath(std::string_view base_path_suffix);
+std::string LOTUS_EXPORT buildSocketPath(std::string_view fileName);
 
 /**
- * @brief Creates a non-blocking abstract-namespace UNIX socket.
- *
- * Fills @p addr with the abstract socket name and @p len with the address
- * length. The caller keeps ownership of the returned descriptor and is
- * responsible for connect()/bind() and for closing it on failure.
- *
- * @param name Socket name inside the abstract namespace.
- * @param addr Destination address.
- * @param len Destination address length.
- * @return Socket descriptor, or -1 when the socket could not be created.
+ * @brief Environment variable that replaces the expected uid of the uinput server; tests only.
  */
-int makeAbstractUnixSocket(std::string_view name, struct sockaddr_un& addr, socklen_t& len);
+inline constexpr const char* VANH_SERVER_UID_ENV = "VANH_SERVER_UID";
+
+/**
+ * @brief Looks a user up by name.
+ * @param name User name.
+ * @return Its uid, or nullopt when there is no such user.
+ */
+std::optional<uid_t> LOTUS_EXPORT lookupUserUid(const char* name);
+
+/**
+ * @brief The uid the uinput server must run as.
+ *
+ * The uid of LOTUS_UINPUT_PROXY_USER (resolved on every call, so a user created after fcitx5
+ * started is found), or the decimal value of VANH_SERVER_UID when set (tests).
+ * @return The uid, or nullopt when the user does not exist or the override is malformed.
+ */
+std::optional<uid_t> LOTUS_EXPORT expectedServerUid();
+
+/**
+ * @brief Checks that the peer of a connected socket is the uinput server (SO_PEERCRED uid).
+ *
+ * Logs the reason of a refusal.
+ * @param fd Connected AF_UNIX socket.
+ * @param label Socket name for the log ("keyboard socket", "mouse socket").
+ * @return True when the peer uid is expectedServerUid().
+ */
+bool LOTUS_EXPORT verifyServerPeer(int fd, std::string_view label);
+
+/**
+ * @brief Connects a SOCK_SEQPACKET socket to a uinput server socket and authenticates the server.
+ *
+ * Logs the reason of a failure.
+ * @param path Socket path from buildSocketPath().
+ * @param nonBlocking True for a SOCK_NONBLOCK socket.
+ * @param label Socket name for the log.
+ * @return Connected close-on-exec descriptor owned by the caller, or -1.
+ */
+int LOTUS_EXPORT connectServerSocket(const std::string& path, bool nonBlocking, std::string_view label);
 
 /**
  * @brief Returns the fcitx5 configuration directory of the current user.

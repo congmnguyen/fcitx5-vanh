@@ -5,20 +5,24 @@
 
 //! Every externally visible name of the server, in one place.
 //!
-//! The C++ addon (src/lotus-utils.cpp, common/common-socket-name.h, src/lotus-monitor.cpp) must
+//! The C++ addon (src/lotus-utils.cpp, common/common-socket-name.h) must
 //! agree with these values. The executable name itself is set in Cargo.toml (`[[bin]] name`) and
 //! in CMakeLists.txt (`LOTUS_SERVER_BINARY_NAME`).
 
 /// syslog identity (`openlog` ident), also the program name of the daemon.
 pub const SYSLOG_IDENT: &std::ffi::CStr = c"fcitx5-vanh-server";
 
-/// Prefix of both abstract socket names: `<prefix><namespace>-<suffix>`.
-pub const SOCKET_PREFIX: &str = "vanhsocket-";
-/// Suffix of the keyboard request socket.
-pub const KB_SOCKET_SUFFIX: &str = "kbSocket";
-/// Suffix of the mouse click notification socket.
-pub const MOUSE_SOCKET_SUFFIX: &str = "mouseSocket";
-/// Environment variable that replaces the user segment of the socket names.
+/// Directory holding one sub-directory per target user: `<dir>/<namespace>/{kb,mouse}.sock`.
+/// Created by tmpfiles.d (misc/tmpfiles-vanh.conf.in: owner the uinput proxy user, 0755) and by
+/// systemd (`RuntimeDirectory=vanh/%i`), so only the proxy user can create files below it.
+pub const SOCKET_DIR: &str = "/run/vanh";
+/// Environment variable that replaces [`SOCKET_DIR`]; for the tests only.
+pub const SOCKET_DIR_ENV: &str = "VANH_SOCKET_DIR";
+/// File name of the keyboard request socket.
+pub const KB_SOCKET_FILE: &str = "kb.sock";
+/// File name of the mouse click notification socket.
+pub const MOUSE_SOCKET_FILE: &str = "mouse.sock";
+/// Environment variable that replaces the user segment of the socket paths.
 pub const SOCKET_NAMESPACE_ENV: &str = "VANH_SOCKET_NAMESPACE";
 
 /// Command line flag naming the user the server works for.
@@ -39,8 +43,3 @@ pub const INPUT_DEV_DIR: &str = "/dev/input/";
 pub const SYS_VIRTUAL_INPUT_DIR: &str = "/sys/devices/virtual/input/";
 /// libinput seat the server listens on.
 pub const SEAT: &std::ffi::CStr = c"seat0";
-
-/// fcitx5 executable allowed to connect (CMake `LOTUS_FCITX5_EXECUTABLE`).
-pub const FCITX5_EXECUTABLE: &str = env!("LOTUS_FCITX5_EXECUTABLE");
-/// Extra accepted prefix, e.g. `/nix/store/` (CMake `LOTUS_ALT_EXECUTABLE_PREFIX`).
-pub const ALT_EXECUTABLE_PREFIX: &str = env!("LOTUS_ALT_EXECUTABLE_PREFIX");

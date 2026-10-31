@@ -6,9 +6,10 @@
  *
  */
 #include "lotus-utils.h"
-#include "common-socket-name.h"
+#include "common-fd-guard.h"
 #include "lotus-log.h"
 
+#include <cerrno>
 #include <cstddef>
 #include <cstring>
 #include <fcitx-utils/key.h>
@@ -23,7 +24,9 @@
 
 #include <algorithm>
 #include <array>
+#include <charconv>
 #include <chrono>
+#include <vector>
 
 std::atomic<fcitx::LotusMode> g_realMode{fcitx::LotusMode::Smooth};
 std::atomic<bool>             g_mouseClicked{false};
@@ -40,7 +43,40 @@ void setRealMode(fcitx::LotusMode mode) {
     g_realMode.store(mode, std::memory_order_release);
 }
 
-std::string buildSocketPath(std::string_view base_path_suffix) {
+namespace {
+    std::string currentUserName() {
+        struct passwd  pwd{};
+        struct passwd* result  = nullptr;
+        long           bufSize = sysconf(_SC_GETPW_R_SIZE_MAX);
+        if (bufSize == -1) {
+            bufSize = 16384;
+        }
+        std::vector<char> buf(bufSize);
+        const int         res = getpwuid_r(getuid(), &pwd, buf.data(), bufSize, &result);
+        return res == 0 && result != nullptr ? std::string(result->pw_name) : std::string("unknown");
+    }
+} // namespace
+
+std::string buildSocketPath(std::string_view fileName) {
+    const std::string ns = lotusSocketNamespace(currentUserName());
+    if (!lotusIsValidSocketNamespace(ns)) {
+        return {};
+    }
+    std::string path = lotusSocketBaseDir();
+    path += '/';
+    path += ns;
+    path += '/';
+    path += fileName;
+    if (path.size() >= UNIX_PATH_MAX) {
+        return {};
+    }
+    return path;
+}
+
+std::optional<uid_t> lookupUserUid(const char* name) {
+    if (name == nullptr || *name == '\0') {
+        return std::nullopt;
+    }
     struct passwd  pwd{};
     struct passwd* result  = nullptr;
     long           bufSize = sysconf(_SC_GETPW_R_SIZE_MAX);
@@ -48,34 +84,73 @@ std::string buildSocketPath(std::string_view base_path_suffix) {
         bufSize = 16384;
     }
     std::vector<char> buf(bufSize);
-    std::string       username;
-    int               res = getpwuid_r(getuid(), &pwd, buf.data(), bufSize, &result);
-    if (res == 0 && result != nullptr) {
-        username = result->pw_name;
-    } else {
-        username = "unknown";
+    int               res = 0;
+    while ((res = getpwnam_r(name, &pwd, buf.data(), buf.size(), &result)) == ERANGE && buf.size() < (1U << 20)) {
+        buf.resize(buf.size() * 2);
     }
-    std::string path;
-    path.reserve(32);
-    path += "vanhsocket-";
-    path += lotusSocketNamespace(username);
-    path += '-';
-    path += base_path_suffix;
-    const size_t maxSocketPathLength = UNIX_PATH_MAX - 1;
-    path.resize(std::min(path.length(), maxSocketPathLength));
-    return path;
+    if (res != 0 || result == nullptr) {
+        return std::nullopt;
+    }
+    return result->pw_uid;
 }
 
-int makeAbstractUnixSocket(std::string_view name, struct sockaddr_un& addr, socklen_t& len) {
-    const int fd = socket(AF_UNIX, SOCK_SEQPACKET | SOCK_NONBLOCK, 0);
-    if (fd < 0) {
+std::optional<uid_t> expectedServerUid() {
+    const char* override_value = std::getenv(VANH_SERVER_UID_ENV);
+    if (override_value != nullptr && *override_value != '\0') {
+        const std::string_view text(override_value);
+        uid_t                  uid = 0;
+        const auto [end, ec]       = std::from_chars(text.data(), text.data() + text.size(), uid);
+        if (ec != std::errc{} || end != text.data() + text.size()) {
+            return std::nullopt;
+        }
+        return uid;
+    }
+    return lookupUserUid(LOTUS_UINPUT_PROXY_USER);
+}
+
+bool verifyServerPeer(int fd, std::string_view label) {
+    struct ucred cred{};
+    socklen_t    credLen = sizeof(cred);
+    if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &cred, &credLen) != 0) {
+        LOTUS_ERROR("Failed to get the peer credentials of the " + std::string(label) + ": " + std::string(std::strerror(errno)));
+        return false;
+    }
+    const auto expected = expectedServerUid();
+    if (!expected) {
+        LOTUS_ERROR("Refusing the " + std::string(label) + ": the uinput server user " LOTUS_UINPUT_PROXY_USER " does not exist");
+        return false;
+    }
+    if (cred.uid != *expected) {
+        LOTUS_ERROR("Refusing the " + std::string(label) + ": its owner has UID " + std::to_string(cred.uid) + " (PID " + std::to_string(cred.pid) +
+                    "), not the uinput server user " LOTUS_UINPUT_PROXY_USER " (UID " + std::to_string(*expected) + ")");
+        return false;
+    }
+    return true;
+}
+
+int connectServerSocket(const std::string& path, bool nonBlocking, std::string_view label) {
+    sockaddr_un address{};
+    if (path.empty() || path.size() >= sizeof(address.sun_path)) {
+        LOTUS_ERROR("Invalid path of the " + std::string(label) + ": " + path);
         return -1;
     }
-    addr.sun_family  = AF_UNIX;
-    addr.sun_path[0] = '\0';
-    memcpy(&addr.sun_path[1], name.data(), name.size());
-    len = offsetof(struct sockaddr_un, sun_path) + name.size() + 1;
-    return fd;
+    address.sun_family = AF_UNIX;
+    std::memcpy(address.sun_path, path.data(), path.size());
+    const auto length = static_cast<socklen_t>(offsetof(sockaddr_un, sun_path) + path.size() + 1);
+
+    FdGuard    sock(socket(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC | (nonBlocking ? SOCK_NONBLOCK : 0), 0));
+    if (!sock.isValid()) {
+        LOTUS_ERROR("Failed to create the " + std::string(label) + ": " + std::string(std::strerror(errno)));
+        return -1;
+    }
+    if (connect(sock.get(), reinterpret_cast<const sockaddr*>(&address), length) != 0) {
+        LOTUS_ERROR("Failed to connect to the " + std::string(label) + " " + path + ": " + std::string(std::strerror(errno)));
+        return -1;
+    }
+    if (!verifyServerPeer(sock.get(), label)) {
+        return -1;
+    }
+    return sock.release();
 }
 
 std::string lotusConfigDir() {

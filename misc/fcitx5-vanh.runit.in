@@ -13,11 +13,23 @@ if [ "$user" = "$svc" ]; then
     exit 1
 fi
 
+# Socket directory (see tmpfiles.d/vanh.conf): the server creates /run/vanh/$user inside it. Only
+# /run/vanh is touched as root (it lives directly in root-owned /run); the per-user directory is
+# left to the server, so root never follows a path the proxy user could have planted.
+if [ ! -d /run/vanh ] || [ -L /run/vanh ]; then
+    rm -f /run/vanh
+    mkdir -m 0755 /run/vanh
+fi
+chown @LOTUS_UINPUT_PROXY_USER@:root /run/vanh
+chmod 0755 /run/vanh
+
+# CAP_SYS_NICE only for the priority boost at startup; the server drops every capability itself.
 exec setpriv \
     --reuid=@LOTUS_UINPUT_PROXY_USER@ \
     --regid=input \
     --init-groups \
-    --bounding-set -all,+sys_nice,+sys_ptrace \
-    --inh-caps +sys_nice,+sys_ptrace \
-    --ambient-caps +sys_nice,+sys_ptrace \
+    --no-new-privs \
+    --bounding-set -all,+sys_nice \
+    --inh-caps +sys_nice \
+    --ambient-caps +sys_nice \
     @CMAKE_INSTALL_FULL_BINDIR@/fcitx5-vanh-server -u "$user" 2>&1

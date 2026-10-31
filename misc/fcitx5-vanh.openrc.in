@@ -9,7 +9,8 @@ respawn_max=0
 
 name="fcitx5-vanh-server"
 description="Fcitx5 Vanh Server for $user"
-capabilities="^cap_sys_nice,^cap_sys_ptrace"
+# Only for the priority boost at startup; the server drops it (and every other capability) itself.
+capabilities="^cap_sys_nice"
 command="@CMAKE_INSTALL_FULL_BINDIR@/fcitx5-vanh-server"
 command_args="-u $user"
 command_user="@LOTUS_UINPUT_PROXY_USER@:input"
@@ -28,6 +29,9 @@ start_pre() {
         einfo "     sudo rc-service fcitx5-vanh.\$(whoami) restart"
         return 1
    fi
+   # Socket directory (see tmpfiles.d/vanh.conf): the server creates /run/vanh/$user inside it.
+   # Only /run/vanh is touched as root; it lives directly in root-owned /run.
+   checkpath -d -o "@LOTUS_UINPUT_PROXY_USER@:root" -m 0755 /run/vanh
 }
 
 stop_post() {

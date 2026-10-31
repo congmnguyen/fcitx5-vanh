@@ -6,27 +6,32 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! Setup and event loop (port of `main()` of server/lotus-server.cpp and of
-//! server/lotus-server-socket.cpp, server/lotus-abstract-socket.cpp).
+//! server/lotus-server-socket.cpp).
 //!
-//! Exit codes: 0 after SIGTERM/SIGINT, 1 when setup fails (unknown user, uinput, sockets,
-//! libinput) or the loop breaks (libinput dispatch or poll failure).
+//! Setup order: resolve the target user, raise the priority and pin the CPUs (the only use of
+//! CAP_SYS_NICE), drop every capability and set no_new_privs / non-dumpable, then open uinput, the
+//! sockets and libinput with the plain rights of the proxy user (ACL on /dev/uinput, group
+//! `input`, owner of `/run/vanh`).
+//!
+//! Exit codes: 0 after SIGTERM/SIGINT, 1 when setup fails (unknown user, privilege drop, uinput,
+//! sockets, libinput) or the loop breaks (libinput dispatch or poll failure).
 
-use crate::auth::{authorize_peer, AllowedExecutable};
+use crate::auth::authorize_peer;
 use crate::libinput::{EventKind, Libinput};
 use crate::log::{self, Level};
 use crate::names;
 use crate::planner::{Output, Planner};
 use crate::protocol::{self, KB_MSG_SIZE};
 use crate::shift::{EvdevKeyboard, ShiftTracker};
-use crate::sys::{self, AbstractAddr, PollFd, POLLERR, POLLHUP, POLLIN};
+use crate::sockets;
+use crate::sys::{self, PollFd, POLLERR, POLLHUP, POLLIN};
 use crate::uinput::{self, UinputDevice};
 use std::ffi::OsString;
 use std::os::fd::{AsFd, AsRawFd, OwnedFd};
 use std::os::unix::ffi::OsStrExt;
+use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-/// `listen()` backlog of both sockets.
-const LISTEN_BACKLOG: i32 = 5;
 /// CPUs the server pins itself to (the performance cores of common hybrid laptops).
 const PINNED_CPUS: [usize; 4] = [0, 1, 2, 3];
 /// Nice value of the server.
@@ -46,7 +51,7 @@ pub fn current_username() -> Vec<u8> {
     sys::user_name_of(sys::current_uid()).unwrap_or_else(|| b"unknown".to_vec())
 }
 
-/// User segment of the socket names: `VANH_SOCKET_NAMESPACE` when set and non-empty, the
+/// User segment of the socket paths: `VANH_SOCKET_NAMESPACE` when set and non-empty, the
 /// user name otherwise (common/common-socket-name.h).
 pub fn socket_namespace(username: &[u8]) -> Vec<u8> {
     match std::env::var_os(names::SOCKET_NAMESPACE_ENV) {
@@ -55,36 +60,10 @@ pub fn socket_namespace(username: &[u8]) -> Vec<u8> {
     }
 }
 
-/// `vanhsocket-<namespace>-<suffix>`, the name the addon's `buildSocketPath()` builds.
-pub fn socket_name(namespace: &[u8], suffix: &str) -> Vec<u8> {
-    let mut name = names::SOCKET_PREFIX.as_bytes().to_vec();
-    name.extend_from_slice(namespace);
-    name.push(b'-');
-    name.extend_from_slice(suffix.as_bytes());
-    name
-}
-
-/// Creates and binds a non-blocking server socket, logging the reason on failure.
-pub fn bind_server_socket(addr: &AbstractAddr, label: &str) -> Option<OwnedFd> {
-    let bound = sys::seqpacket_socket(true).and_then(|fd| sys::bind_abstract(fd.as_fd(), addr).map(|()| fd));
-    match bound {
-        Ok(fd) => Some(fd),
-        Err(error) => {
-            log::error(&format!("Failed to bind {label}: {}", sys::error_text(&error)));
-            None
-        }
-    }
-}
-
-/// Marks a bound socket as listening, logging the reason on failure.
-pub fn listen_server_socket(fd: &OwnedFd, label: &str) -> bool {
-    match sys::listen_socket(fd.as_fd(), LISTEN_BACKLOG) {
-        Ok(()) => true,
-        Err(error) => {
-            log::error(&format!("Failed to listen on {label}: {}", sys::error_text(&error)));
-            false
-        }
-    }
+/// `<base>/<namespace>/<file>`, the path the addon's `buildSocketPath()` builds (`None` for an
+/// invalid namespace).
+pub fn socket_path(base: &std::path::Path, namespace: &[u8], file: &str) -> Option<PathBuf> {
+    sockets::socket_dir(base, namespace).map(|dir| dir.join(file))
 }
 
 fn boost_process_priority() {
@@ -96,6 +75,37 @@ fn boost_process_priority() {
 fn pin_to_pcore() {
     if sys::pin_to_cpus(&PINNED_CPUS).is_err() {
         log::error("Failed to pin process to core");
+    }
+}
+
+/// Drops every capability (CAP_SYS_NICE was only needed for the two calls above), forbids gaining
+/// privileges through execve() and makes the process non-dumpable (no core file, no ptrace by
+/// other processes of the proxy user). Failing to drop a capability is fatal.
+pub fn drop_privileges() -> bool {
+    if let Err(error) = sys::drop_all_capabilities() {
+        log::error(&format!("Failed to drop capabilities: {}", sys::error_text(&error)));
+        return false;
+    }
+    if let Err(error) = sys::set_no_new_privs() {
+        log::error(&format!("Failed to set no_new_privs: {}", sys::error_text(&error)));
+        return false;
+    }
+    if let Err(error) = sys::set_dumpable(false) {
+        log::warn(&format!("Failed to make the process non-dumpable: {}", sys::error_text(&error)));
+    }
+    match sys::capabilities() {
+        Ok(caps) if caps == sys::CapSets::default() => {
+            log::info("Dropped all capabilities");
+            true
+        }
+        Ok(caps) => {
+            log::error(&format!("Capabilities left after the drop: effective {:#x}, permitted {:#x}", caps.effective, caps.permitted));
+            false
+        }
+        Err(error) => {
+            log::error(&format!("Failed to read the capabilities back: {}", sys::error_text(&error)));
+            false
+        }
     }
 }
 
@@ -174,10 +184,11 @@ pub fn run(args: &[OsString]) -> i32 {
 
     boost_process_priority();
     pin_to_pcore();
+    if !drop_privileges() {
+        return 1;
+    }
 
     let namespace = socket_namespace(&user);
-    let kb_addr = AbstractAddr::new(&socket_name(&namespace, names::KB_SOCKET_SUFFIX));
-    let mouse_addr = AbstractAddr::new(&socket_name(&namespace, names::MOUSE_SOCKET_SUFFIX));
 
     let Some(mut device) = create_uinput_device() else {
         log::error("Failed to initialize uinput device");
@@ -185,15 +196,12 @@ pub fn run(args: &[OsString]) -> i32 {
     };
     let mut tracker = ShiftTracker::<EvdevKeyboard>::default();
 
-    let Some(kb_server) = bind_server_socket(&kb_addr, "keyboard socket") else {
+    let Some(server_sockets) = sockets::open_server_sockets(&sockets::base_dir(), &namespace, sys::effective_uid()) else {
         return 1;
     };
-    let Some(mouse_server) = bind_server_socket(&mouse_addr, "mouse socket") else {
-        return 1;
-    };
-    if !listen_server_socket(&kb_server, "keyboard socket") || !listen_server_socket(&mouse_server, "mouse socket") {
-        return 1;
-    }
+    log::info(&format!("Listening on {} and {}", server_sockets.kb.path.display(), server_sockets.mouse.path.display()));
+    let kb_server = &server_sockets.kb.fd;
+    let mouse_server = &server_sockets.mouse.fd;
 
     let Some(mut input) = Libinput::new(names::SEAT) else {
         log::error("Failed to create libinput/udev context");
@@ -208,7 +216,6 @@ pub fn run(args: &[OsString]) -> i32 {
         }
     };
 
-    let allowed = AllowedExecutable::configured();
     let mut planner = Planner::default();
     let mut out = DeviceOutput { device: &mut device };
     let mut kb_client: Option<OwnedFd> = None;
@@ -264,7 +271,7 @@ pub fn run(args: &[OsString]) -> i32 {
         let mut kb_client_replaced = false;
         if fds[KB_SERVER].revents & POLLIN != 0 {
             if let Ok(candidate) = sys::accept_nonblocking(kb_server.as_fd()) {
-                if let Some(pid) = authorize_peer(candidate.as_fd(), expected_uid, "keyboard socket", &allowed) {
+                if let Some(pid) = authorize_peer(candidate.as_fd(), expected_uid, "keyboard socket") {
                     log::info(&format!("Fcitx5 connected to keyboard socket (PID: {pid})"));
                     kb_client = Some(candidate);
                     // The revents of the client slot belong to the replaced descriptor.
@@ -296,7 +303,7 @@ pub fn run(args: &[OsString]) -> i32 {
 
         if fds[MOUSE_SERVER].revents & POLLIN != 0 {
             if let Ok(candidate) = sys::accept_nonblocking(mouse_server.as_fd()) {
-                if authorize_peer(candidate.as_fd(), expected_uid, "mouse socket", &allowed).is_some() {
+                if authorize_peer(candidate.as_fd(), expected_uid, "mouse socket").is_some() {
                     log::info("New mouse flag client connected");
                     mouse_client = Some(candidate);
                 }
@@ -355,23 +362,28 @@ mod tests {
     }
 
     #[test]
-    fn socket_names_match_the_addon() {
-        assert_eq!(socket_name(b"alice", names::KB_SOCKET_SUFFIX), b"vanhsocket-alice-kbSocket");
-        assert_eq!(socket_name(b"alice", names::MOUSE_SOCKET_SUFFIX), b"vanhsocket-alice-mouseSocket");
+    fn socket_paths_match_the_addon() {
+        let base = std::path::Path::new("/run/vanh");
+        assert_eq!(socket_path(base, b"alice", names::KB_SOCKET_FILE), Some(PathBuf::from("/run/vanh/alice/kb.sock")));
+        assert_eq!(socket_path(base, b"alice", names::MOUSE_SOCKET_FILE), Some(PathBuf::from("/run/vanh/alice/mouse.sock")));
+        assert_eq!(socket_path(base, b"a/b", names::KB_SOCKET_FILE), None);
     }
 
-    /// Port of test/server-socket-init.cpp: a socket that fails bind()/listen() is reported.
     #[test]
-    fn server_socket_init() {
-        let addr = AbstractAddr::new(format!("vanh-server-socket-init-{}", std::process::id()).as_bytes());
-        let first = bind_server_socket(&addr, "test socket").expect("bind fresh address");
-        assert!(listen_server_socket(&first, "test socket"), "listen on bound socket");
-        capture::take();
-        assert!(bind_server_socket(&addr, "test socket").is_none(), "rebind same address fails");
-        assert_eq!(capture::take(), vec![(Level::Error, "Failed to bind test socket: Address already in use".to_owned())]);
-        let not_a_socket: OwnedFd = std::fs::File::open("/dev/null").unwrap().into();
-        assert!(!listen_server_socket(&not_a_socket, "test socket"), "listen on a non-socket fails");
-        assert_eq!(capture::take(), vec![(Level::Error, "Failed to listen on test socket: Socket operation on non-socket".to_owned())]);
+    fn privileges_are_dropped() {
+        let _guard = sys::DUMPABLE_TEST_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        // Per thread (capabilities, no_new_privs): keep the other tests' threads untouched.
+        std::thread::spawn(|| {
+            capture::take();
+            assert!(drop_privileges());
+            assert_eq!(capture::take().last().unwrap().1, "Dropped all capabilities");
+            assert_eq!(sys::capabilities().unwrap(), sys::CapSets::default());
+            assert!(sys::no_new_privs().unwrap());
+        })
+        .join()
+        .unwrap();
+        // Process wide; restored for the rest of the test run.
+        sys::set_dumpable(true).unwrap();
     }
 
     #[test]

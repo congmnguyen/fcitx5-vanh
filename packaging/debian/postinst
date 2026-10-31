@@ -73,6 +73,11 @@ if [ "$1" = "configure" ]; then
     if command -v systemd-sysusers >/dev/null 2>&1; then
         systemd-sysusers vanh.conf || true
     fi
+    # /run/vanh, the socket directory owned by the uinput proxy user, must exist before the
+    # servers restart below (needs the user created just above).
+    if command -v systemd-tmpfiles >/dev/null 2>&1; then
+        systemd-tmpfiles --create vanh.conf || true
+    fi
 
     # Load the uinput module now (modules-load.d only acts at boot) and apply 99-vanh.rules.
     if [ -d /run/udev ] && command -v udevadm >/dev/null 2>&1; then
@@ -111,7 +116,9 @@ if [ "$1" = "configure" ]; then
         echo "   sudo systemctl enable --now fcitx5-vanh-server@\$(whoami).service"
         echo ""
         echo "2. Cấu hình Fcitx5:"
-        echo "   - Mở 'Fcitx5 Configuration', nhấn restart để khởi động lại."
+        echo "   - Mở 'Fcitx5 Configuration', nhấn restart để khởi động lại (hoặc chạy fcitx5 -r)."
+        echo "   - Bắt buộc khi cập nhật từ bản dùng socket trừu tượng: socket của server giờ nằm"
+        echo "     trong /run/vanh/<user>/, bộ gõ cũ đang chạy không còn kết nối được."
     fi
 fi
 

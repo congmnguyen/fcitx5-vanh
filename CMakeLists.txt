@@ -16,7 +16,6 @@ set(fcitx_lotus_core_sources
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lotus-state.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lotus-candidates.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lotus-utils.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/lotus-monitor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/window_focus_tracker.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lotus-plasma-theme.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lotus-key-buffer.cpp
@@ -58,16 +57,12 @@ endif()
 fcitx5_add_i18n_definition()
 
 # Absolute paths that every packaging has to override.
-set(LOTUS_FCITX5_EXECUTABLE "/usr/bin/fcitx5" CACHE STRING
-    "fcitx5 executable allowed to connect to the Vanh uinput/mouse sockets")
-set(LOTUS_SERVER_EXECUTABLE "/usr/bin/fcitx5-vanh-server" CACHE STRING
-    "fcitx5-vanh-server executable allowed to connect to the Vanh mouse socket")
-set(LOTUS_ALT_EXECUTABLE_PREFIX "" CACHE STRING
-    "Additional prefix whose <prefix>*bin/<name> executables are accepted too (NixOS: /nix/store/)")
 set(LOTUS_SETFACL_EXECUTABLE "/usr/bin/setfacl" CACHE FILEPATH
     "setfacl used by the udev rule and the service units")
 
-add_subdirectory(common)
+# The uinput server runs as this user; the addon only talks to a server socket it owns.
+set(LOTUS_UINPUT_PROXY_USER "uinput_proxy" CACHE STRING
+    "System user of the uinput server: rw ACL on /dev/uinput, owner of /run/vanh (udev rules, sysusers.d, tmpfiles.d, service scripts, addon peer check)")
 add_subdirectory(po)
 add_subdirectory(engine-rs)
 add_subdirectory(src)

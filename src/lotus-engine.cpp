@@ -15,7 +15,6 @@
 #include "lotus-mode-menu.h"
 #include "lotus-state.h"
 #include "lotus-candidates.h"
-#include "lotus-monitor.h"
 #include "lotus-notify.h"
 #include "lotus-utils.h"
 #include "lotus-plasma-theme.h"
@@ -162,7 +161,7 @@ namespace fcitx {
     }
 
     LotusEngine::LotusEngine(Instance* instance) :
-        instance_(*instance), kbSender_(buildSocketPath("kbSocket")), factory_([this](InputContext& ic) { return new LotusState(this, &ic); }) { //NOLINT
+        instance_(*instance), kbSender_(buildSocketPath(VANH_KB_SOCKET_FILE)), factory_([this](InputContext& ic) { return new LotusState(this, &ic); }) { //NOLINT
         windowFocusTracker_ = std::make_unique<WindowFocusTracker>();
         windowFocusTracker_->start();
         std::string desktop = getEnv("XDG_CURRENT_DESKTOP");
@@ -1200,23 +1199,9 @@ namespace fcitx {
             return;
         }
 
-        const std::string  mouseSocketPath = buildSocketPath("mouseSocket");
-        struct sockaddr_un addr{};
-        socklen_t          len = 0;
-        FdGuard            sock(makeAbstractUnixSocket(mouseSocketPath, addr, len));
+        // Refuses a socket whose owner is not the uinput server user (verifyServerPeer()).
+        FdGuard sock(connectServerSocket(buildSocketPath(VANH_MOUSE_SOCKET_FILE), true, "mouse socket"));
         if (!sock.isValid()) {
-            LOTUS_ERROR("Failed to create mouse socket: " + std::string(strerror(errno)));
-            return;
-        }
-
-        if (connect(sock.get(), reinterpret_cast<struct sockaddr*>(&addr), len) < 0) {
-            LOTUS_ERROR("Failed to connect to mouse socket: " + std::string(strerror(errno)));
-            return;
-        }
-
-        std::string peerExePath;
-        if (!authenticateMouseSocketPeer(sock.get(), peerExePath)) {
-            LOTUS_WARN("Unauthorized connection attempt from: " + peerExePath);
             return;
         }
 

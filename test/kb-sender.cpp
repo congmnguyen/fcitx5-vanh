@@ -22,7 +22,7 @@ int main() {
     if (!listener.valid())
         return 1;
 
-    KbSender    sender(buildSocketPath("kbSocket"));
+    KbSender    sender(buildSocketPath(VANH_KB_SOCKET_FILE));
     std::thread first([&sender] { sender.send(KbMsg{.op = KbOp::Backspace, .count = 3, .preDelay = 0, .interval = 7, .postDelay = 0}); });
     std::thread second([&sender] { sender.send(KbMsg{.op = KbOp::Select, .count = 5, .preDelay = 0, .interval = 9, .postDelay = 0}); });
     first.join();

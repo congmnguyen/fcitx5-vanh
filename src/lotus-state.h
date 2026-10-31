@@ -389,6 +389,7 @@ namespace fcitx {
          * @param currentSym Current key symbol.
          */
         void handleSurroundingText(KeyEvent& keyEvent, KeySym currentSym);
+        bool shouldUseSurroundingText(KeyEvent& keyEvent) const;
 
         /**
          * @brief Handles Off mode with macro shadow processing.

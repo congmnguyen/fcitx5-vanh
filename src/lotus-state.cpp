@@ -1219,12 +1219,43 @@ namespace fcitx {
         return false;
     }
 
+    bool LotusState::shouldUseSurroundingText(KeyEvent& keyEvent) const {
+        if (!*engine_.config().autoSurroundingText)
+            return false;
+        // Never switch path while an injected replacement is still in flight.
+        if (g_isDeleting.load(std::memory_order_acquire))
+            return false;
+        auto* ic = keyEvent.inputContext();
+        if (ic == nullptr || !ic->capabilityFlags().test(CapabilityFlag::SurroundingText))
+            return false;
+        // Terminals and other apps that never send their text stay on uinput.
+        const auto& surrounding = ic->surroundingText();
+        if (!surrounding.isValid())
+            return false;
+        // Password fields: let the uinput path (and its own guards) decide.
+        if (ic->capabilityFlags().test(CapabilityFlag::Password) || ic->capabilityFlags().test(CapabilityFlag::Sensitive))
+            return false;
+        return true;
+    }
+
     void LotusState::handleActiveMode(KeyEvent& keyEvent, KeySym currentSym) {
         switch (currentMode()) {
             case LotusMode::Smooth:
             case LotusMode::SuperSmooth:
             case LotusMode::Select: {
-                handleUinputMode(keyEvent, currentSym);
+                if (shouldUseSurroundingText(keyEvent)) {
+                    // The app reports the text around the cursor (browsers, GTK text fields):
+                    // replace through the input method protocol instead of injected Backspaces,
+                    // so deletion and commit travel together and cannot race or be dropped.
+                    if (!oldPreBuffer_.empty()) {
+                        (*lotusEngine_).reset();
+                        oldPreBuffer_.clear();
+                        hasHistory_ = false;
+                    }
+                    handleSurroundingText(keyEvent, currentSym);
+                } else {
+                    handleUinputMode(keyEvent, currentSym);
+                }
                 break;
             }
             case LotusMode::SurroundingText: {

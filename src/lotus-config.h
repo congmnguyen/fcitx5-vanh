@@ -189,6 +189,7 @@ namespace fcitx {
         Option<bool>        autoCapitalizeAfterPunctuation{this, "AutoCapitalizeAfterPunctuation", _("Auto capitalize after sentence-ending punctuation (. ! ? Enter)"), false};
         Option<bool>        doubleSpaceToPeriod{this, "DoubleSpaceToPeriod", _("Double Space to Period"), false};
         Option<bool>        doubleHyphenToEmDash{this, "DoubleHyphenToEmDash", _("Double Hyphen to Em-Dash (--)"), false};
+        Option<bool>        autoSurroundingText{this, "AutoSurroundingText", _("Uinput modes: use Surrounding Text in apps that report it"), true};
         Option<bool>        autoNonVnRestore{this, "AutoNonVnRestore", _("Auto Restore Invalid Words"), true};
         Option<bool>        modernStyle{this, "ModernStyle", _("Use oà, uý (Instead Of òa, úy)"), true};
         Option<bool>        freeMarking{this, "FreeMarking", _("Allow Type With More Freedom"), true};

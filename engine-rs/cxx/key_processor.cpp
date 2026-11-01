@@ -114,6 +114,35 @@ namespace lotus {
         lotus_key_processor_forget_context(handle_.get());
     }
 
+    bool KeyProcessor::endWord() {
+        return lotus_key_processor_end_word(handle_.get());
+    }
+
+    bool KeyProcessor::revertLastSwitch() {
+        return lotus_key_processor_revert_last_switch(handle_.get());
+    }
+
+    void KeyProcessor::setLearned(std::shared_ptr<Learned> learned) {
+        lotus_key_processor_set_learned(handle_.get(), learned ? learned->handle() : nullptr);
+        learned_ = std::move(learned);
+    }
+
+    Learned::Learned() : handle_(lotus_learned_new(), lotus_learned_free) {}
+
+    void Learned::loadFromText(std::string_view text) {
+        lotus_learned_load_from_text(handle_.get(), ffi::str(text));
+    }
+
+    std::string Learned::toText() const {
+        std::string out;
+        lotus_learned_to_text(handle_.get(), ffi::assignBytes, &out);
+        return out;
+    }
+
+    std::size_t Learned::size() const {
+        return lotus_learned_size(handle_.get());
+    }
+
     std::string KeyProcessor::formatTime(std::string_view format) {
         std::string out;
         lotus_format_time(ffi::str(format), ffi::assignBytes, &out);

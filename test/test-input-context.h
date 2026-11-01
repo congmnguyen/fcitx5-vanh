@@ -109,6 +109,7 @@ class TestInputContext final : public fcitx::InputContext {
     // Called by the engine when text is committed to the client application.
     void commitStringImpl(const std::string& text) override {
         commits_.push_back(text);
+        order_.push_back('c');
     }
 
     // Called when the engine requests surrounding text deletion (e.g. backspacing
@@ -121,6 +122,7 @@ class TestInputContext final : public fcitx::InputContext {
     // back to the client application (passthrough mode).
     void forwardKeyImpl(const fcitx::ForwardKeyEvent& event) override {
         forwarded_.push_back(event);
+        order_.push_back('f');
     }
 
     // Called when inline preedit text or server candidate window changes.
@@ -144,12 +146,17 @@ class TestInputContext final : public fcitx::InputContext {
     [[nodiscard]] const auto& forwarded() const {
         return forwarded_;
     }
+    /** @brief The order of commits ('c') and forwarded keys ('f'), as the client would see them. */
+    [[nodiscard]] const std::string& order() const {
+        return order_;
+    }
 
   private:
     std::string                               frontendName_{"test"};
     std::vector<std::string>                  commits_;
     std::vector<std::pair<int, unsigned int>> deletes_;
     std::vector<fcitx::ForwardKeyEvent>       forwarded_;
+    std::string                               order_;
     unsigned int                              preeditUpdates_ = 0;
 };
 

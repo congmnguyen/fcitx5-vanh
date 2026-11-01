@@ -22,11 +22,15 @@
 #include "window_focus_tracker.h"
 
 #include "dictionary.h"
+#include "key_processor.h"
 #include "emoji.h"
 #include "macro_table.h"
 #include "utf8.h"
 
+#include <fstream>
+#include <iterator>
 #include <optional>
+#include <sys/stat.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <utility>
@@ -282,6 +286,7 @@ namespace fcitx {
         readAsIni(macroTables_, MacroTableFile);
         macroTable_ = buildMacroTable(macroTables_);
         loadDictionary();
+        loadLearned();
         loadAppRules();
         populateConfig();
     }
@@ -334,6 +339,42 @@ namespace fcitx {
         dictionary_ = std::move(dictionary);
     }
 
+    static std::string learnedPath() {
+        return lotusConfigDir() + "/vanh-learned.tsv";
+    }
+
+    void LotusEngine::loadLearned() {
+        if (!*config_.learnFromReverts) {
+            learned_.reset();
+            return;
+        }
+        auto          learned = std::make_shared<lotus::Learned>();
+        std::ifstream file(learnedPath());
+        if (file) {
+            std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+            learned->loadFromText(text);
+        }
+        learned_ = std::move(learned);
+    }
+
+    void LotusEngine::saveLearned() const {
+        if (!learned_) {
+            return;
+        }
+        // Written to a private temporary file, then renamed over the old one.
+        std::string tmp = learnedPath() + ".tmp.XXXXXX";
+        const int   fd  = ::mkstemp(tmp.data());
+        if (fd < 0) {
+            return;
+        }
+        const std::string text = learned_->toText();
+        const bool        ok   = ::fchmod(fd, 0600) == 0 && ::write(fd, text.data(), text.size()) == static_cast<ssize_t>(text.size());
+        ::close(fd);
+        if (!ok || ::rename(tmp.c_str(), learnedPath().c_str()) != 0) {
+            ::unlink(tmp.c_str());
+        }
+    }
+
     const Configuration* LotusEngine::getSubConfig(const std::string& path) const {
         if (path == "custom_keymap")
             return &customKeymap_;
@@ -350,6 +391,7 @@ namespace fcitx {
         config_.load(config, true);
         saveConfig();
         loadDictionary();
+        loadLearned();
         populateConfig();
     }
 

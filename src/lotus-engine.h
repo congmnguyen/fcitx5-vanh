@@ -34,6 +34,7 @@
 // Owned through shared/unique pointers, so the full types stay in the .cpp files.
 namespace lotus {
     class Dictionary;
+    class Learned;
     class MacroTable;
 }
 class EmojiLoader;
@@ -72,6 +73,17 @@ namespace fcitx {
          */
         KbSender& kbSender() {
             return kbSender_;
+        }
+
+        /**
+         * @brief Whether the uinput server types Enter (KbOp::Return); false once a request for
+         *        one went unanswered (a server older than the addon, until fcitx restarts).
+         */
+        bool uinputTypesReturn() const {
+            return uinputTypesReturn_;
+        }
+        void setUinputTypesReturn(bool value) {
+            uinputTypesReturn_ = value;
         }
 
         /**
@@ -204,6 +216,17 @@ namespace fcitx {
         const std::shared_ptr<const lotus::Dictionary>& dictionary() const;
 
         /**
+         * @brief Preferences learned from reverts, shared with every input context.
+         * @return Null when learning from reverts is off.
+         */
+        const std::shared_ptr<lotus::Learned>& learned() const {
+            return learned_;
+        }
+
+        /** @brief Writes the learned preferences to their local file (0600). */
+        void saveLearned() const;
+
+        /**
          * @brief Gets the macro table shared with every input context.
          * @return Shared macro table.
          */
@@ -232,6 +255,7 @@ namespace fcitx {
         lotusAppRules                                        appRulesTables_;
 
         KbSender                                             kbSender_;
+        bool                                                 uinputTypesReturn_ = true;
         FactoryFor<LotusState>                               factory_;
 
         std::unique_ptr<SimpleAction>                        charsetAction_;
@@ -247,6 +271,7 @@ namespace fcitx {
         std::vector<SimpleAction*>                           toggleActions_;
         std::vector<ScopedConnection>                        connections_;
         std::shared_ptr<const lotus::Dictionary>             dictionary_;
+        std::shared_ptr<lotus::Learned>                      learned_;
         std::unordered_map<std::string, LotusAppRuleSetting> appRules_;
         std::string                                          appRulesPath_;
         bool                                                 isSelectingAppMode_ = false;
@@ -265,6 +290,7 @@ namespace fcitx {
          * @brief (Re)loads the custom dictionary from disk into the Go engine handle.
          */
         void loadDictionary();
+        void loadLearned();
 
         /**
          * @brief Refreshes the bamboo engine with current settings.

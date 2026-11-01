@@ -190,6 +190,8 @@ namespace fcitx {
         Option<bool>        doubleSpaceToPeriod{this, "DoubleSpaceToPeriod", _("Double Space to Period"), false};
         Option<bool>        doubleHyphenToEmDash{this, "DoubleHyphenToEmDash", _("Double Hyphen to Em-Dash (--)"), false};
         Option<bool>        englishRestore{this, "EnglishRestore", _("Restore English words to the keys typed (Vikey word lists)"), true};
+        KeyListOption       revertKey{this, "RevertKey", _("Revert the last word to its other reading (English <-> Vietnamese)"), {Key("Shift+BackSpace")}, KeyListConstrain()};
+        Option<bool>        learnFromReverts{this, "LearnFromReverts", _("Learn from reverts (kept in a local file, never sent anywhere)"), false};
         Option<bool>        autoSurroundingText{this, "AutoSurroundingText", _("Uinput modes: use Surrounding Text in apps that report it"), true};
         Option<bool>        autoNonVnRestore{this, "AutoNonVnRestore", _("Auto Restore Invalid Words"), true};
         Option<bool>        modernStyle{this, "ModernStyle", _("Use oà, uý (Instead Of òa, úy)"), true};

@@ -30,6 +30,9 @@ pub const DEFAULT_INTERVAL_MS: u32 = 5;
 pub const MAX_INTERVAL_MS: u32 = 1000;
 /// Longest accepted pre/post delay (`kMaxDelayMs` of src/lotus-state.cpp).
 pub const MAX_DELAY_MS: u32 = 1000;
+/// Most Return taps one request may ask for.
+const MAX_RETURNS: usize = 4;
+
 /// Pause between the last Shift+Left and the Shift release.
 pub const SHIFT_RELEASE_DELAY_MS: u32 = 10;
 
@@ -188,6 +191,19 @@ impl Planner {
                 self.pending_anchor = true;
                 self.pending_backspaces = self.pending_backspaces.saturating_add(msg.count - 1);
                 out.tap(keys::BACKSPACE);
+            }
+            KbOp::Return => {
+                if pre_delay > 0 {
+                    out.sleep_ms(pre_delay);
+                }
+                self.post_delay = post_delay;
+                self.release_shift(out); // Shift+Return is another key in many apps
+                self.pending_selects = 0;
+                self.pending_select_anchor = false;
+                for _ in 0..msg.count.min(MAX_RETURNS) {
+                    out.tap(keys::ENTER);
+                }
+                self.pending_anchor = true;
             }
             KbOp::Unknown(raw) => out.log(Level::Warn, &format!("Unknown keyboard message op: {raw}")),
         }
@@ -508,5 +524,18 @@ mod tests {
         planner.handle(&msg(KbOp::Backspace, 1, 0, 3, 2), Released, &mut out);
         drain(&mut planner, &mut out);
         assert_eq!(out.transcript(), "tap 14\nsleep 2\ntap 119\n");
+    }
+
+    #[test]
+    fn return_taps_enter_then_the_anchor() {
+        let mut planner = Planner::default();
+        let mut out = Recorder::default();
+        planner.handle(&msg(KbOp::Return, 1, 0, 3, 2), Released, &mut out);
+        drain(&mut planner, &mut out);
+        assert_eq!(out.transcript(), "tap 28\nsleep 2\ntap 119\n");
+        let mut out = Recorder::default();
+        planner.handle(&msg(KbOp::Return, 99, 0, 3, 0), Released, &mut out);
+        drain(&mut planner, &mut out);
+        assert_eq!(out.keys().len(), MAX_RETURNS + 1, "capped, then the anchor");
     }
 }

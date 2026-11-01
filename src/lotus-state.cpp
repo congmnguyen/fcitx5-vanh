@@ -89,6 +89,7 @@ namespace fcitx {
         };
 
         lotusEngine_->setOptions(option);
+        lotusEngine_->setLearned(engine_.learned());
     }
 
     bool LotusState::setupUinput() {
@@ -134,6 +135,8 @@ namespace fcitx {
         realSelect_            = false;
         deletionInterruptedAt_ = 0;
         g_isDeleting.store(false, std::memory_order_release);
+        returnAfterReplacement_ = false;
+        returnEchoPending_      = false;
 
         oldPreBuffer_.clear();
         hasHistory_   = false;
@@ -241,7 +244,13 @@ namespace fcitx {
 
     void LotusState::handlePreeditMode(KeyEvent& keyEvent, KeySym currentSym) {
         const uint32_t keyVal = engineKeyValue(currentSym);
-        if (lotusEngine_->processKey(keyVal, lotus::keyStatesFromBits(static_cast<uint32_t>(keyEvent.rawKey().states())))) {
+        // Enter: the word in the preedit is decided as at a word break (an English word last on a
+        // line is committed as its keys), then Enter goes on to the app.
+        const bool isReturn = currentSym == FcitxKey_Return && !keyEvent.key().hasModifier();
+        if (isReturn) {
+            lotusEngine_->endWord();
+            LOTUS_DEBUG("Preedit: Enter ends the word");
+        } else if (lotusEngine_->processKey(keyVal, lotus::keyStatesFromBits(static_cast<uint32_t>(keyEvent.rawKey().states())))) {
             keyEvent.filterAndAccept();
         } else {
             LOTUS_DEBUG("Preedit: key not processed, forwarding (sym=" + std::to_string(currentSym) + ", keyVal=" + std::to_string(keyVal) + ")");
@@ -474,6 +483,7 @@ namespace fcitx {
     void LotusState::finishReplacement(KeyEvent& event) {
         appendCommit(pendingCommitString_);
         pendingCommitString_.clear();
+        returnEchoPending_     = false;
         deferCommits_          = getFrontendName(&ic_) == "dbus";
         expectedBackspaces_    = 0;
         currentBackspaceCount_ = 0;
@@ -481,8 +491,14 @@ namespace fcitx {
         realSelect_            = false;
         event.filterAndAccept();
         g_isDeleting.store(false, std::memory_order_release);
+        if (returnAfterReplacement_ && sendReturn()) {
+            return; // the buffered keys follow the Enter's anchor
+        }
         if (deferCommits_) {
             flushCommitBatch();
+            if (!bufferedKeys_.empty()) {
+                scheduleDeferredCommit(); // replays them, also after a burst without commit (Enter)
+            }
         } else {
             replayBufferedKeys();
             flushCommitBatch();
@@ -570,6 +586,8 @@ namespace fcitx {
             currentBackspaceCount_ = 0;
             replacementDeadlineMs_ = 0;
             pendingCommitString_.clear();
+            returnAfterReplacement_ = false;
+            returnEchoPending_      = false;
             hasHistory_ = false;
             (*lotusEngine_).reset();
             lotusEngine_->forgetContext();
@@ -667,6 +685,8 @@ namespace fcitx {
                 hasHistory_ = true;
                 lotusEngine_->processKey(FcitxKey_BackSpace, {});
                 oldPreBuffer_ = pullPreeditString();
+            } else if (handleUinputReturn(keyEvent)) {
+                return;
             } else {
                 hasHistory_ = false;
                 (*lotusEngine_).reset();
@@ -690,7 +710,9 @@ namespace fcitx {
         const std::u32string commitStr = pullCommitString();
         if (!commitStr.empty()) {
             // English restore may rewrite the words before ("thí makes" -> "this makes").
-            DiffPart diffPart = compareAndSplitU32(lotusEngine_->takeRewrittenBefore() + oldPreBuffer_, commitStr);
+            // DiffPart holds views: the text it splits must outlive it.
+            const std::u32string shown    = lotusEngine_->takeRewrittenBefore() + oldPreBuffer_;
+            DiffPart             diffPart = compareAndSplitU32(shown, commitStr);
 
             if (!diffPart.deletedPart.empty()) {
                 performReplacement(diffPart);
@@ -762,6 +784,135 @@ namespace fcitx {
         keyEvent.filterAndAccept();
         performReplacement(diffPart);
         oldPreBuffer_ = preeditStr;
+    }
+
+    bool LotusState::handleUinputReturn(KeyEvent& keyEvent) {
+        // Enter waits for the replacement and then reaches the app as a forwarded key, or, with
+        // the dbus frontend (fcitx5-gtk drops forwarded keys in GTK4 apps such as Ghostty), typed
+        // by the uinput server. Without either the word can only be replaced through the
+        // surrounding text, which reaches the app before the Enter passed through now.
+        const bool canForward = getFrontendName(&ic_) != "dbus" || (engine_.kbSender().connected() && engine_.uinputTypesReturn());
+        const bool surrounding = ic_.capabilityFlags().test(CapabilityFlag::SurroundingText) && ic_.surroundingText().isValid();
+        if (!canForward && !surrounding) {
+            return false;
+        }
+        lotusEngine_->setRewriteAllowed(true); // the word may also rewrite the ones before it, as at a space
+        if (oldPreBuffer_.empty() || !lotusEngine_->endWord()) {
+            return false;
+        }
+        const std::u32string commitStr = pullCommitString();
+        const std::u32string shown     = lotusEngine_->takeRewrittenBefore() + oldPreBuffer_; // outlives the views of diffPart
+        const DiffPart       diffPart  = compareAndSplitU32(shown, commitStr);
+        hasHistory_                    = false;
+        (*lotusEngine_).reset();
+        lotusEngine_->forgetContext();
+        oldPreBuffer_.clear();
+        if (diffPart.deletedPart.empty() && (diffPart.addedPart.empty() || getFrontendName(&ic_) != "dbus")) {
+            if (!diffPart.addedPart.empty()) {
+                lotus::fcitx_text::commit(&ic_, diffPart.addedPart, lastCommitTime_);
+            }
+            keyEvent.forward(); // nothing to delete: Enter follows the commit on the same channel
+            return true;
+        }
+        if (diffPart.deletedPart.empty() && canForward) {
+            // dbus: a commit made while the app's own Enter passes was seen to lose the Enter in
+            // Ghostty; the Enter follows the commit through the uinput server instead.
+            appendCommit(diffPart.addedPart);
+            keyEvent.filterAndAccept();
+            deferCommits_ = true;
+            sendReturn();
+            return true;
+        }
+        if (!canForward) {
+            // Only when the text before the cursor is the word shown (surrounding text can be stale).
+            const auto& st     = ic_.surroundingText();
+            const auto  before = lotus::utf8::decode(st.text()).substr(0, st.cursor());
+            if (!before.ends_with(diffPart.deletedPart)) {
+                keyEvent.forward();
+                return true;
+            }
+            const auto delSize = static_cast<int>(diffPart.deletedPart.size());
+            ic_.deleteSurroundingText(-delSize, delSize);
+            lotus::fcitx_text::commit(&ic_, diffPart.addedPart, lastCommitTime_);
+            keyEvent.forward();
+            return true;
+        }
+        if (!engine_.kbSender().connected()) {
+            keyEvent.forward(); // no way to delete the shown word: keep it
+            return true;
+        }
+        // The uinput Backspaces arrive later than a forwarded key would: Enter waits for the
+        // replacement and is sent after its commit (finishReplacement).
+        returnAfterReplacement_ = true;
+        performReplacement(diffPart);
+        keyEvent.filterAndAccept();
+        LOTUS_INFO("Restore before Enter: " + lotus::utf8::encode(diffPart.deletedPart) + " -> " + lotus::utf8::encode(diffPart.addedPart));
+        return true;
+    }
+
+    bool LotusState::sendReturn() {
+        returnAfterReplacement_ = false;
+        flushCommitBatch();
+        if (getFrontendName(&ic_) == "dbus" && engine_.kbSender().connected() && engine_.uinputTypesReturn()) {
+            // fcitx5-gtk drops forwarded keys in GTK4 apps (Ghostty): the uinput server types the
+            // Enter instead. It comes back through the app's IM after the commit just sent on the
+            // same D-Bus connection, so it lands after the word; keys typed meanwhile stay buffered
+            // until the anchor that follows it.
+            const auto postDelay   = static_cast<uint32_t>(clampDelay(appRuleSetting_.postDelay > 0 ? appRuleSetting_.postDelay : *engine_.config().defaultPostDelay));
+            currentBackspaceCount_ = 0;
+            expectedBackspaces_    = 0;
+            pendingCommitString_.clear();
+            realSelect_            = false;
+            returnEchoPending_     = true;
+            replacementDeadlineMs_ = nowMs() + static_cast<int64_t>(postDelay) + kReplacementAckSlackMs;
+            replacementEchoGrace_  = static_cast<int64_t>(postDelay) + kReplacementAckSlackMs;
+            g_isDeleting.store(true, std::memory_order_release);
+            if (deferredCommitPending_) {
+                returnAfterDeferredCommit_ = true; // the commit goes first, see scheduleDeferredCommit
+            } else {
+                sendKbMsg(KbOp::Return, 1, 0, 0, postDelay);
+                LOTUS_INFO("Send Return through the uinput server");
+            }
+            return true;
+        }
+        ic_.forwardKey(Key(FcitxKey_Return), false);
+        ic_.forwardKey(Key(FcitxKey_Return), true);
+        return false;
+    }
+
+    bool LotusState::handleRevertKey(KeyEvent& keyEvent) {
+        // Matched on the raw key: Key::normalize() drops Shift from Shift+BackSpace.
+        const KeyStates mods{KeyState::Ctrl, KeyState::Alt, KeyState::Shift, KeyState::Super};
+        const auto      matches = [&](const Key& k) { return k.sym() == keyEvent.rawKey().sym() && (keyEvent.rawKey().states() & mods) == (k.states() & mods); };
+        if (std::ranges::none_of(*engine_.config().revertKey, matches) || g_isDeleting.load(std::memory_order_acquire)) {
+            return false;
+        }
+        const LotusMode mode = currentMode();
+        const bool      uinput = (mode == LotusMode::Smooth || mode == LotusMode::SuperSmooth || mode == LotusMode::Select) && !shouldUseSurroundingText(keyEvent);
+        const bool      surrounding = !uinput && ic_.capabilityFlags().test(CapabilityFlag::SurroundingText) && ic_.surroundingText().isValid();
+        if ((!uinput && !surrounding) || (uinput && !oldPreBuffer_.empty()) || !lotusEngine_->revertLastSwitch()) {
+            return false;
+        }
+        const std::u32string after    = pullCommitString();
+        const std::u32string before   = lotusEngine_->takeRewrittenBefore();
+        const DiffPart       diffPart = compareAndSplitU32(before, after);
+        if (uinput) {
+            if (!engine_.kbSender().connected()) {
+                return false;
+            }
+            performReplacement(diffPart);
+        } else {
+            const int n = static_cast<int>(diffPart.deletedPart.size());
+            if (n > 0) {
+                ic_.deleteSurroundingText(-n, n);
+            }
+            lotus::fcitx_text::commit(&ic_, diffPart.addedPart, lastCommitTime_);
+            invalidateSurroundingWord(true);
+        }
+        engine_.saveLearned();
+        LOTUS_INFO("Revert: " + lotus::utf8::encode(before) + " -> " + lotus::utf8::encode(after));
+        keyEvent.filterAndAccept();
+        return true;
     }
 
     void LotusState::invalidateSurroundingWord(bool hard) {
@@ -873,6 +1024,27 @@ namespace fcitx {
         }
 
         lotusEngine_->setRewriteAllowed(true);
+        if (currentSym == FcitxKey_Return) {
+            // Enter after a word: restore it like a word break would ("... is" + Enter, not "í"),
+            // through the same channel as the Enter that follows.
+            if (!oldWord.empty() && lotusEngine_->endWord()) {
+                const std::u32string committed = pullCommitString();
+                const std::u32string shown     = lotusEngine_->takeRewrittenBefore() + oldWord; // outlives the views of diffPart
+                const DiffPart       diffPart  = compareAndSplitU32(shown, committed);
+                const size_t         n         = diffPart.deletedPart.size();
+                if (n > 0) {
+                    ic->deleteSurroundingText(-static_cast<int>(n), static_cast<int>(n));
+                }
+                if (!diffPart.addedPart.empty()) {
+                    lotus::fcitx_text::commit(ic, diffPart.addedPart, lastCommitTime_);
+                }
+            }
+            (*lotusEngine_).reset();
+            lotusEngine_->forgetContext();
+            invalidateSurroundingWord(true);
+            keyEvent.forward();
+            return;
+        }
         const bool processed = lotusEngine_->processKey(engineKeyValue(currentSym), lotus::keyStatesFromBits(static_cast<uint32_t>(keyEvent.rawKey().states())));
 
         if (!processed) {
@@ -888,8 +1060,8 @@ namespace fcitx {
         }
 
         const std::u32string committed = pullCommitString();
-        std::u32string       newWord   = committed;
-        newWord += pullPreeditString();
+        const std::u32string preedit   = pullPreeditString();
+        std::u32string       newWord   = committed + preedit;
         if (!committed.empty())
             (*lotusEngine_).reset();
         // English restore may rewrite the words before ("thí makes" -> "this makes").
@@ -905,8 +1077,11 @@ namespace fcitx {
         }
         LOTUS_DEBUG("Surrounding: '" + lotus::utf8::encode(oldWord) + "' -> '" + lotus::utf8::encode(newWord) + "' del=" + std::to_string(charsToDelete));
 
-        // Keep only the part after the last word break as the tracked word.
-        std::u32string word = newWord;
+        // Keep only the part after the last word break as the tracked word. After a commit that is
+        // the engine's own preedit: the engine also breaks words at characters this tracker keeps
+        // ("~/.config/fcitx5/profile", "max_tokens"), and a tracked word longer than the preedit
+        // made the next key rebuild the engine from the text, losing the keys typed.
+        std::u32string word = committed.empty() ? newWord : preedit;
         for (size_t i = word.size(); i > 0; --i) {
             if (isWordBreak(static_cast<uint32_t>(word[i - 1]))) {
                 word = word.substr(i);
@@ -1076,6 +1251,9 @@ namespace fcitx {
         if (handleKeyWhileDeleting(keyEvent, currentSym))
             return;
 
+        if (currentMode() != LotusMode::Off && currentMode() != LotusMode::Emoji && handleRevertKey(keyEvent))
+            return;
+
         if (handleDoubleSpaceToPeriod(keyEvent, currentSym))
             return;
 
@@ -1121,11 +1299,26 @@ namespace fcitx {
         LOTUS_WARN("Replacement ack timed out, finishing without the remaining backspace echoes");
         appendCommit(pendingCommitString_);
         pendingCommitString_.clear();
+        if (returnEchoPending_) {
+            // The server typed no Enter (an older server without KbOp::Return): forwarding is all
+            // that is left, which GTK4 apps drop.
+            returnEchoPending_ = false;
+            engine_.setUinputTypesReturn(false);
+            LOTUS_WARN("No Return from the uinput server (older than the addon?), forwarding it");
+            ic_.forwardKey(Key(FcitxKey_Return), false);
+            ic_.forwardKey(Key(FcitxKey_Return), true);
+        }
         expectedBackspaces_    = 0;
         currentBackspaceCount_ = 0;
         deletionInterruptedAt_ = 0;
         realSelect_            = false;
         g_isDeleting.store(false, std::memory_order_release);
+        if (returnAfterReplacement_ && sendReturn()) {
+            (*lotusEngine_).reset();
+            oldPreBuffer_.clear();
+            hasHistory_ = false;
+            return;
+        }
 
         (*lotusEngine_).reset();
         oldPreBuffer_.clear();
@@ -1133,6 +1326,9 @@ namespace fcitx {
         deferCommits_ = getFrontendName(&ic_) == "dbus";
         if (deferCommits_) {
             flushCommitBatch();
+            if (!bufferedKeys_.empty()) {
+                scheduleDeferredCommit(); // replays them, also after a burst without commit (Enter)
+            }
         } else {
             replayBufferedKeys();
             flushCommitBatch();
@@ -1196,6 +1392,9 @@ namespace fcitx {
                 }
             } else if (currentSym == FcitxKey_Pause) {
                 handleUInputKeyPress(keyEvent, currentSym);
+                return true;
+            } else if (returnEchoPending_ && currentSym == FcitxKey_Return) {
+                returnEchoPending_ = false; // the Enter the uinput server typed: to the app as is
                 return true;
             } else if (realSelect_ && (currentSym == FcitxKey_Left || currentSym == FcitxKey_Delete)) {
                 if (currentSym == FcitxKey_Left) {
@@ -1508,10 +1707,27 @@ namespace fcitx {
             deferCommits_          = false;
             commitBatch_           = std::move(deferredCommitText_);
             deferredCommitText_.clear();
-            replayBufferedKeys();
+            if (!returnEchoPending_) {
+                replayBufferedKeys(); // else after the Enter the uinput server types
+            }
             flushCommitBatch();
+            requestDeferredReturn();
             return false;
         });
+    }
+
+    void LotusState::requestDeferredReturn() {
+        if (!returnAfterDeferredCommit_) {
+            return;
+        }
+        returnAfterDeferredCommit_ = false;
+        if (!returnEchoPending_) {
+            return; // the burst was given up meanwhile
+        }
+        const auto postDelay   = static_cast<uint32_t>(clampDelay(appRuleSetting_.postDelay > 0 ? appRuleSetting_.postDelay : *engine_.config().defaultPostDelay));
+        replacementDeadlineMs_ = nowMs() + static_cast<int64_t>(postDelay) + kReplacementAckSlackMs;
+        sendKbMsg(KbOp::Return, 1, 0, 0, postDelay);
+        LOTUS_INFO("Send Return through the uinput server, after the commit");
     }
 
     void LotusState::flushCommitBatch() {
@@ -1536,6 +1752,7 @@ namespace fcitx {
             deferredCommitPending_ = false;
         }
         flushCommitBatch();
+        requestDeferredReturn();
     }
 
     void LotusState::replayBufferedKeys() {
@@ -1560,6 +1777,36 @@ namespace fcitx {
                 sym   = unshiftKeySym(sym);
                 state = state.unset(KeyState::Shift);
             }
+            if (sym == FcitxKey_Return || sym == FcitxKey_KP_Enter) {
+                // Typed during a replacement: the word before it is decided as at a word break,
+                // and Enter goes to the app as a key (committing "\r" as text submits nothing).
+                std::u32string shown;
+                std::u32string commitStr;
+                DiffPart       diffPart; // views into shown and commitStr
+                if (!oldPreBuffer_.empty() && lotusEngine_->endWord()) {
+                    commitStr = pullCommitString();
+                    shown     = lotusEngine_->takeRewrittenBefore() + oldPreBuffer_;
+                    diffPart  = compareAndSplitU32(shown, commitStr);
+                }
+                (*lotusEngine_).reset();
+                lotusEngine_->forgetContext();
+                oldPreBuffer_.clear();
+                hasHistory_ = false;
+                if (!diffPart.deletedPart.empty() && engine_.kbSender().connected()) {
+                    flushCommitBatch();
+                    // Enter follows the replacement; remaining keys stay queued for the next replay cycle.
+                    returnAfterReplacement_ = true;
+                    performReplacement(diffPart);
+                    return;
+                }
+                if (!diffPart.addedPart.empty()) {
+                    appendCommit(diffPart.addedPart);
+                }
+                if (sendReturn()) {
+                    return; // the rest follows the Enter's anchor
+                }
+                continue;
+            }
             const uint32_t keyCodePoint = Key::keySymToUnicode(sym);
             if (keyCodePoint == 0U) {
                 continue;
@@ -1571,7 +1818,10 @@ namespace fcitx {
 
             const std::u32string commitStr = pullCommitString();
             if (!commitStr.empty()) {
-                DiffPart diffPart = compareAndSplitU32(oldPreBuffer_, commitStr);
+                // English restore may rewrite the words before ("thí makes" -> "this makes"), as in
+                // handleUinputMode: without them here a fast typist got the earlier word twice.
+                const std::u32string shown    = lotusEngine_->takeRewrittenBefore() + oldPreBuffer_; // outlives the views of diffPart
+                DiffPart             diffPart = compareAndSplitU32(shown, commitStr);
 
                 if (!diffPart.deletedPart.empty()) {
                     flushCommitBatch();

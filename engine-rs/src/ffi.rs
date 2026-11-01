@@ -11,6 +11,7 @@
 //! what it created. The functions never unwind (the crate aborts on panic).
 
 use crate::dictionary::Dictionary;
+use crate::learning::Learned;
 use crate::encoder::encode;
 use crate::input_method::cached_input_method;
 use crate::key_processor::{KeyProcessor, Options, Shared};
@@ -55,6 +56,7 @@ pub struct LotusOptions {
 pub struct LotusInputMethod(InputMethod);
 pub struct LotusMacroTable(Shared<MacroTable>);
 pub struct LotusDictionary(Shared<Dictionary>);
+pub struct LotusLearned(Shared<Learned>);
 pub struct LotusKeyProcessor(KeyProcessor);
 
 unsafe fn bytes<'a>(s: LotusStr) -> &'a [u8] {
@@ -187,6 +189,53 @@ pub unsafe extern "C" fn lotus_macro_table_get(
         }
         None => false,
     }
+}
+
+// ---- Learned preferences ------------------------------------------------------------------
+
+#[no_mangle]
+pub extern "C" fn lotus_learned_new() -> *mut LotusLearned {
+    Box::into_raw(Box::new(LotusLearned(Arc::new(RwLock::new(Learned::default())))))
+}
+
+/// # Safety
+/// `learned` comes from lotus_learned_new (or is null).
+#[no_mangle]
+pub unsafe extern "C" fn lotus_learned_free(learned: *mut LotusLearned) {
+    if !learned.is_null() {
+        drop(Box::from_raw(learned));
+    }
+}
+
+/// # Safety
+/// Valid handle; `text` valid UTF-8 bytes (invalid lines are skipped).
+#[no_mangle]
+pub unsafe extern "C" fn lotus_learned_load_from_text(learned: *mut LotusLearned, text: LotusStr) {
+    (*learned).0.write().unwrap().load_from_text(&String::from_utf8_lossy(bytes(text)));
+}
+
+/// # Safety
+/// Valid handle.
+#[no_mangle]
+pub unsafe extern "C" fn lotus_learned_to_text(learned: *const LotusLearned, sink: LotusBytesSink, ctx: *mut c_void) {
+    send_bytes(sink, ctx, (*learned).0.read().unwrap().to_text().as_bytes());
+}
+
+/// # Safety
+/// Valid handle.
+#[no_mangle]
+pub unsafe extern "C" fn lotus_learned_size(learned: *const LotusLearned) -> usize {
+    (*learned).0.read().unwrap().len()
+}
+
+/// Shares a learned table (null turns learning off); the processor keeps its own reference.
+///
+/// # Safety
+/// Valid handles (`learned` may be null).
+#[no_mangle]
+pub unsafe extern "C" fn lotus_key_processor_set_learned(processor: *mut LotusKeyProcessor, learned: *const LotusLearned) {
+    let learned = if learned.is_null() { None } else { Some((*learned).0.clone()) };
+    (*processor).0.set_learned(learned);
 }
 
 // ---- Dictionary ---------------------------------------------------------------------------
@@ -395,6 +444,20 @@ pub unsafe extern "C" fn lotus_key_processor_take_rewritten_before(processor: *m
 #[no_mangle]
 pub unsafe extern "C" fn lotus_key_processor_forget_context(processor: *mut LotusKeyProcessor) {
     (*processor).0.forget_context();
+}
+
+/// # Safety
+/// Valid handle.
+#[no_mangle]
+pub unsafe extern "C" fn lotus_key_processor_end_word(processor: *mut LotusKeyProcessor) -> bool {
+    (*processor).0.end_word()
+}
+
+/// # Safety
+/// Valid handle.
+#[no_mangle]
+pub unsafe extern "C" fn lotus_key_processor_revert_last_switch(processor: *mut LotusKeyProcessor) -> bool {
+    (*processor).0.revert_last_switch()
 }
 
 // ---- Utilities ----------------------------------------------------------------------------

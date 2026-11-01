@@ -34,7 +34,11 @@ namespace {
             const size_t    commitsBefore = context->commits().size();
             const size_t    deletesBefore = context->deletes().size();
 
-            fcitx::KeyEvent event(context, fcitx::Key(static_cast<fcitx::KeySym>(ch)), false);
+            // '\n' is Enter, '\b' the revert key (Shift+BackSpace).
+            const fcitx::Key key = ch == '\n' ? fcitx::Key(FcitxKey_Return) :
+                ch == '\b'                    ? fcitx::Key(FcitxKey_BackSpace, fcitx::KeyState::Shift) :
+                                                 fcitx::Key(static_cast<fcitx::KeySym>(ch));
+            fcitx::KeyEvent event(context, key, false);
             engine->keyEvent(*entry, event);
 
             for (size_t i = deletesBefore; i < context->deletes().size(); ++i) {
@@ -48,7 +52,7 @@ namespace {
             for (size_t i = commitsBefore; i < context->commits().size(); ++i) {
                 text += context->commits()[i];
             }
-            if (!event.accepted()) {
+            if (!event.accepted() && ch != '\b') {
                 text += ch;
             }
         }
@@ -136,7 +140,10 @@ int main() {
         }
     }
     // Context (Vikey look-back, word pairs, English mode): the words around decide.
-    constexpr std::array<Case, 19> contextCases{
+    constexpr std::array<Case, 26> contextCases{
+        // A word glued to code: the keys of the word are still known after the glue character.
+        Case{.keys = "file ~/.config/fcitx5/profile ", .want = "file ~/.config/fcitx5/profile "},
+        Case{.keys = "max_tokens = 4 ", .want = "max_tokens = 4 "},
         Case{.keys = "video call this ", .want = "video call this "},
         Case{.keys = "this makes sense ", .want = "this makes sense "},
         Case{.keys = "this error ", .want = "this error "},
@@ -150,17 +157,42 @@ int main() {
         Case{.keys = "test xong roofi ", .want = "test xong rồi "},
         Case{.keys = "it has been ", .want = "it has been "},
         Case{.keys = "office its nhaats ", .want = "office ít nhất "},
-        Case{.keys = "the theme of rust ", .want = "the theme of rust "},
+        Case{.keys = "the style of rust ", .want = "the style of rust "},
         Case{.keys = "this is a test ", .want = "this is a test "},
         Case{.keys = "car release ", .want = "cả release "},
         Case{.keys = "xoas car release ", .want = "xoá cả release "},
         Case{.keys = "sex focus ", .want = "sẽ focus "},
         Case{.keys = "hocj it been fpt ", .want = "học it bên fpt "},
+        // Enter ends the word like a space: the last English word on a line is restored too.
+        Case{.keys = "the poller is\n", .want = "the poller is\n"},
+        Case{.keys = "tooi ddi hocj\n", .want = "tôi đi học\n"},
+        Case{.keys = "docs: fix\n", .want = "docs: fix\n"},
+        // The revert key right after a word break switches the word to its other reading.
+        Case{.keys = "dduwowcj host \brieeng", .want = "được hót riêng"},
+        Case{.keys = "theo max \bticket", .want = "theo max ticket"},
     };
     for (const Case& test : contextCases) {
         const std::string got = typer.type(test.keys);
         if (got != test.want) {
             std::cerr << "Context typing '" << test.keys << "': expected '" << test.want << "', got '" << got << "'\n";
+            ++failures;
+        }
+    }
+    // Without the auto restore (AutoNonVnRestore and SpellCheck off), only the English restore
+    // brings a glued word back, and it needs the keys typed: a word tracked across the glue
+    // character made the next key rebuild the engine from the text ("pròile", "tokén").
+    config.setValueByPath("AutoNonVnRestore", "False");
+    config.setValueByPath("SpellCheck", "False");
+    engine.setConfig(config);
+    constexpr std::array<Case, 3> gluedCases{
+        Case{.keys = "file ~/.config/fcitx5/profile ", .want = "file ~/.config/fcitx5/profile "},
+        Case{.keys = "max_tokens = 4 ", .want = "max_tokens = 4 "},
+        Case{.keys = "src/main.rs ", .want = "src/main.rs "},
+    };
+    for (const Case& test : gluedCases) {
+        const std::string got = typer.type(test.keys);
+        if (got != test.want) {
+            std::cerr << "Glued typing without auto restore '" << test.keys << "': expected '" << test.want << "', got '" << got << "'\n";
             ++failures;
         }
     }

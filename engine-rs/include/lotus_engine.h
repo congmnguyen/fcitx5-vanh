@@ -28,6 +28,7 @@ extern "C" {
 typedef struct LotusInputMethod  LotusInputMethod;
 typedef struct LotusMacroTable   LotusMacroTable;
 typedef struct LotusDictionary   LotusDictionary;
+typedef struct LotusLearned      LotusLearned;
 typedef struct LotusKeyProcessor LotusKeyProcessor;
 
 /** A UTF-8 string slice. */
@@ -77,6 +78,13 @@ bool             lotus_dictionary_has_word(const LotusDictionary* dictionary, co
 bool             lotus_dictionary_has_word_or_prefix(const LotusDictionary* dictionary, const uint32_t* word, size_t len);
 size_t           lotus_dictionary_size(const LotusDictionary* dictionary);
 
+/* Preferences learned from reverts (opt-in). */
+LotusLearned* lotus_learned_new(void);
+void          lotus_learned_free(LotusLearned* learned);
+void          lotus_learned_load_from_text(LotusLearned* learned, LotusStr text);
+void          lotus_learned_to_text(const LotusLearned* learned, LotusBytesSink sink, void* ctx);
+size_t        lotus_learned_size(const LotusLearned* learned);
+
 /* Key processor. */
 LotusKeyProcessor* lotus_key_processor_new(const LotusInputMethod* method, bool spell_check_with_dicts_default);
 void               lotus_key_processor_free(LotusKeyProcessor* processor);
@@ -86,6 +94,7 @@ void               lotus_key_processor_set_should_restore_key_strokes(LotusKeyPr
 bool               lotus_key_processor_should_restore_key_strokes(const LotusKeyProcessor* processor);
 void               lotus_key_processor_set_macro_table(LotusKeyProcessor* processor, const LotusMacroTable* table);
 void               lotus_key_processor_set_dictionary(LotusKeyProcessor* processor, const LotusDictionary* dictionary);
+void               lotus_key_processor_set_learned(LotusKeyProcessor* processor, const LotusLearned* learned);
 bool               lotus_key_processor_process_key(LotusKeyProcessor* processor, uint32_t key_val, uint32_t states);
 bool               lotus_key_processor_can_process_key(const LotusKeyProcessor* processor, uint32_t key_val);
 void               lotus_key_processor_preedit(const LotusKeyProcessor* processor, LotusU32Sink sink, void* ctx);
@@ -96,6 +105,8 @@ void               lotus_key_processor_rebuild_from_text(LotusKeyProcessor* proc
 void               lotus_key_processor_set_rewrite_allowed(LotusKeyProcessor* processor, bool allowed);
 void               lotus_key_processor_take_rewritten_before(LotusKeyProcessor* processor, LotusU32Sink sink, void* ctx);
 void               lotus_key_processor_forget_context(LotusKeyProcessor* processor);
+bool               lotus_key_processor_end_word(LotusKeyProcessor* processor);
+bool               lotus_key_processor_revert_last_switch(LotusKeyProcessor* processor);
 
 /* Utilities. */
 void lotus_encode(uint8_t charset, const uint32_t* text, size_t len, LotusBytesSink sink, void* ctx);

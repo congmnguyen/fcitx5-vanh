@@ -21,6 +21,7 @@ pub mod english;
 pub mod ffi;
 pub mod input_method;
 pub mod key_processor;
+pub mod learning;
 pub mod macro_table;
 pub mod rebuild;
 pub mod rule;

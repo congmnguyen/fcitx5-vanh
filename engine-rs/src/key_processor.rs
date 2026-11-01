@@ -16,6 +16,7 @@ use crate::dictionary::Dictionary;
 use crate::encoder::encode;
 use crate::engine::Engine;
 use crate::english::{self, Prev, Word};
+use crate::learning::{self, Learned};
 use crate::macro_table::MacroTable;
 use crate::rule::InputMethod;
 use crate::time_format::format_time;
@@ -129,7 +130,46 @@ pub struct KeyProcessor {
     english_mode: bool,
     rewrite_allowed: bool,
     rewritten_before: Vec<char>,
+    /// Text committed since the last space, while it is known (the token the word is part of).
+    token: Vec<char>,
+    token_known: bool,
+    /// The key ending the word being decided (None: Enter, or no word break).
+    break_key: Option<char>,
+    /// English words in a row on this line, punctuation between them allowed.
+    en_run: u32,
+    /// The word just finished, while it can still be reverted to its other reading.
+    last_switch: Option<LastSwitch>,
+    /// Preferences learned from reverts (opt-in).
+    learned: Option<Shared<Learned>>,
 }
+
+/// A finished word and the reading it did not get.
+#[derive(Clone, Debug)]
+struct LastSwitch {
+    shown: Vec<char>,
+    other: Vec<char>,
+    /// The word break typed after it (empty at Enter).
+    tail: Vec<char>,
+    /// Lowercase keys, the learning key.
+    keys: String,
+    /// The shown text is the keys.
+    english: bool,
+}
+
+/// How a word sits in its token.
+enum Glue {
+    None,
+    /// Glued by a character that also joins prose words ('/', ':', '`') when `strong` is false.
+    Code { strong: bool },
+    Hex,
+    /// Glued to Vietnamese text ("tên/ngày"): an ordinary word.
+    Vietnamese,
+}
+
+/// Characters that glue a word into a code token (identifier, path, flag) right before it.
+const GLUE_BEFORE: &[char] = &['_', '/', '\\', '.', '=', '@', '#', '$', '%', '&', '+', '~', '|', '`', ':'];
+/// Word break keys that glue the word to what follows ("max_", "docs/").
+const GLUE_AFTER: &[char] = &['_', '/', '\\', '=', '@', '#', '$', '%', '&', '+', '~', '|'];
 
 fn replace_all(text: &[char], needle: &[char], replacement: &[char]) -> Vec<char> {
     if needle.is_empty() {
@@ -171,6 +211,12 @@ impl KeyProcessor {
             english_mode: false,
             rewrite_allowed: false,
             rewritten_before: Vec::new(),
+            token: Vec::new(),
+            token_known: true,
+            break_key: None,
+            en_run: 0,
+            last_switch: None,
+            learned: None,
         }
     }
 
@@ -260,6 +306,7 @@ impl KeyProcessor {
     }
 
     fn preedit_process_key_event(&mut self, key_val: u32, states: u32) -> bool {
+        self.last_switch = None; // a revert only follows the word break right away
         let has_preedit = !self.preedit.is_empty();
 
         // Workaround for chrome's address bar and Google SpreadSheets.
@@ -383,36 +430,99 @@ impl KeyProcessor {
                     return (text, true);
                 }
             }
-            // The word as typed, before a restore changes the engine.
-            let keys = self.current_keys();
-            let vietnamese = self.get_processed_string(Mode::VIETNAMESE | Mode::FULL_TEXT);
-            let info = if self.options.english_restore {
-                english::analyze(&keys, &self.get_processed_string(Mode::VIETNAMESE | Mode::LOWER_CASE))
-            } else {
-                None
-            };
-            let word;
-            let is_english;
-            // Also for words that show no Vietnamese letter but lost a Telex undo key ("eror").
-            if let Some(restored) = self.english_restore_text() {
-                self.engine.restore_last_word(false);
-                word = restored;
-                is_english = true;
-            } else if utils::has_any_vietnamese_rune(old_text) && self.must_fallback_to_english() {
-                self.engine.restore_last_word(false);
-                word = self.get_processed_string(Mode::ENGLISH | Mode::FULL_TEXT);
-                is_english = true;
-            } else {
-                word = old_text.to_vec();
-                is_english = false;
-            }
-            let mut text = self.finish_word(info.as_ref(), &keys, &vietnamese, &word, is_english, key);
-            text.extend_from_slice(&word);
-            text.push(key);
-            self.engine.process_key(key, Mode::ENGLISH);
-            return (text, true);
+            return (self.break_word(Some(key), old_text), true);
         }
         (Vec::new(), true)
+    }
+
+    /// The word ends (a word break key, or Enter when `key` is None): decides between the
+    /// Vietnamese text and the keys and returns the text to commit (the break key included).
+    fn break_word(&mut self, key: Option<char>, old_text: &[char]) -> Vec<char> {
+        self.break_key = key;
+        // The word as typed, before a restore changes the engine.
+        let keys = self.current_keys();
+        let vietnamese = self.get_processed_string(Mode::VIETNAMESE | Mode::FULL_TEXT);
+        let info = if self.options.english_restore {
+            english::analyze(&keys, &self.get_processed_string(Mode::VIETNAMESE | Mode::LOWER_CASE))
+        } else {
+            None
+        };
+        let word;
+        let is_english;
+        // Also for words that show no Vietnamese letter but lost a Telex undo key ("eror").
+        if info.as_ref().is_some_and(|w| self.restore_to_keys(w, &keys)) {
+            self.engine.restore_last_word(false);
+            word = keys.clone();
+            is_english = true;
+        } else if utils::has_any_vietnamese_rune(old_text) && self.invalid_vietnamese() {
+            // (the English restore was just asked: only the invalid word check is left)
+            self.engine.restore_last_word(false);
+            word = self.get_processed_string(Mode::ENGLISH | Mode::FULL_TEXT);
+            is_english = true;
+        } else {
+            word = old_text.to_vec();
+            is_english = false;
+        }
+        self.break_key = None;
+        if let Some(w) = info.as_ref() {
+            self.en_run = english::next_run(w, is_english, self.en_run);
+        }
+        let mut text = self.finish_word(info.as_ref(), &keys, &vietnamese, &word, is_english, key.unwrap_or('\n'));
+        // What the revert key brings back: the other reading (moved, not copied: the key path).
+        if let Some(w) = info {
+            let other = if is_english { vietnamese } else { keys };
+            if other != word && !other.is_empty() {
+                self.last_switch = Some(LastSwitch {
+                    shown: word.clone(),
+                    other,
+                    tail: key.into_iter().collect(),
+                    keys: w.raw,
+                    english: is_english,
+                });
+            }
+        }
+        match key {
+            Some(' ') | None => {
+                self.token.clear();
+                self.token_known = true;
+            }
+            Some(k) => {
+                self.token.extend_from_slice(&word);
+                self.token.push(k);
+            }
+        }
+        text.extend_from_slice(&word);
+        if let Some(key) = key {
+            text.push(key);
+            self.engine.process_key(key, Mode::ENGLISH);
+        }
+        text
+    }
+
+    /// Enter (or another line end) after a word: the word is decided as at a word break, so an
+    /// English word typed last on a line goes back to its keys too ("... is" + Enter, not "í").
+    /// The text goes to the commit (with take_rewritten_before), the engine is reset and the
+    /// context forgotten. True when the commit differs from the preedit shown, i.e. the caller
+    /// must replace the shown word before passing Enter on.
+    pub fn end_word(&mut self) -> bool {
+        let shown = self.get_preedit_string();
+        if shown.is_empty() || self.should_restore_key_strokes {
+            self.forget_context();
+            self.token_known = true;
+            return false;
+        }
+        let mut text = self.break_word(None, &shown);
+        if text.is_empty() {
+            text = shown.clone();
+        }
+        let before = std::mem::take(&mut self.rewritten_before);
+        let changed = text != shown || !before.is_empty();
+        self.commit_preedit_and_reset(text);
+        self.forget_context();
+        self.last_switch = None; // the cursor is on the next line now
+        self.token_known = true; // a new line starts
+        self.rewritten_before = before;
+        changed
     }
 
     fn encode_text(&self, text: &[char]) -> Vec<char> {
@@ -523,9 +633,60 @@ impl KeyProcessor {
         let vn = self.get_processed_string(Mode::VIETNAMESE | Mode::LOWER_CASE);
         let keys = self.current_keys();
         let w = english::analyze(&keys, &vn)?;
+        self.restore_to_keys(&w, &keys).then_some(keys)
+    }
+
+    /// The English restore decision for the word ending now (`w`, analysed from `keys`).
+    fn restore_to_keys(&self, w: &english::Word, keys: &[char]) -> bool {
+        match self.glued(keys) {
+            Glue::Hex => return true, // "…0727aa95": hex digits, never a word
+            // Part of an identifier, path or flag ("max_tokens", "docs/", "--host"): the keys,
+            // unless they read clearly as a Vietnamese word ("và/hoặc", "tên/DOB").
+            Glue::Code { strong } => return english::restore_glued(w, strong),
+            Glue::Vietnamese => {}
+            Glue::None => {}
+        }
+        match self.learned_preference(&w.raw) {
+            p if p >= learning::DECIDES => return true,
+            p if p <= -learning::DECIDES => return false,
+            _ => {}
+        }
         let prev = english::context_prev(&self.history, self.english_mode);
-        let restore = if self.english_mode { english::stay_english(&w, prev) } else { english::restore_in_vietnamese(&w, prev) };
-        restore.then_some(keys)
+        if !self.english_mode && english::restore_in_run(w, self.en_run) {
+            return true; // "the poller is", "git has no", "utf8) as thin"
+        }
+        if self.english_mode { english::stay_english(w, prev) } else { english::restore_in_vietnamese(w, prev) }
+    }
+
+    /// How the word is glued to code characters around it, inside one token.
+    fn glued(&self, keys: &[char]) -> Glue {
+        let digit_before = self.token_known && self.token.last().is_some_and(char::is_ascii_digit);
+        let digit_after = self.break_key.is_some_and(|k| k.is_ascii_digit());
+        if (digit_before || digit_after) && keys.iter().all(char::is_ascii_hexdigit) {
+            return Glue::Hex;
+        }
+        let weak = |c: char| matches!(c, '/' | ':' | '`');
+        let after = self.break_key.filter(|k| GLUE_AFTER.contains(k));
+        let before = if self.token_known { self.token.last().copied() } else { None };
+        if before.is_none() && after.is_none() {
+            return Glue::None;
+        }
+        // The word piece right before the glue character ("giờ" in "giờ/mã").
+        let piece = self.token[..self.token.len().saturating_sub(1)].iter().rev().take_while(|&&c| !utils::is_word_break_symbol(c));
+        let vietnamese_token = self.token_known && piece.into_iter().any(|&c| !c.is_ascii() && utils::is_vietnamese_rune(case_map::lower(&[c])[0]));
+        let before = before.filter(|&c| {
+            GLUE_BEFORE.contains(&c) || c.is_ascii_digit() ||
+                // "-af", "--host", "MM-DD", but not "Rịa-Vũng".
+                (c == '-' && !vietnamese_token)
+        });
+        if before.is_none() && after.is_none() {
+            return Glue::None;
+        }
+        if vietnamese_token {
+            return Glue::Vietnamese;
+        }
+        let strong = before.is_some_and(|c| !weak(c)) || after.is_some_and(|c| !weak(c));
+        Glue::Code { strong }
     }
 
     fn current_keys(&self) -> Vec<char> {
@@ -633,9 +794,49 @@ impl KeyProcessor {
         self.encode_text(&text)
     }
 
+    /// Shares the table of preferences learned from reverts; None turns learning off.
+    pub fn set_learned(&mut self, learned: Option<Shared<Learned>>) {
+        self.learned = learned;
+    }
+
+    fn learned_preference(&self, keys_lower: &str) -> i32 {
+        self.learned.as_ref().map_or(0, |l| l.read().unwrap().preference(keys_lower))
+    }
+
+    /// One-key correction of the word just finished (the cursor still right after its word
+    /// break): the word changes to its other reading, the keys typed ("host") or the Vietnamese
+    /// one ("hót"). The new text goes to the commit and the text to delete first to
+    /// take_rewritten_before, as for a rewrite. With learning on, the choice is remembered for
+    /// these keys. Pressing it again switches back. False when there is nothing to revert.
+    pub fn revert_last_switch(&mut self) -> bool {
+        if !self.preedit.is_empty() {
+            return false;
+        }
+        let Some(last) = self.last_switch.take() else {
+            return false;
+        };
+        if let Some(learned) = &self.learned {
+            learned.write().unwrap().record(&last.keys, !last.english);
+        }
+        let mut before = last.shown.clone();
+        before.extend_from_slice(&last.tail);
+        let mut text = last.other.clone();
+        text.extend_from_slice(&last.tail);
+        self.forget_context();
+        self.token_known = last.tail.as_slice() == [' '];
+        self.commit = text;
+        self.rewritten_before = before;
+        self.last_switch = Some(LastSwitch { shown: last.other, other: last.shown, english: !last.english, ..last });
+        true
+    }
+
     /// Forgets the words before the cursor (click, cursor move, focus change, Backspace into an
     /// earlier word): the English restore then judges the next word on its own.
     pub fn forget_context(&mut self) {
+        self.last_switch = None;
+        self.en_run = 0;
+        self.token.clear();
+        self.token_known = false;
         self.history.clear();
         self.english_mode = false;
         self.rewritten_before.clear();
@@ -643,15 +844,23 @@ impl KeyProcessor {
 
     /// The typed word must go back to its keys at a word break, like Go's mustFallbackToEnglish.
     pub fn must_fallback_to_english(&self) -> bool {
-        if self.english_restore_text().is_some() {
-            return true;
-        }
+        self.english_restore_text().is_some() || self.invalid_vietnamese()
+    }
+
+    /// The auto restore part of must_fallback_to_english: the word is no Vietnamese word.
+    fn invalid_vietnamese(&self) -> bool {
         if !self.options.auto_non_vn_restore {
             return false;
         }
         let vn_seq = self.get_processed_string(Mode::VIETNAMESE | Mode::LOWER_CASE);
         if vn_seq.is_empty() {
             return false;
+        }
+        if self.options.english_restore && self.learned.is_some() {
+            let keys: String = self.current_keys().iter().map(|c| c.to_ascii_lowercase()).collect();
+            if self.learned_preference(&keys) <= -learning::DECIDES {
+                return false; // the user reverted these keys to Vietnamese before
+            }
         }
         // dd is allowed even in a non-Vietnamese sequence because it is a common abbreviation.
         if self.options.dd_free_style && vn_seq.contains(&'đ') {

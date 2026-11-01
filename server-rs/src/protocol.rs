@@ -52,6 +52,9 @@ pub enum KbOp {
     Select,
     /// Drop the keys still pending from the in-flight request and release Shift.
     Cancel,
+    /// Emit `count` Return taps (at most 4), then the anchor key: Enter typed during a
+    /// replacement, sent after its commit as a real key (GTK4 apps drop keys the addon forwards).
+    Return,
     /// Any other byte; ignored (logged when `count > 0`).
     Unknown(i8),
 }
@@ -62,6 +65,7 @@ impl KbOp {
             0 => KbOp::Backspace,
             1 => KbOp::Select,
             2 => KbOp::Cancel,
+            3 => KbOp::Return,
             other => KbOp::Unknown(other),
         }
     }
@@ -71,6 +75,7 @@ impl KbOp {
             KbOp::Backspace => 0,
             KbOp::Select => 1,
             KbOp::Cancel => 2,
+            KbOp::Return => 3,
             KbOp::Unknown(raw) => raw,
         }
     }

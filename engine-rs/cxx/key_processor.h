@@ -31,6 +31,7 @@
 #include <string_view>
 
 struct LotusKeyProcessor;
+struct LotusLearned;
 
 namespace lotus {
 
@@ -64,6 +65,26 @@ namespace lotus {
      * The processor shares the macro table and the dictionary with the other input contexts; it is
      * movable but not copyable.
      */
+    /**
+     * @brief Preferences learned from reverts (opt-in, local): per typed keys, keep the keys or
+     *        the Vietnamese reading. Shared by every input context; the addon persists it.
+     */
+    class Learned {
+      public:
+        Learned();
+        /** @brief Replaces the table with a saved one ("keys<TAB>score" lines). */
+        void loadFromText(std::string_view text);
+        /** @brief The table in the saved form. */
+        [[nodiscard]] std::string toText() const;
+        [[nodiscard]] std::size_t size() const;
+        [[nodiscard]] const LotusLearned* handle() const {
+            return handle_.get();
+        }
+
+      private:
+        std::unique_ptr<LotusLearned, void (*)(LotusLearned*)> handle_;
+    };
+
     class KeyProcessor {
       public:
         /**
@@ -142,6 +163,24 @@ namespace lotus {
         void forgetContext();
 
         /**
+         * @brief Enter after a word: decides the word as a word break would (an English word last
+         *        on a line goes back to its keys). The text goes to takeCommit(), the text to
+         *        delete first to takeRewrittenBefore(); the engine is reset and the context
+         *        forgotten. True when the shown word must be replaced before Enter is passed on.
+         */
+        bool endWord();
+
+        /**
+         * @brief One-key correction right after a word break: the word just finished changes to
+         *        its other reading (keys <-> Vietnamese). Same outputs as endWord(); with learning
+         *        on, the choice is remembered. False when there is nothing to revert.
+         */
+        bool revertLastSwitch();
+
+        /** @brief Shares the preferences learned from reverts; null turns learning off. */
+        void setLearned(std::shared_ptr<Learned> learned);
+
+        /**
          * @brief Formats the current date or time, like Go's formatTime.
          * @param format Format configured for the $TIME / $DATE macro.
          * @return Formatted current local time, empty for an empty format.
@@ -152,6 +191,7 @@ namespace lotus {
         std::unique_ptr<LotusKeyProcessor, void (*)(LotusKeyProcessor*)> handle_;
         std::shared_ptr<const MacroTable>                                macroTable_; ///< Keeps the C++ owner alive
         std::shared_ptr<const Dictionary>                                dictionary_; ///< Keeps the C++ owner alive
+        std::shared_ptr<Learned>                                         learned_;    ///< Keeps the C++ owner alive
     };
 
 } // namespace lotus

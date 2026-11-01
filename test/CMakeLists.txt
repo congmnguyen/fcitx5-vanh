@@ -133,6 +133,8 @@ add_lotus_headless_test(TARGET smooth_buffered_key_replay SOURCES smooth-buffere
 add_lotus_headless_test(TARGET focus_bounce_word_survival SOURCES focus-bounce-word-survival.cpp LABELS "integration;smooth")
 add_lotus_headless_test(TARGET focus_out_mid_replacement SOURCES focus-out-mid-replacement.cpp LABELS "integration;smooth")
 add_lotus_headless_test(TARGET uinput_auto_restore SOURCES uinput-auto-restore.cpp LABELS "integration;uinput")
+add_lotus_headless_test(TARGET uinput_enter_restore SOURCES uinput-enter-restore.cpp LABELS "integration;uinput")
+target_link_libraries(uinput_enter_restore PRIVATE systemd) # sd_event_run: one pass of the fcitx loop
 add_lotus_headless_test(TARGET anchor_key_protocol SOURCES anchor-key-protocol.cpp LABELS "integration;smooth")
 add_lotus_headless_test(TARGET uinput_server_probe SOURCES uinput-server-probe.cpp LABELS "unit;server")
 add_lotus_headless_test(TARGET preedit_backspace SOURCES preedit-backspace.cpp LABELS "integration;preedit")
@@ -187,7 +189,7 @@ set_tests_properties(kb_sender PROPERTIES
     RESOURCE_LOCK lotus_kb_socket
     ENVIRONMENT "VANH_SOCKET_NAMESPACE=ctest-${LOTUS_CTEST_SOCKET_NAMESPACE}")
 
-set_tests_properties(server_wire_compat smooth_buffered_key_replay focus_bounce_word_survival focus_out_mid_replacement uinput_auto_restore anchor_key_protocol uinput_server_probe select_mode_replacement select_modifier_replay chromium_address_bar select_anchor_completion select_cancel select_cancel_reconcile select_word_break replacement_delays app_rule_delay_wire dbus_deferred_commit merged_replacement_commit runtime_safety
+set_tests_properties(server_wire_compat smooth_buffered_key_replay focus_bounce_word_survival focus_out_mid_replacement uinput_auto_restore uinput_enter_restore anchor_key_protocol uinput_server_probe select_mode_replacement select_modifier_replay chromium_address_bar select_anchor_completion select_cancel select_cancel_reconcile select_word_break replacement_delays app_rule_delay_wire dbus_deferred_commit merged_replacement_commit runtime_safety
     PROPERTIES RESOURCE_LOCK lotus_kb_socket
     ENVIRONMENT "VANH_SOCKET_NAMESPACE=ctest-${LOTUS_CTEST_SOCKET_NAMESPACE}")
 

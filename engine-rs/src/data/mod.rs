@@ -12,6 +12,7 @@
 pub mod case;
 pub mod charset;
 pub mod vikey_autoswitch;
+pub mod tech_english;
 pub mod vikey_bigram;
 
 /// Vowels with their six tones, the tone being the index modulo 6.

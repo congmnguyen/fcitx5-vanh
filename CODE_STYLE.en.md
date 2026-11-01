@@ -7,6 +7,14 @@ This document is the single source of truth for the code rules of fcitx5-vanh. O
 - C/C++: `clang-format` per `.clang-format`; `clang-tidy` per `.clang-tidy`, **0 warnings in repository code**.
 - `NOLINT` must name the check and the reason, e.g. `// NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)`.
 - Python (`settings-gui`): `ruff check` + `ruff format` (configuration in `pyproject.toml`).
+- Rust: `cargo fmt` per `rustfmt.toml` in each crate.
+- Layout (all languages): soft 80-column, hard 100-column limit; 4-space indents; a continued
+  line indents 4 more spaces instead of lining up with an opening parenthesis; never put a loop
+  or conditional body on the same line; blank lines only between blocks that differ in purpose;
+  no comment banners (`---`, `###`).
+- Keep code short without golfing: inline a function used once, merge and invert conditionals
+  instead of nesting, and do not split code into more files. Internal invariants are `assert`s;
+  input from outside the process (sockets, D-Bus, files, environment, config) keeps its checks.
 
 ## 2. Language standard
 

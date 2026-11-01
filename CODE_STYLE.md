@@ -7,6 +7,13 @@ Tài liệu này là nguồn duy nhất cho quy tắc code của fcitx5-vanh. Kh
 - C/C++: `clang-format` theo `.clang-format`; `clang-tidy` theo `.clang-tidy`, **0 cảnh báo trong code của repo**.
 - `NOLINT` phải ghi rõ check và lý do, ví dụ `// NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)`.
 - Python (`settings-gui`): `ruff check` + `ruff format` (cấu hình ở `pyproject.toml`).
+- Rust: `cargo fmt` theo `rustfmt.toml` của từng crate.
+- Bố cục (mọi ngôn ngữ): giới hạn mềm 80 cột, cứng 100 cột; thụt lề 4 space; dòng nối tiếp thụt
+  thêm 4 space chứ không căn theo dấu mở ngoặc; không viết thân vòng lặp hay điều kiện trên cùng
+  một dòng; chỉ để dòng trống giữa các khối khác mục đích; không kẻ khung comment (`---`, `###`).
+- Code ngắn nhưng không golf: inline hàm chỉ dùng một lần, gộp và đảo điều kiện thay vì lồng nhau,
+  không tách code ra thêm file. Bất biến nội bộ dùng `assert`; dữ liệu từ ngoài tiến trình (socket,
+  D-Bus, file, biến môi trường, config) giữ nguyên các bước kiểm tra.
 
 ## 2. Chuẩn ngôn ngữ
 

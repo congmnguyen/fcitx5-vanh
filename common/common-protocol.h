@@ -19,6 +19,7 @@ enum class KbOp : int8_t {
     Backspace = 0, ///< emit count BackSpace key events, then the anchor key
     Select    = 1, ///< select count characters via Shift+Left, then Delete, then the anchor key
     Cancel    = 2, ///< drop the keys still pending from the in-flight request and release Shift
+    Return    = 3, ///< emit count Return key events (at most 4), then the anchor key
 };
 
 /**

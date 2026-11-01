@@ -7,3 +7,4 @@
 mod engine;
 mod internals;
 mod key_processor;
+mod english_restore;

@@ -6,6 +6,7 @@
 //! "mỏe"). The word before decides ties ("video call this", "cho con bú") and, once a word went
 //! back to English, the following words stay English until one reads clearly Vietnamese.
 
+use crate::data::tech_english::TECH_WORDS;
 use crate::data::{vikey_autoswitch as words, vikey_bigram as bigram};
 
 pub const MISSING: i32 = -1000;
@@ -21,6 +22,9 @@ pub struct Word {
     pub en: i32,
     /// Vietnamese score of the reading.
     pub vn: i32,
+    /// English score from the Vikey list alone (no technical text, no inflection), the scale the
+    /// word pair votes were tuned with.
+    pub en_general: i32,
     /// Looks the same in both modes ("cho", "makes").
     pub same: bool,
     /// Fewer than two capitals (not an acronym or identifier).
@@ -29,7 +33,7 @@ pub struct Word {
 
 impl Default for Word {
     fn default() -> Self {
-        Word { raw: String::new(), reading: Vec::new(), en: MISSING, vn: MISSING, same: false, few_caps: true }
+        Word { raw: String::new(), reading: Vec::new(), en: MISSING, vn: MISSING, en_general: MISSING, same: false, few_caps: true }
     }
 }
 
@@ -63,7 +67,12 @@ const LOOKBACK_MARGIN: i32 = 10;
 const LOOKBACK_EN_LEAD: i32 = 0;
 const PAIR_OVERRIDES: i32 = 10; // word pairs this sure of the Vietnamese reading beat D22 (D34)
 const NEXT_PAIR: i32 = 20; // the next word must be this sure to flip a word back (D35)
+const TIE_SPAN: i32 = 15;
 const BIGRAM_MIN: i32 = 3;
+// Vanh: inside a code token the English reading wins unless it is ~4x rarer ("max_" 18 vs mã 22).
+const GLUE_MARGIN: i32 = 6;
+// Vanh: after two English words in a row the English reading may be ~3x rarer ("tune sets").
+const RUN_MARGIN: i32 = 5;
 const BIGRAM_WEIGHT: f64 = 2.0;
 
 /// A NUL terminated entry of a word buffer.
@@ -200,7 +209,25 @@ fn vietnamese_key(word: &[char]) -> Option<String> {
     (!out.is_empty() && out.len() < 40).then_some(out)
 }
 
+/// The reading is spelled like a Vietnamese syllable: no f/j/w/z left over from the keys, and
+/// nothing after the vowels but a final consonant. "dif" (diff after the Telex undo) and "lits"
+/// (lists) are not, so they cannot borrow the score of dì and lít, whose keys they look like.
+fn syllable_shaped(reading: &[char]) -> bool {
+    if reading.iter().any(|c| matches!(c, 'f' | 'j' | 'w' | 'z')) {
+        return false;
+    }
+    let is_vowel = |c: &char| !c.is_ascii() || matches!(c, 'a' | 'e' | 'i' | 'o' | 'u' | 'y');
+    let Some(last_vowel) = reading.iter().rposition(is_vowel) else {
+        return false;
+    };
+    let tail: String = reading[last_vowel + 1..].iter().collect();
+    matches!(tail.as_str(), "" | "c" | "ch" | "m" | "n" | "ng" | "nh" | "p" | "t")
+}
+
 fn vietnamese_score(reading: &[char]) -> i32 {
+    if !syllable_shaped(reading) {
+        return MISSING;
+    }
     match vietnamese_key(reading) {
         Some(key) => lookup(words::VN_WORDS, &words::VN_OFFSETS, &words::VN_SCORES, key.as_bytes()),
         None => MISSING,
@@ -210,6 +237,71 @@ fn vietnamese_score(reading: &[char]) -> i32 {
 /// Both ways a word, and the English reading at least 10x the Vietnamese one.
 fn clearly_english(w: &Word) -> bool {
     w.en != MISSING && (w.vn == MISSING || w.en - w.vn >= PREFER)
+}
+
+fn general_lookup(word: &str) -> i32 {
+    lookup(words::EN_WORDS, &words::EN_OFFSETS, &words::EN_SCORES, word.as_bytes())
+}
+
+fn tech_lookup(word: &str) -> i32 {
+    TECH_WORDS.binary_search_by(|(w, _)| w.as_bytes().cmp(word.as_bytes())).map_or(MISSING, |i| TECH_WORDS[i].1 as i32 - TECH_PENALTY)
+}
+
+/// The English score: the Vikey (subtitles) score, or the technical text score (manual pages)
+/// when that is higher, so "host", "docs" and "config" count as the common words they are in a
+/// developer's text. TECH_PENALTY keeps a word that is only common in manuals a little behind.
+fn en_lookup(word: &str) -> i32 {
+    general_lookup(word).max(tech_lookup(word))
+}
+
+// Vanh: a word missing from the list may be an inflection of one in it ("reverts", "docs").
+const INFLECTION_PENALTY: i32 = 5;
+const TECH_PENALTY: i32 = 3;
+const TECH_VOTE_CAP: i32 = 5;
+
+/// (English score, Vikey score) of the keys. `may_derive`: a word in neither list may still
+/// score as camelCase parts or an inflection; only asked when the Vietnamese reading is no word,
+/// which keeps the extra lookups off the common path (Vietnamese words typed in Telex).
+fn english_scores(raw: &str, keys: &[char], may_derive: bool) -> (i32, i32) {
+    let general = general_lookup(raw);
+    let direct = general.max(tech_lookup(raw));
+    if direct != MISSING || !may_derive {
+        return (direct, general);
+    }
+    // camelCase / PascalCase: every part an English word ("SessionEnd", "SurroundingText").
+    if (1..keys.len()).any(|i| keys[i].is_ascii_uppercase() && keys[i - 1].is_ascii_lowercase()) {
+        let mut score = i32::MAX;
+        let mut start = 0;
+        for end in (1..=keys.len()).filter(|&i| i == keys.len() || (keys[i].is_ascii_uppercase() && keys[i - 1].is_ascii_lowercase())) {
+            let part = &raw[start..end];
+            let s = if part.len() < 2 { MISSING } else { stem_score(part, en_lookup(part)) };
+            if s == MISSING {
+                return (MISSING, general);
+            }
+            score = score.min(s);
+            start = end;
+        }
+        return (score, general);
+    }
+    (stem_score(raw, direct), general)
+}
+
+/// The score of the word (`direct`, already looked up), or of its stem minus a penalty.
+fn stem_score(word: &str, direct: i32) -> i32 {
+    if direct != MISSING {
+        return direct;
+    }
+    for suffix in ["s", "es", "ed", "d", "ing", "ly"] {
+        if let Some(stem) = word.strip_suffix(suffix) {
+            if stem.len() >= 3 {
+                let s = en_lookup(stem);
+                if s != MISSING {
+                    return s - INFLECTION_PENALTY;
+                }
+            }
+        }
+    }
+    MISSING
 }
 
 /// None when the keys are not letters only, or too short/long.
@@ -236,8 +328,8 @@ pub fn analyze(keys: &[char], reading_lower: &[char]) -> Option<Word> {
     out.few_caps = caps < 2;
     out.reading = reading_lower.to_vec();
     out.same = out.reading.iter().copied().eq(out.raw.chars());
-    out.en = lookup(words::EN_WORDS, &words::EN_OFFSETS, &words::EN_SCORES, out.raw.as_bytes());
     out.vn = vietnamese_score(&out.reading);
+    (out.en, out.en_general) = english_scores(&out.raw, keys, out.vn == MISSING);
     Some(out)
 }
 
@@ -266,6 +358,61 @@ pub fn context_prev(history: &[Prev], english_mode: bool) -> Option<&Prev> {
     Some(prev)
 }
 
+/// A word glued into a code token ("max_tokens", "docs/", "--host", "SW_SHOW"): back to the keys
+/// unless the Vietnamese reading is a common word, clearly more common than the English one
+/// ("tên/DOB", "và/hoặc").
+/// `strong`: glued by a character prose does not use between words ('_', '-', '.', '='...); a '/'
+/// alone ("docs/", "mùng/mồng") also needs the keys to be an English word.
+pub fn restore_glued(w: &Word, strong: bool) -> bool {
+    if w.same {
+        return false;
+    }
+    if w.en != MISSING && w.en + GLUE_MARGIN >= w.vn {
+        return true;
+    }
+    if !w.few_caps && (strong || w.vn == MISSING) {
+        return true; // SW_SHOW, but not `TIÊU ĐỀ`
+    }
+    strong && (w.vn == MISSING || w.vn < VN_FLOOR)
+}
+
+/// Inside a run of English words (`run` of them before this one on the line, punctuation between
+/// allowed), a word whose English reading is about as common as the Vietnamese one goes back to
+/// its keys: "git has no", "tune sets" after two English words. A clearly Vietnamese word stays
+/// ("fix bug cả": cả 34 vs car 27).
+pub fn restore_in_run(w: &Word, run: u32) -> bool {
+    if w.same || w.en == MISSING || !w.few_caps || run == 0 {
+        return false;
+    }
+    // One English word before: the English reading must lean English ("git has"); two: it may be a
+    // little rarer ("tune and holdout sets").
+    let margin = if run >= 2 { RUN_MARGIN } else { -RUN_MARGIN };
+    w.vn == MISSING || w.en + margin >= w.vn
+}
+
+/// The run of English words after this one.
+pub fn next_run(w: &Word, shown_english: bool, run: u32) -> u32 {
+    // English only, or far more common in English ("git": the Vietnamese list has it at -2).
+    let english_only = w.en != MISSING && (w.vn == MISSING || w.en - w.vn >= 2 * PREFER);
+    if shown_english && !w.same || (w.same && english_only) {
+        run + 1
+    } else if w.vn != MISSING && (!w.same || w.en <= w.vn) {
+        0 // Vietnamese, or the same both ways but more common in Vietnamese ("theo")
+    } else {
+        run
+    }
+}
+
+/// The English score where it is weighed against the Vietnamese one by Vikey's own rules: the
+/// technical text may lift the subtitle score by TECH_VOTE_CAP at most ("version còn": conf is
+/// common in manuals only, còn stays).
+fn en_vote(w: &Word) -> i32 {
+    if w.en == MISSING {
+        return MISSING;
+    }
+    w.en_general.max(w.en - TECH_VOTE_CAP).min(w.en)
+}
+
 /// Vietnamese mode: should the word go back to its keys?
 pub fn restore_in_vietnamese(w: &Word, prev: Option<&Prev>) -> bool {
     let prev = prev.filter(|p| !p.english);
@@ -282,9 +429,12 @@ pub fn restore_in_vietnamese(w: &Word, prev: Option<&Prev>) -> bool {
     }
     if let Some(prev) = prev {
         if w.vn != MISSING {
-            let v = bigram_vote(prev, w);
+            let v = if w.en_general == MISSING { 0 } else { bigram_vote(prev, w) };
             if v != 0 {
-                return w.en - w.vn - v >= PREFER && (w.vn < VN_FLOOR || v <= -PREFER);
+                // Vanh: the pair vote weighs against the subtitle score it was tuned with; a word
+                // missing from the subtitles ("conf") gets no vote ("version còn").
+                let en = en_vote(w);
+                return en - w.vn - v >= PREFER && (w.vn < VN_FLOOR || v <= -PREFER);
             }
             // "video call thí" -> "this" (D22)
             let p = &prev.word;
@@ -305,14 +455,16 @@ pub fn stay_english(w: &Word, prev: Option<&Prev>) -> bool {
         Some(prev) if w.en != MISSING => bigram_vote(prev, w),
         _ => 0,
     };
-    let to_vietnamese = w.en == MISSING || (w.en < EN_FLOOR && w.vn - w.en + v >= PREFER);
+    let to_vietnamese = w.en == MISSING || (w.en < EN_FLOOR && w.vn - en_vote(w) + v >= PREFER);
     if !to_vietnamese {
         return true;
     }
     // A tie right after a clearly English word typed as English stays English: "the theme"
     // (D22), unless word pairs are sure of the Vietnamese reading (D34).
     if let Some(prev) = prev {
-        if prev.english && !prev.restored && w.en != MISSING && v < PAIR_OVERRIDES && clearly_english(&prev.word) {
+        // Vanh: only a near tie ("theme" 14 vs thêm 27); "inbound có" (cos 15 vs có 42) is none.
+        let tie = w.en + TIE_SPAN >= w.vn;
+        if prev.english && !prev.restored && tie && w.en != MISSING && v < PAIR_OVERRIDES && clearly_english(&prev.word) {
             return true;
         }
     }

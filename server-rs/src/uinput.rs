@@ -26,6 +26,7 @@ pub mod keys {
     pub const BUS_USB: u16 = 0x03;
 
     pub const BACKSPACE: u16 = 14;
+    pub const ENTER: u16 = 28;
     pub const LEFTSHIFT: u16 = 42;
     pub const RIGHTSHIFT: u16 = 54;
     pub const LEFT: u16 = 105;
@@ -52,7 +53,7 @@ pub fn lotus_keyboard() -> DeviceSpec {
         name: names::UINPUT_NAME,
         id: sys::InputId { bustype: keys::BUS_USB, vendor: names::UINPUT_VENDOR, product: names::UINPUT_PRODUCT, version: 0 },
         event_types: &[keys::EV_SYN, keys::EV_KEY],
-        keys: &[keys::BACKSPACE, keys::LEFT, keys::LEFTSHIFT, keys::DELETE, keys::PAUSE],
+        keys: &[keys::BACKSPACE, keys::LEFT, keys::LEFTSHIFT, keys::DELETE, keys::PAUSE, keys::ENTER],
     }
 }
 
@@ -153,7 +154,7 @@ mod tests {
         assert_eq!(spec.name, "Vanh-Uinput-Server");
         assert_eq!(spec.id, sys::InputId { bustype: 0x03, vendor: 0x1234, product: 0x5678, version: 0 });
         assert_eq!(spec.event_types, &[keys::EV_SYN, keys::EV_KEY], "EV_KEY only (EV_SYN is implicit), no EV_REL");
-        assert_eq!(spec.keys, &[14, 105, 42, 111, 119], "BackSpace, Left, LeftShift, Delete, Pause");
+        assert_eq!(spec.keys, &[14, 105, 42, 111, 119, 28], "BackSpace, Left, LeftShift, Delete, Pause, Enter");
         assert!(!spec.keys.contains(&30), "no unrelated key (KEY_A)");
         let setup = spec.setup();
         assert_eq!(&setup.name[..18], b"Vanh-Uinput-Server");

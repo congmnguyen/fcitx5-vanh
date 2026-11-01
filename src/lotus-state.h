@@ -156,6 +156,9 @@ namespace fcitx {
         std::chrono::steady_clock::time_point lastCommitTime_;
 
         // Replacement aborted at focus-out, committed once focus returns.
+        bool           returnAfterReplacement_ = false; ///< Enter held back until the restore of the word before it is on screen
+        bool           returnEchoPending_      = false; ///< the uinput server types that Enter: let its echo through
+        bool           returnAfterDeferredCommit_ = false; ///< ask the server for that Enter once the deferred commit is out
         bool           uinputAbortPending_ = false; ///< aborted replacement awaiting its commit
         std::u32string stashedCommit_;              ///< replacement text that must not be lost
         std::u32string stashedNewWord_;             ///< post-replacement word (oldPreBuffer_ at abort time)
@@ -253,6 +256,25 @@ namespace fcitx {
          * @return True when the event was consumed.
          */
         bool handleKeyWhileDeleting(KeyEvent& keyEvent, KeySym currentSym);
+
+        /**
+         * @brief Enter after a word in the uinput modes: an English word last on the line is restored
+         *        before Enter reaches the app (Enter is held back and sent after the replacement).
+         * @return True when the key was consumed.
+         */
+        bool handleUinputReturn(KeyEvent& keyEvent);
+
+        /** @brief Sends Enter to the app (press and release), after a held-back replacement. */
+        /// Sends the Enter held back; true when the uinput server types it (a burst is in flight).
+        bool sendReturn();
+        /// Asks the uinput server for the Enter that waited for the deferred commit.
+        void requestDeferredReturn();
+
+        /**
+         * @brief The revert key right after a word break: the word switches to its other reading.
+         * @return True when there was a word to revert (the key is consumed).
+         */
+        bool handleRevertKey(KeyEvent& keyEvent);
 
         /**
          * @brief Handles the double space to period shortcut.

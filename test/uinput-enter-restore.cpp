@@ -17,6 +17,7 @@
 #include "utf8.h"
 
 #include <fcitx-utils/event.h>
+#include <fcitx-utils/log.h>
 #include <systemd/sd-event.h>
 
 #include <array>
@@ -47,6 +48,9 @@ namespace {
         /// the uinput server types (KbOp::Return) reach the app.
         bool                            gtk4 = false;
         fcitx::EventLoop*               loop = nullptr;
+        /// A web editor (Apple Notes in Brave) that reports its text but drops deleteSurroundingText
+        /// and resets the input method after every key.
+        bool                            notes = false;
 
         /** Lets the event loop run the 0 ms timers the dbus frontend defers its commits to. */
         void pump() {
@@ -81,9 +85,19 @@ namespace {
         }
 
         bool press(const fcitx::Key& key, char32_t typed) {
+            if (notes) {
+                const std::string shown = encode(text);
+                const auto        cursor = static_cast<unsigned int>(text.size());
+                context.surroundingText().setText(shown, cursor, cursor);
+                context.updateSurroundingText();
+            }
             fcitx::KeyEvent event(&context, key, false);
             engine.keyEvent(entry, event);
             sync();
+            if (notes) {
+                fcitx::InputContextEvent reset(&context, fcitx::EventType::InputContextReset);
+                engine.reset(entry, reset);
+            }
             if (!event.accepted() && typed != 0) {
                 text.push_back(typed);
             }
@@ -185,6 +199,9 @@ namespace {
 
 int main() {
     configureTestPaths("fcitx5-vanh-uinput-enter-restore");
+    if (std::getenv("TRACE") != nullptr) {
+        fcitx::Log::setLogRule("vanh=5");
+    }
     TestInstance       testInstance;
     fcitx::LotusEngine engine(&testInstance.instance);
     KbSocketListener   listener;
@@ -272,6 +289,24 @@ int main() {
             ++failures;
         }
     }
+    }
+
+    // Apple Notes on the web drops the deletions of the surrounding text path: the word typed when
+    // that shows is repaired and the rest goes through the uinput server.
+    config.setValueByPath("AutoSurroundingText", "True");
+    engine.setConfig(config);
+    {
+        // Not "gnome-shell": its pacing of the surrounding edits is tested in surrounding-text-typing.
+        auto ctx = std::make_unique<TestInputContext>(&testInstance.instance, "brave");
+        ctx->setCapabilityFlags(fcitx::CapabilityFlag::SurroundingText);
+        ctx->focusIn();
+        fcitx::InputContextEvent focusEvent(ctx.get(), fcitx::EventType::InputContextFocusIn);
+        engine.activate(entry, focusEvent);
+        Client client{.engine = engine, .entry = entry, .context = *ctx, .listener = listener, .notes = true};
+        if (!client.type("dduwowcj dduwowcj vieetj ") || client.text != U"được được việt ") {
+            std::printf("FAIL Apple Notes: expected 'được được việt ', got '%s'\n", encode(client.text).c_str());
+            ++failures;
+        }
     }
 
     if (failures != 0) {

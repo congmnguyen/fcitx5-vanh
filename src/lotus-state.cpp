@@ -921,6 +921,23 @@ namespace fcitx {
                 LOTUS_DEBUG("Surrounding reseed: tracked '" + lotus::utf8::encode(surrWord_) +
                     "' app '" + lotus::utf8::encode(oldWord) + "'");
             }
+            // The app kept what a deletion should have removed (Apple Notes on the web): use the
+            // uinput server for this field, starting from the word it shows, so the next
+            // replacement also repairs it.
+            if (surrKnown_ && isUinputMode(currentMode()) && !surrWord_.empty() &&
+                oldWord.size() > surrWord_.size() && oldWord.ends_with(surrWord_)) {
+                LOTUS_INFO("Surrounding: the app drops deletions, use uinput");
+                surroundingBroken_ = true;
+                if (lotusEngine_->preedit() != surrWord_) {
+                    lotusEngine_->reset();
+                    lotusEngine_->rebuildFromText(surrWord_);
+                }
+                invalidateSurroundingWord(true);
+                oldPreBuffer_ = oldWord;
+                hasHistory_   = true;
+                handleUinputMode(keyEvent, currentSym);
+                return;
+            }
         }
         surrSoftResetAt_ = 0;
 
@@ -1149,6 +1166,7 @@ namespace fcitx {
             !g_isDeleting.load(std::memory_order_acquire)) {
             g_mouseClicked.store(false, std::memory_order_release);
             invalidateSurroundingWord(true);
+            surroundingBroken_ = false;
             clearAllBuffers();
         }
 
@@ -1402,7 +1420,7 @@ namespace fcitx {
             return false;
         }
         // Never switch path while an injected replacement is still in flight.
-        if (g_isDeleting.load(std::memory_order_acquire)) {
+        if (g_isDeleting.load(std::memory_order_acquire) || surroundingBroken_) {
             return false;
         }
         const auto flags = ic_.capabilityFlags();

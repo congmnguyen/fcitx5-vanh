@@ -107,9 +107,11 @@ namespace fcitx {
         std::u32string                   heldAdded_;
         int64_t                          lastSurroundingEditMs_ = 0;
         std::unique_ptr<EventSourceTime> heldTimer_;
-        bool                             hasHistory_            = false;
-        size_t                           expectedBackspaces_    = 0;
-        size_t                           currentBackspaceCount_ = 0;
+        /// The app drops the deletions of the surrounding path: uinput until a click or focus change
+        bool   surroundingBroken_     = false;
+        bool   hasHistory_            = false;
+        size_t expectedBackspaces_    = 0;
+        size_t currentBackspaceCount_ = 0;
         /// when real shift +left is send
         bool realSelect_ = false;
         /// kind of the most recent burst, for replay

@@ -484,6 +484,7 @@ namespace fcitx {
             LOTUS_INFO("Focus bounce: keep word buffers");
         } else {
             state->flushDeferredFocusOut();
+            state->surroundingBroken_ = false;
             setMode(targetMode, ic);
         }
         if (event.type() == EventType::InputContextFocusIn && isDbus && !surrvalid) {

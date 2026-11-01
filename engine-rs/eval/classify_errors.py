@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Sorts the errors of `replay run --errors FILE` into failure types (first match wins)."""
-import collections, re, sys
+import collections
+import re
+import sys
 
 EDGE = "\"'()[]{}.,;:!?*`<>"
 
-def ftype(kind, label, exp, got, pos):
+def ftype(kind, label, exp, pos):
     core = exp.strip(EDGE)
     letters = re.sub(r"[^A-Za-z]", "", core)
-    if pos == "eol" and exp.strip(EDGE) == exp and kind != "vn->en":
+    if pos == "eol" and core == exp and kind != "vn->en":
         return "word before Enter (no restore at line end)"
     if label == "c":
         if core.startswith("-"):
@@ -34,12 +36,16 @@ def ftype(kind, label, exp, got, pos):
 
 def main():
     rows = [l.rstrip("\n").split("\t") for l in open(sys.argv[1]) if l.strip()]
-    c = collections.Counter(); ex = collections.defaultdict(collections.Counter)
+    c = collections.Counter()
+    ex = collections.defaultdict(collections.Counter)
     for kind, label, exp, got, _id, pos, *_ in rows:
-        t = ftype(kind, label, exp, got, pos); c[t] += 1; ex[t][f"{exp}->{got}"] += 1
+        t = ftype(kind, label, exp, pos)
+        c[t] += 1
+        ex[t][f"{exp}->{got}"] += 1
     total = sum(c.values())
     for t, n in c.most_common():
-        print(f"{n:5} {100*n/total:5.1f}%  {t:52} e.g. " + ", ".join(k for k, _ in ex[t].most_common(5)))
+        examples = ", ".join(k for k, _ in ex[t].most_common(5))
+        print(f"{n:5} {100 * n / total:5.1f}%  {t:52} e.g. {examples}")
 
 if __name__ == "__main__":
     main()

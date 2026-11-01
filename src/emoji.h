@@ -87,20 +87,10 @@ class LOTUS_EXPORT EmojiLoader {
     fcitx::AddonInstance*   emojiAddon_{}; ///< Fcitx5 emoji addon
     std::string             historyPath_;
 
-    /**
-     * @brief Load emoji data from Fcitx5 emoji addon.
-     * @param language Language code for emoji data.
-     */
-    void loadFromFcitx5(const std::string& language = "en");
-
-    /**
-     * @brief Loads emoji history from disk.
-     */
+    /** @brief Loads emoji history from disk. */
     void loadHistory();
 
-    /**
-     * @brief Saves emoji history to disk.
-     */
+    /** @brief Saves emoji history to disk. */
     void saveHistory();
 };
 

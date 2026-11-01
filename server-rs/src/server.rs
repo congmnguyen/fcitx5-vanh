@@ -29,7 +29,6 @@ use crate::uinput::{self, UinputDevice};
 use std::ffi::OsString;
 use std::os::fd::{AsFd, AsRawFd, OwnedFd};
 use std::os::unix::ffi::OsStrExt;
-use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 /// CPUs the server pins itself to (the performance cores of common hybrid laptops).
@@ -60,24 +59,6 @@ pub fn socket_namespace(username: &[u8]) -> Vec<u8> {
     }
 }
 
-/// `<base>/<namespace>/<file>`, the path the addon's `buildSocketPath()` builds (`None` for an
-/// invalid namespace).
-pub fn socket_path(base: &std::path::Path, namespace: &[u8], file: &str) -> Option<PathBuf> {
-    sockets::socket_dir(base, namespace).map(|dir| dir.join(file))
-}
-
-fn boost_process_priority() {
-    if sys::set_process_priority(PRIORITY).is_err() {
-        log::error("Failed to boost process priority");
-    }
-}
-
-fn pin_to_pcore() {
-    if sys::pin_to_cpus(&PINNED_CPUS).is_err() {
-        log::error("Failed to pin process to core");
-    }
-}
-
 /// Drops every capability (CAP_SYS_NICE was only needed for the two calls above), forbids gaining
 /// privileges through execve() and makes the process non-dumpable (no core file, no ptrace by
 /// other processes of the proxy user). Failing to drop a capability is fatal.
@@ -99,11 +80,15 @@ pub fn drop_privileges() -> bool {
             true
         }
         Ok(caps) => {
-            log::error(&format!("Capabilities left after the drop: effective {:#x}, permitted {:#x}", caps.effective, caps.permitted));
+            log::error(&format!(
+                "Capabilities left after the drop: effective {:#x}, permitted {:#x}",
+                caps.effective, caps.permitted
+            ));
             false
         }
         Err(error) => {
-            log::error(&format!("Failed to read the capabilities back: {}", sys::error_text(&error)));
+            let text = sys::error_text(&error);
+            log::error(&format!("Failed to read the capabilities back: {text}"));
             false
         }
     }
@@ -182,8 +167,12 @@ pub fn run(args: &[OsString]) -> i32 {
         return 1;
     };
 
-    boost_process_priority();
-    pin_to_pcore();
+    if sys::set_process_priority(PRIORITY).is_err() {
+        log::error("Failed to boost process priority");
+    }
+    if sys::pin_to_cpus(&PINNED_CPUS).is_err() {
+        log::error("Failed to pin process to core");
+    }
     if !drop_privileges() {
         return 1;
     }
@@ -196,10 +185,17 @@ pub fn run(args: &[OsString]) -> i32 {
     };
     let mut tracker = ShiftTracker::<EvdevKeyboard>::default();
 
-    let Some(server_sockets) = sockets::open_server_sockets(&sockets::base_dir(), &namespace, sys::effective_uid()) else {
+    let base = sockets::base_dir();
+    let Some(server_sockets) =
+        sockets::open_server_sockets(&base, &namespace, sys::effective_uid())
+    else {
         return 1;
     };
-    log::info(&format!("Listening on {} and {}", server_sockets.kb.path.display(), server_sockets.mouse.path.display()));
+    log::info(&format!(
+        "Listening on {} and {}",
+        server_sockets.kb.path.display(),
+        server_sockets.mouse.path.display()
+    ));
     let kb_server = &server_sockets.kb.fd;
     let mouse_server = &server_sockets.mouse.fd;
 
@@ -211,7 +207,8 @@ pub fn run(args: &[OsString]) -> i32 {
     let wake = match sys::install_termination_handlers() {
         Ok(fd) => Some(fd),
         Err(error) => {
-            log::error(&format!("Failed to install the signal handlers: {}", sys::error_text(&error)));
+            let text = sys::error_text(&error);
+            log::error(&format!("Failed to install the signal handlers: {text}"));
             None
         }
     };
@@ -241,7 +238,9 @@ pub fn run(args: &[OsString]) -> i32 {
                 next_tick = None;
                 -1
             }
-            Some(interval) => ms_until(*next_tick.get_or_insert_with(|| Instant::now() + Duration::from_millis(u64::from(interval)))),
+            Some(interval) => ms_until(*next_tick.get_or_insert_with(|| {
+                Instant::now() + Duration::from_millis(u64::from(interval))
+            })),
         };
         fds[KB_CLIENT].fd = kb_client.as_ref().map_or(-1, |fd| fd.as_raw_fd());
         for fd in &mut fds {
@@ -252,7 +251,8 @@ pub fn run(args: &[OsString]) -> i32 {
             if error.kind() == std::io::ErrorKind::Interrupted {
                 continue;
             }
-            log::error(&format!("Failed to poll the server descriptors: {}", sys::error_text(&error)));
+            let text = sys::error_text(&error);
+            log::error(&format!("Failed to poll the server descriptors: {text}"));
             exit_code = 1;
             break;
         }
@@ -268,42 +268,41 @@ pub fn run(args: &[OsString]) -> i32 {
             break;
         }
 
-        let mut kb_client_replaced = false;
         if fds[KB_SERVER].revents & POLLIN != 0 {
             if let Ok(candidate) = sys::accept_nonblocking(kb_server.as_fd()) {
-                if let Some(pid) = authorize_peer(candidate.as_fd(), expected_uid, "keyboard socket") {
+                let peer = authorize_peer(candidate.as_fd(), expected_uid, "keyboard socket");
+                if let Some(pid) = peer {
                     log::info(&format!("Fcitx5 connected to keyboard socket (PID: {pid})"));
                     kb_client = Some(candidate);
                     // The revents of the client slot belong to the replaced descriptor.
-                    kb_client_replaced = true;
+                    fds[KB_CLIENT].revents = 0;
                 }
             }
         }
 
-        if !kb_client_replaced && fds[KB_CLIENT].revents & (POLLIN | POLLHUP | POLLERR) != 0 {
-            if let Some(client) = kb_client.as_ref() {
-                let mut buf = [0u8; KB_MSG_SIZE];
-                match sys::recv_packet(client.as_fd(), &mut buf) {
-                    Ok(0) | Err(_) => {
-                        log::warn("Keyboard client disconnected or connection error");
-                        planner.disconnected(&mut out);
-                        kb_client = None;
-                    }
-                    Ok(len) => match protocol::decode(&buf, len) {
-                        None => log::warn(&format!("Malformed keyboard message ({len} bytes)")),
-                        Some(msg) => {
-                            let shift = tracker.shift_state();
-                            planner.handle(&msg, shift, &mut out);
-                            next_tick = None;
-                        }
-                    },
+        let kb_ready = fds[KB_CLIENT].revents & (POLLIN | POLLHUP | POLLERR) != 0;
+        if let Some(client) = kb_client.as_ref().filter(|_| kb_ready) {
+            let mut buf = [0u8; KB_MSG_SIZE];
+            match sys::recv_packet(client.as_fd(), &mut buf) {
+                Ok(0) | Err(_) => {
+                    log::warn("Keyboard client disconnected or connection error");
+                    planner.disconnected(&mut out);
+                    kb_client = None;
                 }
+                Ok(len) => match protocol::decode(&buf, len) {
+                    None => log::warn(&format!("Malformed keyboard message ({len} bytes)")),
+                    Some(msg) => {
+                        planner.handle(&msg, tracker.shift_state(), &mut out);
+                        next_tick = None;
+                    }
+                },
             }
         }
 
         if fds[MOUSE_SERVER].revents & POLLIN != 0 {
             if let Ok(candidate) = sys::accept_nonblocking(mouse_server.as_fd()) {
-                if authorize_peer(candidate.as_fd(), expected_uid, "mouse socket").is_some() {
+                let peer = authorize_peer(candidate.as_fd(), expected_uid, "mouse socket");
+                if peer.is_some() {
                     log::info("New mouse flag client connected");
                     mouse_client = Some(candidate);
                 }
@@ -315,11 +314,12 @@ pub fn run(args: &[OsString]) -> i32 {
         while let Some(event) = input.next_event() {
             match event.kind() {
                 EventKind::PointerButton { pressed: true } => {
-                    if let Some(client) = mouse_client.as_ref() {
-                        if !matches!(sys::send_nonblocking(client.as_fd(), b"C"), Ok(sent) if sent > 0) {
-                            log::warn("Failed to send to mouse flag client, closing connection");
-                            mouse_client = None;
-                        }
+                    let sent = mouse_client
+                        .as_ref()
+                        .map(|client| sys::send_nonblocking(client.as_fd(), b"C"));
+                    if matches!(sent, Some(Err(_) | Ok(0))) {
+                        log::warn("Failed to send to mouse flag client, closing connection");
+                        mouse_client = None;
                     }
                 }
                 EventKind::DeviceAdded => {
@@ -362,16 +362,9 @@ mod tests {
     }
 
     #[test]
-    fn socket_paths_match_the_addon() {
-        let base = std::path::Path::new("/run/vanh");
-        assert_eq!(socket_path(base, b"alice", names::KB_SOCKET_FILE), Some(PathBuf::from("/run/vanh/alice/kb.sock")));
-        assert_eq!(socket_path(base, b"alice", names::MOUSE_SOCKET_FILE), Some(PathBuf::from("/run/vanh/alice/mouse.sock")));
-        assert_eq!(socket_path(base, b"a/b", names::KB_SOCKET_FILE), None);
-    }
-
-    #[test]
     fn privileges_are_dropped() {
-        let _guard = sys::DUMPABLE_TEST_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let _guard =
+            sys::DUMPABLE_TEST_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         // Per thread (capabilities, no_new_privs): keep the other tests' threads untouched.
         std::thread::spawn(|| {
             capture::take();

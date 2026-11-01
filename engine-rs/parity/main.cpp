@@ -36,7 +36,7 @@ using namespace parity;
 
 namespace {
 
-    // ---- Small helpers ------------------------------------------------------------------
+    // Small helpers
 
     std::string utf8(const std::u32string& text) {
         std::string out;
@@ -128,7 +128,7 @@ namespace {
         return std::bernoulli_distribution(p)(rng);
     }
 
-    // ---- Key sequence model -------------------------------------------------------------
+    // Key sequence model
 
     constexpr uint32_t kShift = 1U, kLock = 2U, kCtrl = 4U, kAlt = 8U;
     constexpr uint32_t kBackSpace = 0xFF08U, kTab = 0xFF09U, kReturn = 0xFF0DU, kEscape = 0xFF1BU;
@@ -257,7 +257,7 @@ namespace {
         }
     }
 
-    // ---- Shared random data -------------------------------------------------------------
+    // Shared random data
 
     struct Data {
         std::vector<std::string>                         vikeyVn;     // Telex keys
@@ -566,7 +566,7 @@ namespace {
         actions = std::move(out);
     }
 
-    // ---- Runner -------------------------------------------------------------------------
+    // Runner
 
     struct Stats {
         std::size_t scenarios   = 0;
@@ -677,7 +677,7 @@ namespace {
         return true;
     }
 
-    // ---- Non-processor checks -----------------------------------------------------------
+    // Non-processor checks
 
     std::size_t checkUtilities(Stats& stats, const Data& data, Rng& rng) {
         std::size_t failures = 0;

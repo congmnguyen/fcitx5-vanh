@@ -33,7 +33,15 @@ pub struct Word {
 
 impl Default for Word {
     fn default() -> Self {
-        Word { raw: String::new(), reading: Vec::new(), en: MISSING, vn: MISSING, en_general: MISSING, same: false, few_caps: true }
+        Word {
+            raw: String::new(),
+            reading: Vec::new(),
+            en: MISSING,
+            vn: MISSING,
+            en_general: MISSING,
+            same: false,
+            few_caps: true,
+        }
     }
 }
 
@@ -62,8 +70,8 @@ const TIE_PREV: i32 = 5; // a tie leaning English (3x) after a clearly English w
 const PLAIN_MARGIN: i32 = 15; // "thí makes": the earlier word must read English ~30x more (D13)
 const LOOKBACK_MARGIN: i32 = 10;
 // Vanh: an earlier word follows a switch to English only when its English reading is at least as
-// common as the Vietnamese one. Vikey allows a Vietnamese reading 10x more common (LOOKBACK_MARGIN),
-// which turned "cả release" into "car release" (cả 34 vs car 27).
+// common as the Vietnamese one. Vikey allows a Vietnamese reading 10x more common
+// (LOOKBACK_MARGIN), which turned "cả release" into "car release" (cả 34 vs car 27).
 const LOOKBACK_EN_LEAD: i32 = 0;
 const PAIR_OVERRIDES: i32 = 10; // word pairs this sure of the Vietnamese reading beat D22 (D34)
 const NEXT_PAIR: i32 = 20; // the next word must be this sure to flip a word back (D35)
@@ -81,14 +89,10 @@ fn entry(buffer: &[u8], offset: u32) -> &[u8] {
     &rest[..rest.iter().position(|&b| b == 0).unwrap_or(rest.len())]
 }
 
-/// strcmp semantics: the key stops at its first NUL.
-fn c_key(key: &[u8]) -> &[u8] {
-    &key[..key.iter().position(|&b| b == 0).unwrap_or(key.len())]
-}
-
 /// Binary search like the C++ loop (the lists are sorted and hold no duplicates).
 fn search(buffer: &[u8], offsets: &[u32], key: &[u8]) -> Option<usize> {
-    let key = c_key(key);
+    // strcmp semantics: the key stops at its first NUL.
+    let key = &key[..key.iter().position(|&b| b == 0).unwrap_or(key.len())];
     let (mut lo, mut hi) = (0i64, offsets.len() as i64 - 1);
     while lo <= hi {
         let mid = (lo + hi) / 2;
@@ -106,7 +110,8 @@ fn lookup(buffer: &[u8], offsets: &[u32], scores: &[i8], word: &[u8]) -> i32 {
 }
 
 fn pair_count(key: &[u8]) -> i32 {
-    search(bigram::KEYS, &bigram::OFFSETS, key).map_or(0, |i| (bigram::LOG_COUNTS[i] as f64 / 8.0).exp2().round() as i32)
+    search(bigram::KEYS, &bigram::OFFSETS, key)
+        .map_or(0, |i| (bigram::LOG_COUNTS[i] as f64 / 8.0).exp2().round() as i32)
 }
 
 fn vote(cv: i32, ce: i32) -> i32 {
@@ -157,13 +162,15 @@ fn joined(a: &[u8], b: &[u8]) -> Vec<u8> {
 /// > 0: the Vietnamese reading follows the word before more often, < 0: the English one (D30).
 fn bigram_vote(p: &Prev, w: &Word) -> i32 {
     let before = surface(p);
-    vote(pair_count(&joined(&before, &utf8(&w.reading))), pair_count(&joined(&before, w.raw.as_bytes())))
+    let vietnamese = pair_count(&joined(&before, &utf8(&w.reading)));
+    vote(vietnamese, pair_count(&joined(&before, w.raw.as_bytes())))
 }
 
 /// > 0: the word after follows the Vietnamese reading of the earlier word more often (D35).
 fn next_pair_vote(earlier: &Word, next: &Word) -> i32 {
     let after = if next.same { next.raw.as_bytes().to_vec() } else { utf8(&next.reading) };
-    vote(pair_count(&joined(&utf8(&earlier.reading), &after)), pair_count(&joined(earlier.raw.as_bytes(), &after)))
+    let vietnamese = pair_count(&joined(&utf8(&earlier.reading), &after));
+    vote(vietnamese, pair_count(&joined(earlier.raw.as_bytes(), &after)))
 }
 
 /// Vowels with their tones (no tone, s, f, r, x, j) and their Telex keys.
@@ -209,42 +216,14 @@ fn vietnamese_key(word: &[char]) -> Option<String> {
     (!out.is_empty() && out.len() < 40).then_some(out)
 }
 
-/// The reading is spelled like a Vietnamese syllable: no f/j/w/z left over from the keys, and
-/// nothing after the vowels but a final consonant. "dif" (diff after the Telex undo) and "lits"
-/// (lists) are not, so they cannot borrow the score of dì and lít, whose keys they look like.
-fn syllable_shaped(reading: &[char]) -> bool {
-    if reading.iter().any(|c| matches!(c, 'f' | 'j' | 'w' | 'z')) {
-        return false;
-    }
-    let is_vowel = |c: &char| !c.is_ascii() || matches!(c, 'a' | 'e' | 'i' | 'o' | 'u' | 'y');
-    let Some(last_vowel) = reading.iter().rposition(is_vowel) else {
-        return false;
-    };
-    let tail: String = reading[last_vowel + 1..].iter().collect();
-    matches!(tail.as_str(), "" | "c" | "ch" | "m" | "n" | "ng" | "nh" | "p" | "t")
-}
-
-fn vietnamese_score(reading: &[char]) -> i32 {
-    if !syllable_shaped(reading) {
-        return MISSING;
-    }
-    match vietnamese_key(reading) {
-        Some(key) => lookup(words::VN_WORDS, &words::VN_OFFSETS, &words::VN_SCORES, key.as_bytes()),
-        None => MISSING,
-    }
-}
-
-/// Both ways a word, and the English reading at least 10x the Vietnamese one.
-fn clearly_english(w: &Word) -> bool {
-    w.en != MISSING && (w.vn == MISSING || w.en - w.vn >= PREFER)
-}
-
 fn general_lookup(word: &str) -> i32 {
     lookup(words::EN_WORDS, &words::EN_OFFSETS, &words::EN_SCORES, word.as_bytes())
 }
 
 fn tech_lookup(word: &str) -> i32 {
-    TECH_WORDS.binary_search_by(|(w, _)| w.as_bytes().cmp(word.as_bytes())).map_or(MISSING, |i| TECH_WORDS[i].1 as i32 - TECH_PENALTY)
+    TECH_WORDS
+        .binary_search_by(|(w, _)| w.as_bytes().cmp(word.as_bytes()))
+        .map_or(MISSING, |i| TECH_WORDS[i].1 as i32 - TECH_PENALTY)
 }
 
 /// The English score: the Vikey (subtitles) score, or the technical text score (manual pages)
@@ -269,10 +248,11 @@ fn english_scores(raw: &str, keys: &[char], may_derive: bool) -> (i32, i32) {
         return (direct, general);
     }
     // camelCase / PascalCase: every part an English word ("SessionEnd", "SurroundingText").
-    if (1..keys.len()).any(|i| keys[i].is_ascii_uppercase() && keys[i - 1].is_ascii_lowercase()) {
+    let is_boundary = |i: usize| keys[i].is_ascii_uppercase() && keys[i - 1].is_ascii_lowercase();
+    if (1..keys.len()).any(is_boundary) {
         let mut score = i32::MAX;
         let mut start = 0;
-        for end in (1..=keys.len()).filter(|&i| i == keys.len() || (keys[i].is_ascii_uppercase() && keys[i - 1].is_ascii_lowercase())) {
+        for end in (1..=keys.len()).filter(|&i| i == keys.len() || is_boundary(i)) {
             let part = &raw[start..end];
             let s = if part.len() < 2 { MISSING } else { stem_score(part, en_lookup(part)) };
             if s == MISSING {
@@ -328,7 +308,23 @@ pub fn analyze(keys: &[char], reading_lower: &[char]) -> Option<Word> {
     out.few_caps = caps < 2;
     out.reading = reading_lower.to_vec();
     out.same = out.reading.iter().copied().eq(out.raw.chars());
-    out.vn = vietnamese_score(&out.reading);
+    // The reading must be spelled like a Vietnamese syllable: no f/j/w/z left over from the
+    // keys, and nothing after the vowels but a final consonant. "dif" (diff after the Telex
+    // undo) and "lits" (lists) are not, so they cannot borrow the score of dì and lít, whose
+    // keys they look like.
+    let is_vowel = |c: &char| !c.is_ascii() || matches!(c, 'a' | 'e' | 'i' | 'o' | 'u' | 'y');
+    let syllable_shaped = !out.reading.iter().any(|c| matches!(c, 'f' | 'j' | 'w' | 'z'))
+        && out.reading.iter().rposition(is_vowel).is_some_and(|last_vowel| {
+            let tail: String = out.reading[last_vowel + 1..].iter().collect();
+            matches!(tail.as_str(), "" | "c" | "ch" | "m" | "n" | "ng" | "nh" | "p" | "t")
+        });
+    out.vn = MISSING;
+    if syllable_shaped {
+        if let Some(key) = vietnamese_key(&out.reading) {
+            let scores = &words::VN_SCORES;
+            out.vn = lookup(words::VN_WORDS, &words::VN_OFFSETS, scores, key.as_bytes());
+        }
+    }
     (out.en, out.en_general) = english_scores(&out.raw, keys, out.vn == MISSING);
     Some(out)
 }
@@ -349,7 +345,10 @@ pub fn context_prev(history: &[Prev], english_mode: bool) -> Option<&Prev> {
     if !english_mode && !prev.english && prev.word.same {
         if let Some(before) = history.get(1) {
             let b = &before.word;
-            let vietnamese = !before.english && !b.same && b.vn != MISSING && (b.en == MISSING || b.vn - b.en >= PREFER);
+            let vietnamese = !before.english
+                && !b.same
+                && b.vn != MISSING
+                && (b.en == MISSING || b.vn - b.en >= PREFER);
             if vietnamese {
                 return None;
             }
@@ -384,8 +383,8 @@ pub fn restore_in_run(w: &Word, run: u32) -> bool {
     if w.same || w.en == MISSING || !w.few_caps || run == 0 {
         return false;
     }
-    // One English word before: the English reading must lean English ("git has"); two: it may be a
-    // little rarer ("tune and holdout sets").
+    // One English word before: the English reading must lean English ("git has"); two: it may
+    // be a little rarer ("tune and holdout sets").
     let margin = if run >= 2 { RUN_MARGIN } else { -RUN_MARGIN };
     w.vn == MISSING || w.en + margin >= w.vn
 }
@@ -422,7 +421,11 @@ pub fn restore_in_vietnamese(w: &Word, prev: Option<&Prev>) -> bool {
             return false;
         };
         let p = &prev.word;
-        return lookback_ok(p) && !p.same && p.en >= p.vn + PLAIN_MARGIN && w.en != MISSING && w.vn == MISSING;
+        return lookback_ok(p)
+            && !p.same
+            && p.en >= p.vn + PLAIN_MARGIN
+            && w.en != MISSING
+            && w.vn == MISSING;
     }
     if w.en == MISSING {
         return false;
@@ -431,8 +434,8 @@ pub fn restore_in_vietnamese(w: &Word, prev: Option<&Prev>) -> bool {
         if w.vn != MISSING {
             let v = if w.en_general == MISSING { 0 } else { bigram_vote(prev, w) };
             if v != 0 {
-                // Vanh: the pair vote weighs against the subtitle score it was tuned with; a word
-                // missing from the subtitles ("conf") gets no vote ("version còn").
+                // Vanh: the pair vote weighs against the subtitle score it was tuned with; a
+                // word missing from the subtitles ("conf") gets no vote ("version còn").
                 let en = en_vote(w);
                 return en - w.vn - v >= PREFER && (w.vn < VN_FLOOR || v <= -PREFER);
             }
@@ -464,7 +467,16 @@ pub fn stay_english(w: &Word, prev: Option<&Prev>) -> bool {
     if let Some(prev) = prev {
         // Vanh: only a near tie ("theme" 14 vs thêm 27); "inbound có" (cos 15 vs có 42) is none.
         let tie = w.en + TIE_SPAN >= w.vn;
-        if prev.english && !prev.restored && tie && w.en != MISSING && v < PAIR_OVERRIDES && clearly_english(&prev.word) {
+        let p = &prev.word;
+        // The word before reads both ways, and English at least 10x the Vietnamese one.
+        let clearly_english = p.en != MISSING && (p.vn == MISSING || p.en - p.vn >= PREFER);
+        if prev.english
+            && !prev.restored
+            && tie
+            && w.en != MISSING
+            && v < PAIR_OVERRIDES
+            && clearly_english
+        {
             return true;
         }
     }

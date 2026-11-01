@@ -20,12 +20,14 @@ namespace lotus {
 
     std::string encode(Charset charset, std::u32string_view text) {
         std::string out;
-        lotus_encode(static_cast<uint8_t>(charset), ffi::u32(text), text.size(), ffi::assignBytes, &out);
+        lotus_encode(
+            static_cast<uint8_t>(charset), ffi::u32(text), text.size(), ffi::assignBytes, &out);
         return out;
     }
 
     KeyProcessor::KeyProcessor(const InputMethod& inputMethod, bool spellCheckWithDictsDefault) :
-        handle_(lotus_key_processor_new(inputMethod.handle(), spellCheckWithDictsDefault), lotus_key_processor_free) {}
+        handle_(lotus_key_processor_new(inputMethod.handle(), spellCheckWithDictsDefault),
+            lotus_key_processor_free) {}
 
     void KeyProcessor::setOptions(const Options& options) {
         const LotusOptions raw{
@@ -64,7 +66,8 @@ namespace lotus {
     }
 
     void KeyProcessor::setDictionary(std::shared_ptr<const Dictionary> dictionary) {
-        lotus_key_processor_set_dictionary(handle_.get(), dictionary ? dictionary->handle() : nullptr);
+        lotus_key_processor_set_dictionary(
+            handle_.get(), dictionary ? dictionary->handle() : nullptr);
         dictionary_ = std::move(dictionary);
     }
 

@@ -76,7 +76,8 @@ inline std::string lotusSocketBaseDir() {
  * @return True when non-empty, without '/' or NUL, and neither "." nor "..".
  */
 inline bool lotusIsValidSocketNamespace(std::string_view ns) {
-    return !ns.empty() && ns != "." && ns != ".." && ns.find('/') == std::string_view::npos && ns.find('\0') == std::string_view::npos;
+    return !ns.empty() && ns != "." && ns != ".." &&
+        ns.find_first_of(std::string_view("/\0", 2)) == std::string_view::npos;
 }
 
 #endif // _COMMON_SOCKET_NAME_H_

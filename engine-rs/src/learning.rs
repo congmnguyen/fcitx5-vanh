@@ -39,7 +39,8 @@ impl Learned {
             let Some((keys, score)) = line.split_once('\t') else {
                 continue;
             };
-            let valid = !keys.is_empty() && keys.len() < 40 && keys.bytes().all(|b| b.is_ascii_lowercase());
+            let valid =
+                !keys.is_empty() && keys.len() < 40 && keys.bytes().all(|b| b.is_ascii_lowercase());
             if let (true, Ok(score)) = (valid, score.trim().parse::<i32>()) {
                 if score != 0 {
                     self.prefs.insert(keys.to_owned(), score.clamp(-LIMIT, LIMIT));

@@ -6,7 +6,8 @@
  */
 /**
  * @file macro_table.h
- * @brief Text macro expansion table (engine-rs/src/macro_table.rs), ported from bamboo/macrotable.go.
+ * @brief Text macro expansion table (engine-rs/src/macro_table.rs), ported from
+ *        bamboo/macrotable.go.
  *
  * A macro maps the text of the word being typed to its replacement ("vn" -> "Việt Nam"). The table
  * stores the keys verbatim and lowercases the query before the lookup. The addon shares one table

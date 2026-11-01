@@ -8,7 +8,9 @@
 use crate::dictionary::Dictionary;
 use crate::encoder::encode;
 use crate::input_method::cached_input_method;
-use crate::key_processor::{determine_macro_case, KeyProcessor, MacroCase, Shared, KEY_BACKSPACE, KEY_SPACE, KEY_TAB};
+use crate::key_processor::{
+    determine_macro_case, KeyProcessor, MacroCase, Shared, KEY_BACKSPACE, KEY_SPACE, KEY_TAB,
+};
 use crate::macro_table::MacroTable;
 use crate::test_support::{chars, from_hex, read_golden, string};
 use crate::time_format::format_time;
@@ -34,7 +36,10 @@ fn macros(entries: &[(&str, &str)]) -> Shared<MacroTable> {
 }
 
 fn test_engine(dict: &[&str], spell_check_with_dicts: bool) -> KeyProcessor {
-    let mut p = KeyProcessor::new(cached_input_method(InputMethodId::Telex).clone(), spell_check_with_dicts);
+    let mut p = KeyProcessor::new(
+        cached_input_method(InputMethodId::Telex).clone(),
+        spell_check_with_dicts,
+    );
     p.set_macro_table(Some(macros(&[])));
     p.set_dictionary(Some(dictionary(dict)));
     p
@@ -270,7 +275,14 @@ fn can_process_key_and_states() {
     assert!(!p.can_process_key(0x1008FF11)); // XF86AudioLowerVolume, beyond Unicode
     assert!(KeyProcessor::is_valid_state(0));
     assert!(KeyProcessor::is_valid_state(key_state::SHIFT));
-    for mask in [key_state::CTRL, key_state::MOD1, key_state::IGNORED, key_state::SUPER, key_state::HYPER, key_state::META] {
+    for mask in [
+        key_state::CTRL,
+        key_state::MOD1,
+        key_state::IGNORED,
+        key_state::SUPER,
+        key_state::HYPER,
+        key_state::META,
+    ] {
         assert!(!KeyProcessor::is_valid_state(mask));
     }
     let mut p = test_engine(&[], false);
@@ -340,9 +352,12 @@ fn w2u_modes() {
 
 #[test]
 fn option_matrix() {
-    for (auto_restore, with_dicts, want_boawjm) in
-        [(true, true, "boawjm "), (true, false, "boặm "), (false, true, "boặm "), (false, false, "boặm ")]
-    {
+    for (auto_restore, with_dicts, want_boawjm) in [
+        (true, true, "boawjm "),
+        (true, false, "boặm "),
+        (false, true, "boặm "),
+        (false, false, "boặm "),
+    ] {
         let mut p = test_engine(&["chào"], with_dicts);
         p.options_mut().auto_non_vn_restore = auto_restore;
         type_keys(&mut p, "chaof");
@@ -425,9 +440,16 @@ fn golden_key_processor() {
     for row in &rows {
         let p = processors.entry(row[0].clone()).or_insert_with(|| {
             let opts: u32 = row[4].parse().unwrap();
-            let mut p = KeyProcessor::new(cached_input_method(InputMethodId::Telex).clone(), opts & OPT_SPELL_CHECK_WITH_DICTS != 0);
+            let mut p = KeyProcessor::new(
+                cached_input_method(InputMethodId::Telex).clone(),
+                opts & OPT_SPELL_CHECK_WITH_DICTS != 0,
+            );
             p.set_dictionary(Some(dictionary(&["vietnam", "nguoi", "duong"])));
-            let table = if opts & OPT_MACRO_ENABLED != 0 { macros(&[("vn", "Việt Nam"), ("ko", "không")]) } else { macros(&[]) };
+            let table = if opts & OPT_MACRO_ENABLED != 0 {
+                macros(&[("vn", "Việt Nam"), ("ko", "không")])
+            } else {
+                macros(&[])
+            };
             p.set_macro_table(Some(table));
             p.options_mut().auto_non_vn_restore = opts & OPT_AUTO_NON_VN_RESTORE != 0;
             p.options_mut().dd_free_style = opts & OPT_DD_FREE_STYLE != 0;
@@ -452,11 +474,23 @@ fn golden_key_processor() {
         let actual_preedit = preedit(p);
         let actual_commit = commit(p);
         let want_preedit = String::from_utf8(from_hex(&row[9])).unwrap();
-        let want_commit = String::from_utf8(from_hex(row.get(10).map(String::as_str).unwrap_or(""))).unwrap();
-        if accepted != (row[8] == "1") || actual_preedit != want_preedit || actual_commit != want_commit {
-            mismatches.push(format!("{} step {}: [{actual_preedit}|{actual_commit}] vs [{want_preedit}|{want_commit}]", row[0], row[1]));
+        let want_commit =
+            String::from_utf8(from_hex(row.get(10).map(String::as_str).unwrap_or(""))).unwrap();
+        if accepted != (row[8] == "1")
+            || actual_preedit != want_preedit
+            || actual_commit != want_commit
+        {
+            mismatches.push(format!(
+                "{} step {}: [{actual_preedit}|{actual_commit}] vs [{want_preedit}|{want_commit}]",
+                row[0], row[1]
+            ));
         }
     }
     assert!(rows.len() > 10000);
-    assert!(mismatches.is_empty(), "{} mismatches, first: {:?}", mismatches.len(), &mismatches[..mismatches.len().min(10)]);
+    assert!(
+        mismatches.is_empty(),
+        "{} mismatches, first: {:?}",
+        mismatches.len(),
+        &mismatches[..mismatches.len().min(10)]
+    );
 }

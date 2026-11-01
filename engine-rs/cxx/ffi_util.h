@@ -27,13 +27,15 @@ namespace lotus::ffi {
     }
 
     inline const uint32_t* u32(std::u32string_view text) {
-        return reinterpret_cast<const uint32_t*>(text.data()); // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        return reinterpret_cast<const uint32_t*>(text.data());
     }
 
     /** Sink that assigns the received UTF-32 text to the std::u32string passed as context. */
     inline void assignU32(void* ctx, const uint32_t* data, std::size_t len) {
         auto* out = static_cast<std::u32string*>(ctx);
-        out->assign(reinterpret_cast<const char32_t*>(data), len); // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        out->assign(reinterpret_cast<const char32_t*>(data), len);
     }
 
     /** Sink that assigns the received bytes to the std::string passed as context. */

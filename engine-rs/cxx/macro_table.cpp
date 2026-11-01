@@ -17,7 +17,9 @@ namespace lotus {
 
     std::optional<std::u32string> MacroTable::get(std::u32string_view key) const {
         std::u32string value;
-        if (!lotus_macro_table_get(handle_.get(), ffi::u32(key), key.size(), ffi::assignU32, &value)) {
+        const bool     found =
+            lotus_macro_table_get(handle_.get(), ffi::u32(key), key.size(), ffi::assignU32, &value);
+        if (!found) {
             return std::nullopt;
         }
         return value;

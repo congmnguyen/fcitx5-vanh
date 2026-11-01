@@ -45,13 +45,6 @@ namespace fcitx {
     class WindowFocusTracker;
 
     /**
-     * @brief Builds the macro table of the engine from the macro table configuration.
-     * @param macroTable Macro table read from the configuration file.
-     * @return Shared macro table; empty when the configuration has no macro.
-     */
-    std::shared_ptr<const lotus::MacroTable> buildMacroTable(const lotusMacroTable& macroTable);
-
-    /**
      * @brief Main engine class for Lotus input method.
      *
      * Handles input processing, configuration management, and UI actions.
@@ -185,7 +178,8 @@ namespace fcitx {
          * @param inputContext Current input context.
          * @return Icon name string.
          */
-        std::string subModeIconImpl(const InputMethodEntry& entry, InputContext& inputContext) override;
+        std::string subModeIconImpl(
+            const InputMethodEntry& entry, InputContext& inputContext) override;
 
         /**
          * @brief Sets the current sub-mode label.
@@ -193,7 +187,8 @@ namespace fcitx {
          * @param inputContext Current input context.
          * @return Label string.
          */
-        std::string subModeLabelImpl(const InputMethodEntry& entry, InputContext& inputContext) override;
+        std::string subModeLabelImpl(
+            const InputMethodEntry& entry, InputContext& inputContext) override;
 
         /**
          * @brief Gets the current configuration.
@@ -213,7 +208,9 @@ namespace fcitx {
          * @brief Gets the dictionary shared with every input context.
          * @return Shared dictionary (null when no dictionary file was loaded).
          */
-        const std::shared_ptr<const lotus::Dictionary>& dictionary() const;
+        const std::shared_ptr<const lotus::Dictionary>& dictionary() const {
+            return dictionary_;
+        }
 
         /**
          * @brief Preferences learned from reverts, shared with every input context.
@@ -230,7 +227,9 @@ namespace fcitx {
          * @brief Gets the macro table shared with every input context.
          * @return Shared macro table.
          */
-        const std::shared_ptr<const lotus::MacroTable>& macroTable() const;
+        const std::shared_ptr<const lotus::MacroTable>& macroTable() const {
+            return macroTable_;
+        }
 
         /**
          * @brief Gets the emoji loader.
@@ -249,19 +248,15 @@ namespace fcitx {
         lotusConfig                                          config_;
         lotusCustomKeymap                                    customKeymap_;
         lotusCustomKeymap                                    emptyCustomKeymap_;
-
         lotusMacroTable                                      macroTables_;
         std::shared_ptr<const lotus::MacroTable>             macroTable_;
         lotusAppRules                                        appRulesTables_;
-
         KbSender                                             kbSender_;
         bool                                                 uinputTypesReturn_ = true;
         FactoryFor<LotusState>                               factory_;
-
         std::unique_ptr<SimpleAction>                        charsetAction_;
         std::vector<std::unique_ptr<SimpleAction>>           charsetSubAction_;
         std::unique_ptr<Menu>                                charsetMenu_;
-
         std::unique_ptr<SimpleAction>                        spellCheckAction_;
         std::unique_ptr<SimpleAction>                        macroAction_;
         std::unique_ptr<SimpleAction>                        capitalizeMacroAction_;
@@ -277,7 +272,7 @@ namespace fcitx {
         bool                                                 isSelectingAppMode_ = false;
         std::string                                          currentConfigureApp_;
         std::unique_ptr<EventSourceTime>                     cycleModeNotificationTimer_;
-        static constexpr uint64_t                            kCycleModeNotificationTimeoutUsec = 800000; // 800ms in microseconds
+        static constexpr uint64_t kCycleModeNotificationTimeoutUsec = 800000; // 800ms
         FCITX_ADDON_DEPENDENCY_LOADER(emoji, instance_.addonManager());
         std::unique_ptr<EmojiLoader>          emojiLoader_;
         std::unique_ptr<WindowFocusTracker>   windowFocusTracker_;
@@ -286,176 +281,87 @@ namespace fcitx {
         std::unordered_map<KeySym, LotusMode> modeMenuMapping_;
         std::unique_ptr<EventSourceIO>        mouseEventSource_;
 
-        /**
-         * @brief (Re)loads the custom dictionary from disk into the Go engine handle.
-         */
+        /** @brief (Re)loads the custom dictionary from disk. */
         void loadDictionary();
+
+        /** @brief (Re)loads the preferences learned from reverts. */
         void loadLearned();
 
-        /**
-         * @brief Refreshes the bamboo engine with current settings.
-         */
+        /** @brief Refreshes the engine of every input context with the current settings. */
         void refreshEngine();
 
-        /**
-         * @brief Refreshes engine options from configuration.
-         */
+        /** @brief Refreshes the engine options of every input context. */
         void refreshOption();
 
-        /**
-         * @brief Saves current configuration to disk.
-         */
+        /** @brief Saves the current configuration to disk. */
         void saveConfig() {
             safeSaveAsIni(config_, "conf/vanh.conf");
         }
 
         /**
-         * @brief Initialize toggle action
-         * @param action The action to initialize
-         * @param option The option to toggle
-         * @param actionId The action ID
-         * @param iconName The icon name
-         * @param textLong The long text
-         * @param textOnOff The text to display when on/off
-         * @param uiManager The UI manager
-         * 
-        */
-        void initToggleAction(std::unique_ptr<SimpleAction>& action, Option<bool>& option, const std::string& actionId, const std::string& iconName, const std::string& textLong,
-                              const std::string& textOnOff, UserInterfaceManager& uiManager);
-
-        /**
-         * @brief Update toggle action
-         * @param ic The input context
-         * @param action The action to update
-         * @param option The option to toggle
-         * @param textOnOff The text to display when on/off
+         * @brief Creates a toggle action bound to a boolean option.
+         * @param action Action to create.
+         * @param option Option the action toggles.
+         * @param actionId Id the action is registered under.
+         * @param iconName Icon of the action.
+         * @param textLong Text shown in the menu.
+         * @param textOnOff Text shown after the on/off mark.
+         * @param uiManager UI manager that registers the action.
          */
-        static void updateAction(InputContext* ic, SimpleAction& action, Option<bool>& option, const std::string& textOnOff);
+        void initToggleAction(std::unique_ptr<SimpleAction>& action, Option<bool>& option,
+            const std::string& actionId, const std::string& iconName, const std::string& textLong,
+            const std::string& textOnOff, UserInterfaceManager& uiManager);
 
-        /**
-         * @brief Updates the charset action UI.
-         * @param ic Current input context.
-         */
+        /** @brief Updates the text of a toggle action; @p ic may be null. */
+        static void updateAction(InputContext* ic, SimpleAction& action, Option<bool>& option,
+            const std::string& textOnOff);
+
+        /** @brief Updates the charset action UI; @p ic may be null. */
         void updateCharsetAction(InputContext* ic);
 
-        /**
-         * @brief Populates input method names from bamboo core.
-         */
+        /** @brief Refreshes the engine, the options and the actions after a config change. */
         void populateConfig();
 
-        /**
-         * @brief Loads application-specific mode rules.
-         */
+        /** @brief Loads the application-specific mode rules. */
         void loadAppRules();
 
-        /**
-         * @brief Saves application-specific mode rules.
-         */
+        /** @brief Saves the application-specific mode rules. */
         void saveAppRules() const;
 
-        /**
-         * @brief Get application-specific mode rules
-         * @return Current application-specific mode rules
-        */
-
+        /** @brief Mode of an application: its rule, or the global mode. */
         LotusMode getAppRule(const std::string& appName) const;
 
-        /**
-         * @brief Set application-specific mode rules
-         * @param appName The application name
-         * @param mode The mode to set
-         */
+        /** @brief Stores the mode of an application. */
         void setAppRule(const std::string& appName, LotusMode mode);
 
-        /**
-         * @brief Handles the key event while the application mode menu is open.
-         * @param keyEvent The key event.
-         * @return True when the event was consumed by the menu.
-         */
-        bool handleAppModeMenu(KeyEvent& keyEvent);
-
-        /**
-         * @brief Handles the cycle mode hotkey.
-         * @param ic Current input context.
-         * @param keyEvent The key event.
-         * @return True when the event was consumed by the hotkey.
-         */
-        bool handleCycleModeHotkey(InputContext* ic, KeyEvent& keyEvent);
-
-        /**
-         * @brief Handles the mode menu hotkey.
-         * @param ic Current input context.
-         * @param keyEvent The key event.
-         * @return True when the event was consumed by the hotkey.
-         */
-        bool handleModeMenuHotkey(InputContext* ic, KeyEvent& keyEvent);
-
-        /**
-         * @brief Stores the surrounding text length when the cursor sits at the end of the text.
-         * @param ic Current input context.
-         */
-        static void syncRealtextLen(InputContext* ic);
-
-        /**
-         * @brief Collects the visible modes in Mode Order order, skipping duplicates.
-         * @return The enabled modes in the order they are cycled through.
-         */
-        std::vector<LotusMode> enabledModesInOrder() const;
-
-        /**
-         * @brief Shows the application mode selection menu.
-         * @param ic Current input context.
-         */
-        void showAppModeMenu(InputContext* ic);
-
-        /**
-         * @brief Shows a brief notification of the cycled mode.
-         * @param mode The mode that was cycled to.
-         * @param ic Current input context.
-         */
-        void showCycleModeNotification(LotusMode mode, InputContext* ic);
-
-        /**
-         * @brief Closes the application mode selection menu.
-         */
-        void closeAppModeMenu();
-
-        /**
-         * @brief Sets the current input mode.
-         * @param mode The mode to set.
-         * @param ic Current input context.
-         */
-        void setMode(LotusMode mode, InputContext* ic);
-
-        /**
-         * @brief Warns through the desktop when a uinput mode is selected but the server is down.
-         * @param mode Mode that was just selected.
-         */
-        void checkServerForMode(LotusMode mode);
-
-        /**
-         * @brief Get name of current program
-         * @param ic Current input context.
-         * @return Name of current program
-         */
-        static std::string getProgramName(InputContext* ic);
-
-        /**
-         * @brief Detects if the system is in dark mode.
-         * @return true if dark mode, false if light mode or detection failed.
-         */
-        static bool isDarkMode();
-
-        /**
-         * @brief Removes any per-app rule for appName so the app follows the
-         *        global Mode again.
-         * @param appName Name of application.
-         */
+        /** @brief Removes the rule of an application so it follows the global Mode again. */
         void clearAppRule(const std::string& appName);
 
-        /**
-         * @brief Connects and sets up IO watcher on Fcitx EventLoop for mouse click events.
-         */
+        /** @brief Applies a mode chosen in the application mode menu and closes the menu. */
+        void applyAppMode(LotusMode mode, bool isDefault, InputContext* ic);
+
+        /** @brief Shows the application mode selection menu. */
+        void showAppModeMenu(InputContext* ic);
+
+        /** @brief Closes the application mode menu and flushes the word buffer. */
+        void closeAppModeMenu(InputContext* ic);
+
+        /** @brief Shows a brief notification of the cycled mode. */
+        void showCycleModeNotification(LotusMode mode, InputContext* ic);
+
+        /** @brief Sets the current input mode; @p ic may be null. */
+        void setMode(LotusMode mode, InputContext* ic);
+
+        /** @brief Warns through the desktop when a uinput mode is selected without the server. */
+        void checkServerForMode(LotusMode mode);
+
+        /** @brief Name of the program of an input context, or a per-context name. */
+        static std::string getProgramName(InputContext* ic);
+
+        /** @brief Detects dark mode; false when light or when detection failed. */
+        static bool isDarkMode();
+
+        /** @brief Connects the mouse click socket and watches it on the fcitx event loop. */
         void setupMouseWatcher();
     };
 

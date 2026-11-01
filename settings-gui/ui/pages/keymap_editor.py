@@ -207,10 +207,6 @@ class KeymapEditorPage(BaseEditorPage):
         super().__init__(parent)
         self.dbus = dbus_handler
         self.initial_state = {}
-        self._setup_ui()
-        self.load_data()
-
-    def _setup_ui(self):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(30, 20, 30, 20)
         main_layout.setSpacing(15)
@@ -307,6 +303,7 @@ class KeymapEditorPage(BaseEditorPage):
 
         editor_layout.addLayout(toolbar_layout)
         self.update_button_states()
+        self.load_data()
 
     def load_data(self):
         """Loads keymap data strictly via D-Bus."""
@@ -360,18 +357,11 @@ class KeymapEditorPage(BaseEditorPage):
         ):
             return False
 
-        data = []
-        for row in range(self.table.rowCount()):
-            key_item = self.table.item(row, 0)
-            combo_widget = self.table.cellWidget(row, 1)
-            if not key_item or not combo_widget:
-                continue
-            data.append({"Key": key_item.text(), "Value": combo_widget.currentData()})
-
-        if not self.dbus.set_sub_config_list("custom_keymap", "CustomKeymap", data):
+        state = self._get_current_state()
+        if not self.dbus.set_sub_config_list("custom_keymap", "CustomKeymap", state["data"]):
             return False
 
-        self.initial_state = self._get_current_state()
+        self.initial_state = state
         return True
 
     def on_search_changed(self):
@@ -379,18 +369,9 @@ class KeymapEditorPage(BaseEditorPage):
         search_text = self.search_input.text().lower()
         for row in range(self.table.rowCount()):
             key_item = self.table.item(row, 0)
-            action_item = (
-                self.table.cellWidget(row, 1)
-                if isinstance(self.table.cellWidget(row, 1), QComboBox)
-                else self.table.item(row, 1)
-            )
-
+            action_item = self.table.cellWidget(row, 1)
             key = key_item.text().lower() if key_item else ""
-            action = ""
-            if isinstance(action_item, QComboBox):
-                action = action_item.currentText().lower()
-            elif action_item:
-                action = action_item.text().lower()
+            action = action_item.currentText().lower() if action_item else ""
 
             self.table.setRowHidden(row, search_text not in key and search_text not in action)
 

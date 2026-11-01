@@ -31,13 +31,13 @@ namespace fcitx {
     };
 
     /**
-     * @brief Resolved per-app rule: typing mode plus optional delay overrides (0 = use global default).
+     * @brief Resolved per-app rule: typing mode plus delay overrides (0 = global default).
      */
     struct LotusAppRuleSetting {
         LotusMode mode              = LotusMode::Smooth; ///< Typing mode for the app
-        int       commitInterval    = 0;                 ///< ms cooldown between commits (KbMsg.preDelay); 0 = default
-        int       backspaceInterval = 0;                 ///< ms between injected keys (KbMsg.interval); 0 = default
-        int       postDelay         = 0;                 ///< ms before the final trigger key (KbMsg.postDelay); 0 = default
+        int       commitInterval    = 0; ///< ms cooldown between commits (KbMsg.preDelay)
+        int       backspaceInterval = 0; ///< ms between injected keys (KbMsg.interval)
+        int       postDelay         = 0; ///< ms before the final trigger key (KbMsg.postDelay)
     };
 
     /**

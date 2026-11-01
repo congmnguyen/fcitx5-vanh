@@ -6,7 +6,8 @@
  */
 /**
  * @file encoder.h
- * @brief Output charset conversion (engine-rs/src/encoder.rs), ported from bamboo-core's encoder.go.
+ * @brief Output charset conversion (engine-rs/src/encoder.rs), ported from bamboo-core's
+ *        encoder.go.
  */
 
 #ifndef _LOTUS_ENCODER_H_

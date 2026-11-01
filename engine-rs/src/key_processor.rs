@@ -15,7 +15,7 @@ use crate::case_map;
 use crate::dictionary::Dictionary;
 use crate::encoder::encode;
 use crate::engine::Engine;
-use crate::english::{self, Prev, Word};
+use crate::english::{self, Prev};
 use crate::learning::{self, Learned};
 use crate::macro_table::MacroTable;
 use crate::rule::InputMethod;
@@ -160,14 +160,17 @@ struct LastSwitch {
 enum Glue {
     None,
     /// Glued by a character that also joins prose words ('/', ':', '`') when `strong` is false.
-    Code { strong: bool },
+    Code {
+        strong: bool,
+    },
     Hex,
     /// Glued to Vietnamese text ("tên/ngày"): an ordinary word.
     Vietnamese,
 }
 
 /// Characters that glue a word into a code token (identifier, path, flag) right before it.
-const GLUE_BEFORE: &[char] = &['_', '/', '\\', '.', '=', '@', '#', '$', '%', '&', '+', '~', '|', '`', ':'];
+const GLUE_BEFORE: &[char] =
+    &['_', '/', '\\', '.', '=', '@', '#', '$', '%', '&', '+', '~', '|', '`', ':'];
 /// Word break keys that glue the word to what follows ("max_", "docs/").
 const GLUE_AFTER: &[char] = &['_', '/', '\\', '=', '@', '#', '$', '%', '&', '+', '~', '|'];
 
@@ -189,16 +192,15 @@ fn replace_all(text: &[char], needle: &[char], replacement: &[char]) -> Vec<char
     out
 }
 
-fn contains(text: &[char], needle: &[char]) -> bool {
-    text.windows(needle.len()).any(|w| w == needle)
-}
-
 impl KeyProcessor {
     /// Like Go's NewEngine (spell check on) / NewCustomEngine (spell check off).
     pub fn new(input_method: InputMethod, spell_check_with_dicts_default: bool) -> KeyProcessor {
         KeyProcessor {
             engine: Engine::new(input_method, EngineFlags::STD),
-            options: Options { spell_check_with_dicts: spell_check_with_dicts_default, ..Options::default() },
+            options: Options {
+                spell_check_with_dicts: spell_check_with_dicts_default,
+                ..Options::default()
+            },
             macro_table: None,
             dictionary: None,
             preedit: Vec::new(),
@@ -233,7 +235,8 @@ impl KeyProcessor {
         } else {
             flags.remove(EngineFlags::FREE_TONE_MARKING);
         }
-        // Go compared against 0: an unset (follow flags) mode enabled the flag, Disabled cleared it.
+        // Go compared against 0: an unset (follow flags) mode enabled the flag, Disabled cleared
+        // it.
         if options.w2u != Some(W2uMode::Disabled) {
             flags.add(EngineFlags::W2U);
         } else {
@@ -284,15 +287,12 @@ impl KeyProcessor {
         &mut self.engine
     }
 
-    pub fn engine_ref(&self) -> &Engine {
-        &self.engine
-    }
-
     /// Processes one key event, like Go's preeditProcessKeyEvent; true when the key was handled.
     pub fn process_key(&mut self, key_val: u32, states: u32) -> bool {
         // Go defers updateLastKeyWithShift, so the bookkeeping runs on every return path.
         let accepted = self.preedit_process_key_event(key_val, states);
-        self.update_last_key_with_shift(key_val, states);
+        self.last_key_with_shift =
+            self.engine_can_process(key_val) && states & key_state::SHIFT != 0;
         accepted
     }
 
@@ -313,7 +313,9 @@ impl KeyProcessor {
         if !self.should_restore_key_strokes
             && (!Self::is_valid_state(states)
                 || !self.can_process_key(key_val)
-                || (!self.options.macro_enabled && !has_preedit && !self.engine_can_process(key_val)))
+                || (!self.options.macro_enabled
+                    && !has_preedit
+                    && !self.engine_can_process(key_val)))
         {
             if has_preedit {
                 let text = self.get_preedit_string();
@@ -328,7 +330,7 @@ impl KeyProcessor {
                 self.forget_context(); // into the text before: the earlier words may change
                 return false;
             }
-            if self.rune_count() == 1 {
+            if self.get_preedit_string().len() == 1 {
                 self.commit_preedit_and_reset(Vec::new());
                 return true;
             }
@@ -341,15 +343,22 @@ impl KeyProcessor {
 
         let old_text = self.get_preedit_string();
         if key_val == KEY_TAB {
-            match self.get_macro_text() {
-                Some(macro_text) => self.commit_preedit_and_reset(macro_text),
-                None => {
-                    let text = self.get_composed_string(&old_text);
-                    self.commit_preedit_and_reset(text);
-                    return false;
+            if self.options.macro_enabled && !self.macro_table_empty() {
+                let text = self.get_processed_string(Mode::PUNCTUATION);
+                if let Some(macro_val) = self.macro_value(&text) {
+                    let expanded = self.expand_macro(&text, &macro_val);
+                    self.commit_preedit_and_reset(expanded);
+                    return true;
                 }
             }
-            return true;
+            let text =
+                if utils::has_any_vietnamese_rune(&old_text) && self.must_fallback_to_english() {
+                    self.get_processed_string(Mode::ENGLISH | Mode::FULL_TEXT)
+                } else {
+                    old_text
+                };
+            self.commit_preedit_and_reset(text);
+            return false;
         }
 
         let (new_text, is_word_break) = self.get_commit_text(key_val, states, &old_text);
@@ -361,7 +370,12 @@ impl KeyProcessor {
         true
     }
 
-    fn get_commit_text(&mut self, key_val: u32, states: u32, old_text: &[char]) -> (Vec<char>, bool) {
+    fn get_commit_text(
+        &mut self,
+        key_val: u32,
+        states: u32,
+        old_text: &[char],
+    ) -> (Vec<char>, bool) {
         // Restore key strokes by pressing Shift + Space.
         if self.should_restore_key_strokes {
             self.should_restore_key_strokes = false;
@@ -382,7 +396,11 @@ impl KeyProcessor {
                 key = self.to_upper(key);
             }
             self.typed_keys.push(key);
-            let mode = self.get_bamboo_input_mode();
+            let mode = if self.should_fallback_to_english(false) {
+                Mode::ENGLISH
+            } else {
+                Mode::VIETNAMESE
+            };
             self.engine.process_key(key, mode);
             if self.engine.input_method().appending_keys.contains(&key) {
                 let full_seq = self.get_processed_string(Mode::VIETNAMESE);
@@ -421,8 +439,7 @@ impl KeyProcessor {
         }
         if utils::is_word_break_symbol(key) {
             if self.options.macro_enabled {
-                let expansion = self.macro_table.as_ref().and_then(|t| t.read().unwrap().get(old_text).map(<[char]>::to_vec));
-                if let Some(macro_val) = expansion {
+                if let Some(macro_val) = self.macro_value(old_text) {
                     self.history.clear();
                     self.engine.reset();
                     let mut text = self.expand_macro(old_text, &macro_val);
@@ -464,10 +481,73 @@ impl KeyProcessor {
             is_english = false;
         }
         self.break_key = None;
+        self.rewritten_before.clear();
+        let mut text = Vec::new();
         if let Some(w) = info.as_ref() {
             self.en_run = english::next_run(w, is_english, self.en_run);
+            let was_english = self.english_mode;
+            let mut new_before = Vec::new();
+            let mut old_before = Vec::new();
+            let mut back = 0;
+            let allowed = self.rewrite_allowed;
+            if allowed && is_english && !was_english && w.few_caps {
+                // Ambiguous words just before follow the switch to English ("thí error" ->
+                // "this error").
+                while back < self.history.len()
+                    && !self.history[back].english
+                    && english::lookback_ok(&self.history[back].word)
+                {
+                    back += 1;
+                }
+                while back > 0 && self.history[back - 1].word.same {
+                    back -= 1; // no need to retype unchanged words at the far end
+                }
+            } else if allowed && !is_english && was_english {
+                // Back to Vietnamese: a word kept English may read Vietnamese before this one
+                // ("lát nữa").
+                while back < self.history.len()
+                    && english::flip_back_before(&self.history[back], w, back == 0)
+                {
+                    back += 1;
+                }
+            }
+            for prev in self.history[..back].iter().rev() {
+                new_before.extend_from_slice(if is_english {
+                    &prev.keys
+                } else {
+                    &prev.vietnamese
+                });
+                new_before.push(' ');
+                old_before.extend_from_slice(&prev.shown);
+                old_before.push(' ');
+            }
+            if new_before != old_before {
+                self.rewritten_before = old_before;
+                text = new_before;
+            }
+            self.english_mode = is_english;
+            if is_english != was_english {
+                self.history.clear(); // a new run of words in the other language
+            }
+            if key == Some(' ') {
+                self.history.insert(
+                    0,
+                    Prev {
+                        word: w.clone(),
+                        keys: keys.clone(),
+                        vietnamese: vietnamese.clone(),
+                        shown: word.clone(),
+                        english: is_english,
+                        restored: is_english && !was_english,
+                    },
+                );
+                self.history.truncate(2);
+            } else {
+                self.history.clear(); // only words separated by a single space count
+            }
+        } else if self.options.english_restore {
+            self.history.clear(); // digits, one letter...: the chain of words breaks here
         }
-        let mut text = self.finish_word(info.as_ref(), &keys, &vietnamese, &word, is_english, key.unwrap_or('\n'));
         // What the revert key brings back: the other reading (moved, not copied: the key path).
         if let Some(w) = info {
             let other = if is_english { vietnamese } else { keys };
@@ -534,15 +614,6 @@ impl KeyProcessor {
         encode(self.options.output_charset, text).chars().collect()
     }
 
-    fn get_macro_text(&self) -> Option<Vec<char>> {
-        if !self.options.macro_enabled || self.macro_table_empty() {
-            return None;
-        }
-        let text = self.get_processed_string(Mode::PUNCTUATION);
-        let macro_val = self.macro_table.as_ref()?.read().unwrap().get(&text)?.to_vec();
-        Some(self.expand_macro(&text, &macro_val))
-    }
-
     fn get_processed_string(&self, mode: Mode) -> Vec<char> {
         self.engine.processed_string(mode)
     }
@@ -554,29 +625,6 @@ impl KeyProcessor {
         self.get_processed_string(Mode::PUNCTUATION | Mode::FULL_TEXT)
     }
 
-    fn get_composed_string(&self, old_text: &[char]) -> Vec<char> {
-        if utils::has_any_vietnamese_rune(old_text) && self.must_fallback_to_english() {
-            return self.get_processed_string(Mode::ENGLISH | Mode::FULL_TEXT);
-        }
-        old_text.to_vec()
-    }
-
-    fn rune_count(&self) -> usize {
-        self.get_preedit_string().len()
-    }
-
-    fn get_bamboo_input_mode(&self) -> Mode {
-        if self.should_fallback_to_english(false) {
-            Mode::ENGLISH
-        } else {
-            Mode::VIETNAMESE
-        }
-    }
-
-    fn update_last_key_with_shift(&mut self, key_val: u32, states: u32) {
-        self.last_key_with_shift = self.engine_can_process(key_val) && states & key_state::SHIFT != 0;
-    }
-
     fn macro_table_empty(&self) -> bool {
         self.macro_table.as_ref().is_none_or(|t| t.read().unwrap().is_empty())
     }
@@ -585,16 +633,23 @@ impl KeyProcessor {
         self.macro_table.as_ref().is_some_and(|t| t.read().unwrap().get(text).is_some())
     }
 
+    fn macro_value(&self, text: &[char]) -> Option<Vec<char>> {
+        let table = self.macro_table.as_ref()?.read().unwrap();
+        table.get(text).map(<[char]>::to_vec)
+    }
+
     /// Expands a macro value, like Go's expandMacro.
     pub fn expand_macro(&self, trigger: &[char], macro_text: &[char]) -> Vec<char> {
-        const TIME: [char; 5] = ['$', 'T', 'I', 'M', 'E'];
-        const DATE: [char; 5] = ['$', 'D', 'A', 'T', 'E'];
         let mut text = macro_text.to_vec();
-        if !self.options.time_format.is_empty() && contains(&text, &TIME) {
-            text = replace_all(&text, &TIME, &utf8::decode(&format_time(&self.options.time_format)));
-        }
-        if !self.options.date_format.is_empty() && contains(&text, &DATE) {
-            text = replace_all(&text, &DATE, &utf8::decode(&format_time(&self.options.date_format)));
+        let formats = [
+            (['$', 'T', 'I', 'M', 'E'], &self.options.time_format),
+            (['$', 'D', 'A', 'T', 'E'], &self.options.date_format),
+        ];
+        for (placeholder, format) in formats {
+            if !format.is_empty() && utils::contains(&text, &placeholder) {
+                let now = utf8::decode(&format_time(format));
+                text = replace_all(&text, &placeholder, &now);
+            }
         }
         if self.options.auto_capitalize_macro {
             match determine_macro_case(trigger) {
@@ -626,16 +681,6 @@ impl KeyProcessor {
         self.engine.reset();
     }
 
-    fn english_restore_text(&self) -> Option<Vec<char>> {
-        if !self.options.english_restore {
-            return None;
-        }
-        let vn = self.get_processed_string(Mode::VIETNAMESE | Mode::LOWER_CASE);
-        let keys = self.current_keys();
-        let w = english::analyze(&keys, &vn)?;
-        self.restore_to_keys(&w, &keys).then_some(keys)
-    }
-
     /// The English restore decision for the word ending now (`w`, analysed from `keys`).
     fn restore_to_keys(&self, w: &english::Word, keys: &[char]) -> bool {
         match self.glued(keys) {
@@ -655,7 +700,11 @@ impl KeyProcessor {
         if !self.english_mode && english::restore_in_run(w, self.en_run) {
             return true; // "the poller is", "git has no", "utf8) as thin"
         }
-        if self.english_mode { english::stay_english(w, prev) } else { english::restore_in_vietnamese(w, prev) }
+        if self.english_mode {
+            english::stay_english(w, prev)
+        } else {
+            english::restore_in_vietnamese(w, prev)
+        }
     }
 
     /// How the word is glued to code characters around it, inside one token.
@@ -672,8 +721,14 @@ impl KeyProcessor {
             return Glue::None;
         }
         // The word piece right before the glue character ("giờ" in "giờ/mã").
-        let piece = self.token[..self.token.len().saturating_sub(1)].iter().rev().take_while(|&&c| !utils::is_word_break_symbol(c));
-        let vietnamese_token = self.token_known && piece.into_iter().any(|&c| !c.is_ascii() && utils::is_vietnamese_rune(case_map::lower(&[c])[0]));
+        let piece = self.token[..self.token.len().saturating_sub(1)]
+            .iter()
+            .rev()
+            .take_while(|&&c| !utils::is_word_break_symbol(c));
+        let vietnamese_token = self.token_known
+            && piece
+                .into_iter()
+                .any(|&c| !c.is_ascii() && utils::is_vietnamese_rune(case_map::to_lower(c)));
         let before = before.filter(|&c| {
             GLUE_BEFORE.contains(&c) || c.is_ascii_digit() ||
                 // "-af", "--host", "MM-DD", but not "Rịa-Vũng".
@@ -697,85 +752,6 @@ impl KeyProcessor {
         } else {
             self.get_processed_string(Mode::ENGLISH | Mode::FULL_TEXT)
         }
-    }
-
-    /// Records the finished word for the next one and returns the rewritten earlier words.
-    fn finish_word(
-        &mut self,
-        info: Option<&Word>,
-        keys: &[char],
-        vietnamese: &[char],
-        shown: &[char],
-        is_english: bool,
-        break_key: char,
-    ) -> Vec<char> {
-        self.rewritten_before.clear();
-        if !self.options.english_restore {
-            return Vec::new();
-        }
-        let Some(w) = info else {
-            self.history.clear(); // digits, one letter...: the chain of words breaks here
-            return Vec::new();
-        };
-        let was_english = self.english_mode;
-        let mut new_before = Vec::new();
-        let mut old_before = Vec::new();
-        if self.rewrite_allowed {
-            let mut back = 0;
-            if is_english && !was_english && w.few_caps {
-                // Ambiguous words just before follow the switch to English ("thí error" -> "this error").
-                while back < self.history.len() && !self.history[back].english && english::lookback_ok(&self.history[back].word) {
-                    back += 1;
-                }
-                while back > 0 && self.history[back - 1].word.same {
-                    back -= 1; // no need to retype unchanged words at the far end
-                }
-                for b in (0..back).rev() {
-                    new_before.extend_from_slice(&self.history[b].keys);
-                    new_before.push(' ');
-                    old_before.extend_from_slice(&self.history[b].shown);
-                    old_before.push(' ');
-                }
-            } else if !is_english && was_english {
-                // Back to Vietnamese: a word kept English may read Vietnamese before this one ("lát nữa").
-                while back < self.history.len() && english::flip_back_before(&self.history[back], w, back == 0) {
-                    back += 1;
-                }
-                for b in (0..back).rev() {
-                    new_before.extend_from_slice(&self.history[b].vietnamese);
-                    new_before.push(' ');
-                    old_before.extend_from_slice(&self.history[b].shown);
-                    old_before.push(' ');
-                }
-            }
-        }
-        if new_before == old_before {
-            new_before.clear();
-            old_before.clear();
-        }
-        self.rewritten_before = old_before;
-
-        self.english_mode = is_english;
-        if is_english != was_english {
-            self.history.clear(); // a new run of words in the other language
-        }
-        if break_key == ' ' {
-            self.history.insert(
-                0,
-                Prev {
-                    word: w.clone(),
-                    keys: keys.to_vec(),
-                    vietnamese: vietnamese.to_vec(),
-                    shown: shown.to_vec(),
-                    english: is_english,
-                    restored: is_english && !was_english,
-                },
-            );
-            self.history.truncate(2);
-        } else {
-            self.history.clear(); // only words separated by a single space count
-        }
-        new_before
     }
 
     /// Allows the English restore to rewrite the words before the current one ("thí makes" ->
@@ -826,7 +802,12 @@ impl KeyProcessor {
         self.token_known = last.tail.as_slice() == [' '];
         self.commit = text;
         self.rewritten_before = before;
-        self.last_switch = Some(LastSwitch { shown: last.other, other: last.shown, english: !last.english, ..last });
+        self.last_switch = Some(LastSwitch {
+            shown: last.other,
+            other: last.shown,
+            english: !last.english,
+            ..last
+        });
         true
     }
 
@@ -844,7 +825,16 @@ impl KeyProcessor {
 
     /// The typed word must go back to its keys at a word break, like Go's mustFallbackToEnglish.
     pub fn must_fallback_to_english(&self) -> bool {
-        self.english_restore_text().is_some() || self.invalid_vietnamese()
+        if self.options.english_restore {
+            let vn = self.get_processed_string(Mode::VIETNAMESE | Mode::LOWER_CASE);
+            let keys = self.current_keys();
+            let restore =
+                english::analyze(&keys, &vn).is_some_and(|w| self.restore_to_keys(&w, &keys));
+            if restore {
+                return true;
+            }
+        }
+        self.invalid_vietnamese()
     }
 
     /// The auto restore part of must_fallback_to_english: the word is no Vietnamese word.
@@ -881,11 +871,17 @@ impl KeyProcessor {
         let Some(&last) = vn_seq.last() else {
             return false;
         };
-        if self.options.macro_enabled && !self.macro_table_empty() && self.macro_lookup(&self.get_processed_string(Mode::PUNCTUATION)) {
+        if self.options.macro_enabled
+            && !self.macro_table_empty()
+            && self.macro_lookup(&self.get_processed_string(Mode::PUNCTUATION))
+        {
             return false;
         }
         // dd is allowed even in a non-Vietnamese sequence because it is a common abbreviation.
-        if self.options.dd_free_style && !utils::has_any_vietnamese_vowel(&vn_seq) && (last == 'd' || vn_seq.contains(&'đ')) {
+        if self.options.dd_free_style
+            && !utils::has_any_vietnamese_vowel(&vn_seq)
+            && (last == 'd' || vn_seq.contains(&'đ'))
+        {
             return false;
         }
         if check_vn_rune && !utils::has_any_vietnamese_rune(&vn_seq) {
@@ -895,7 +891,10 @@ impl KeyProcessor {
         // while it is still being typed; an incomplete word is still rejected at the word break
         // by must_fallback_to_english.
         if self.options.spell_check_with_dicts
-            && self.dictionary.as_ref().is_some_and(|d| d.read().unwrap().has_word_or_prefix(&vn_seq))
+            && self
+                .dictionary
+                .as_ref()
+                .is_some_and(|d| d.read().unwrap().has_word_or_prefix(&vn_seq))
         {
             return false;
         }
@@ -904,7 +903,10 @@ impl KeyProcessor {
 
     /// The processor wants a key event, like Go's canProcessKey.
     pub fn can_process_key(&self, key_val: u32) -> bool {
-        if key_val == KEY_SPACE || key_val == KEY_BACKSPACE || Self::key_char(key_val).is_some_and(utils::is_word_break_symbol) {
+        if key_val == KEY_SPACE
+            || key_val == KEY_BACKSPACE
+            || Self::key_char(key_val).is_some_and(utils::is_word_break_symbol)
+        {
             return true;
         }
         if key_val == KEY_TAB

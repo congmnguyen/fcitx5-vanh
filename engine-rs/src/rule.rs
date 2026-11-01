@@ -101,11 +101,9 @@ pub fn new_trans(trans: Transformation) -> TransRef {
 
 /// A plain appending node of a key.
 pub fn make_appending_trans(key: char, is_upper_case: bool) -> TransRef {
-    new_trans(Transformation {
-        rule: Rule { key, effect_on: key, result: key, effect_type: EffectType::Appending, ..Rule::default() },
-        target: None,
-        is_upper_case,
-    })
+    let effect_type = EffectType::Appending;
+    let rule = Rule { key, effect_on: key, result: key, effect_type, ..Rule::default() };
+    new_trans(Transformation { rule, target: None, is_upper_case })
 }
 
 /// Node identity, Go's pointer comparison (two missing nodes are the same).

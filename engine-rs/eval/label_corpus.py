@@ -31,12 +31,14 @@ EDGE = "\"'()[]{}.,;:!?*`<>"
 URL = re.compile(r"[a-z]+://|www\.", re.I)
 
 ROOT = Path(__file__).resolve().parents[2]
-DICT = {w.strip() for w in (ROOT / "data/dictionaries/vietnamese.cm.dict").read_text().splitlines() if w.strip()}
+DICT_PATH = ROOT / "data/dictionaries/vietnamese.cm.dict"
+DICT = {w.strip() for w in DICT_PATH.read_text().splitlines() if w.strip()}
 # Plain-ASCII words that are also Vietnamese syllables but, in this text, almost always English.
 EN_STOP = set(
-    "the to in on of and for is it at by an as be or no so do go me we he up us if all can not but you "
-    "this that then than test code data file user model mode log run set get push pull merge main fix "
-    "bug app web page time line case call text team plan task done use new top tool tools token box".split()
+    "the to in on of and for is it at by an as be or no so do go me we he up us if all can not but "
+    "you this that then than test code data file user model mode log run set get push pull merge "
+    "main fix bug app web page time line case call text team plan task done use new top tool "
+    "tools token box".split()
 )
 
 
@@ -86,9 +88,11 @@ def main():
         r = json.loads(raw)
         text = unicodedata.normalize("NFC", r["text"])
         src = r["source"]
-        tier = "typed" if (not r["ai"] and src in ("commit", "pr", "issue", "bash")) or (src == "markdown" and not r["id"].startswith("code/")) else "doc"
-        if src == "markdown" and r["id"].startswith(("Documents/", "Desktop/")):
-            tier = "typed"
+        typed = not r["ai"] and src in ("commit", "pr", "issue", "bash")
+        if src == "markdown":
+            typed = typed or not r["id"].startswith("code/")
+            typed = typed or r["id"].startswith(("Documents/", "Desktop/"))
+        tier = "typed" if typed else "doc"
         blocks = re.split(r"\n\s*\n", text) if src == "markdown" else [text]
         in_fence = False
         for bi, block in enumerate(blocks):
@@ -108,7 +112,8 @@ def main():
                         continue
                     toks = seg.split(" ")
                     letters = [t for t in toks if any(c.isalpha() for c in t)]
-                    vn_line = bool(letters) and sum(1 for t in letters if VN_RE.search(t)) / len(letters) >= 0.3
+                    vn_words = sum(1 for t in letters if VN_RE.search(t))
+                    vn_line = bool(letters) and vn_words / len(letters) >= 0.3
                     labels, in_tick = [], False
                     for t in toks:
                         starts = t.count("`")

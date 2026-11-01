@@ -139,65 +139,58 @@ def pretty_format_hotkey_parts(hotkey_str):
 
     raw_mods = []
     base_key_part = None
-
-    # Analyze parts to identify modifiers and the base key
     for part in parts:
         if not part:
             continue
-        if part in ("Control", "Alt", "Super", "Shift"):
-            if part not in raw_mods:
-                raw_mods.append(part)
-        else:
+        if part not in ("Control", "Alt", "Super", "Shift"):
             base_key_part = part
+        elif part not in raw_mods:
+            raw_mods.append(part)
 
-    # De-duplicate: If base key IS a specific modifier (e.g. Shift_L),
-    # suppress the corresponding generic modifier label.
+    # If the base key IS a specific modifier (e.g. Shift_L), suppress the
+    # corresponding generic modifier label.
+    redundant = None
     if base_key_part:
         if base_key_part.startswith("Shift_"):
-            if "Shift" in raw_mods:
-                raw_mods.remove("Shift")
+            redundant = "Shift"
         elif base_key_part.startswith("Control_") or base_key_part == "Control":
-            if "Control" in raw_mods:
-                raw_mods.remove("Control")
+            redundant = "Control"
         elif base_key_part.startswith("Alt_") or base_key_part == "Alt":
-            if "Alt" in raw_mods:
-                raw_mods.remove("Alt")
-        elif base_key_part.startswith("Super_") or base_key_part.startswith("Meta_"):
-            if "Super" in raw_mods:
-                raw_mods.remove("Super")
+            redundant = "Alt"
+        elif base_key_part.startswith(("Super_", "Meta_")):
+            redundant = "Super"
+    if redundant in raw_mods:
+        raw_mods.remove(redundant)
 
-    pretty_parts = []
     explicit_shift_needed = "Shift" in raw_mods
     has_non_shift_modifier = any(mod in raw_mods for mod in ("Control", "Alt", "Super"))
 
-    # Process base key for UI display
-    if base_key_part:
-        if len(base_key_part) == 1 and base_key_part.isupper():
-            explicit_shift_needed = explicit_shift_needed or not has_non_shift_modifier
-            base_key_label = base_key_part  # Keep uppercase A-Z
-        # Check for symbols that imply Shift (Display only)
-        elif base_key_part in HOTKEY_UI_UNSHIFT_MAP:
-            explicit_shift_needed = True
-            display_base = HOTKEY_UI_UNSHIFT_MAP[base_key_part]
-            base_key_label = HOTKEY_SYM_MAP.get(display_base, display_base.capitalize())
-        else:
-            base_key_label = HOTKEY_SYM_MAP.get(base_key_part, base_key_part.capitalize())
+    base_key_label = ""
+    if not base_key_part:
+        pass
+    elif len(base_key_part) == 1 and base_key_part.isupper():
+        explicit_shift_needed = explicit_shift_needed or not has_non_shift_modifier
+        base_key_label = base_key_part  # Keep uppercase A-Z
+    elif base_key_part in HOTKEY_UI_UNSHIFT_MAP:
+        # Symbols that imply Shift (display only)
+        explicit_shift_needed = True
+        display_base = HOTKEY_UI_UNSHIFT_MAP[base_key_part]
+        base_key_label = HOTKEY_SYM_MAP.get(display_base, display_base.capitalize())
     else:
-        base_key_label = ""
+        base_key_label = HOTKEY_SYM_MAP.get(base_key_part, base_key_part.capitalize())
 
-    # Build the final ordered list of labels
-    if "Control" in raw_mods:
-        pretty_parts.append("Ctrl")
-    if "Alt" in raw_mods:
-        pretty_parts.append("Alt")
-    if "Super" in raw_mods:
-        pretty_parts.append("Super")
-    if explicit_shift_needed:
-        pretty_parts.append("Shift")
-
+    pretty_parts = [
+        label
+        for label, needed in (
+            ("Ctrl", "Control" in raw_mods),
+            ("Alt", "Alt" in raw_mods),
+            ("Super", "Super" in raw_mods),
+            ("Shift", explicit_shift_needed),
+        )
+        if needed
+    ]
     if base_key_label:
         pretty_parts.append(base_key_label)
-
     return pretty_parts
 
 
@@ -242,15 +235,12 @@ class HotkeyEditorWidget(QWidget):
 
     def __init__(self, current_key="", parent=None):
         super().__init__(parent)
-        self._setup_ui(current_key)
-
-    def _setup_ui(self, current_key):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
 
         self.hotkey_capture = HotkeyCaptureWidget(current_key)
-        self.hotkey_capture.textChanged.connect(self._on_hotkey_changed)
+        self.hotkey_capture.textChanged.connect(self.textChanged.emit)
 
         self.btn_clear = QPushButton(QIcon.fromTheme("delete"), "")
         self.btn_clear.setFixedWidth(30)
@@ -259,9 +249,6 @@ class HotkeyEditorWidget(QWidget):
 
         layout.addWidget(self.hotkey_capture)
         layout.addWidget(self.btn_clear)
-
-    def _on_hotkey_changed(self, text):
-        self.textChanged.emit(text)
 
     def _on_clear(self):
         self.hotkey_capture.current_key = ""
@@ -316,11 +303,8 @@ class HotkeyCaptureWidget(QPushButton):
             self.record_mods.clear()
         self._update_display()
 
-    def _clear_layout(self):
-        clear_layout(self.main_layout)
-
     def _update_display(self):
-        self._clear_layout()
+        clear_layout(self.main_layout)
 
         if self.isChecked():
             if not self.record_mods:
@@ -342,16 +326,22 @@ class HotkeyCaptureWidget(QPushButton):
             lbl.setStyleSheet("color: palette(mid);")
             self.main_layout.addWidget(lbl)
         else:
-            parts = pretty_format_hotkey_parts(self.current_key)
-            for part in parts:
-                cap = KeyCap(part)
-                self.main_layout.addWidget(cap)
+            for part in pretty_format_hotkey_parts(self.current_key):
+                self.main_layout.addWidget(KeyCap(part))
 
     def keyPressEvent(self, event):
         """Standard key event handler, only active when not recording."""
         if not self.isChecked():
             super().keyPressEvent(event)
-            return
+
+    @staticmethod
+    def _modifier_names():
+        return {
+            Qt.Key_Control: "Control",
+            Qt.Key_Shift: "Shift",
+            Qt.Key_Alt: "Alt",
+            Qt.Key_Meta: "Super",
+        }
 
     def _handle_key_event(self, event):
         """Internal helper to process captured keys."""
@@ -364,12 +354,7 @@ class HotkeyCaptureWidget(QPushButton):
             return
 
         # Track modifiers in real-time
-        mod_map = {
-            Qt.Key_Control: "Control",
-            Qt.Key_Shift: "Shift",
-            Qt.Key_Alt: "Alt",
-            Qt.Key_Meta: "Super",
-        }
+        mod_map = self._modifier_names()
         if key_code in mod_map:
             self.record_mods.add(mod_map[key_code])
             self._update_display()
@@ -431,25 +416,17 @@ class HotkeyCaptureWidget(QPushButton):
         if not self.isChecked():
             return
 
-        key_code = event.key()
-        mod_map = {
-            Qt.Key_Control: "Control",
-            Qt.Key_Shift: "Shift",
-            Qt.Key_Alt: "Alt",
-            Qt.Key_Meta: "Super",
-        }
-        if key_code in mod_map:
-            val = mod_map[key_code]
-            if val in self.record_mods:
-                self.record_mods.remove(val)
-                self._update_display()
+        val = self._modifier_names().get(event.key())
+        if val in self.record_mods:
+            self.record_mods.remove(val)
+            self._update_display()
 
 
 class SingleKeyCaptureWidget(HotkeyCaptureWidget):
     """A version of HotkeyCaptureWidget that only captures a single key (no modifiers)."""
 
     def _update_display(self):
-        self._clear_layout()
+        clear_layout(self.main_layout)
 
         if self.isChecked():
             lbl = QLabel(_("[ Press Key... ]"))
@@ -462,8 +439,7 @@ class SingleKeyCaptureWidget(HotkeyCaptureWidget):
         else:
             # For single key, we just show it directly or via map
             display_text = HOTKEY_SYM_MAP.get(self.current_key, self.current_key.capitalize())
-            cap = KeyCap(display_text)
-            self.main_layout.addWidget(cap)
+            self.main_layout.addWidget(KeyCap(display_text))
 
     def _handle_key_event(self, event):
         key_code = event.key()
@@ -474,10 +450,7 @@ class SingleKeyCaptureWidget(HotkeyCaptureWidget):
             return
 
         # Ignore standalone modifier keys
-        if key_code in (Qt.Key_Control, Qt.Key_Shift, Qt.Key_Alt, Qt.Key_Meta):
-            return
-
-        if key_code == Qt.Key_unknown:
+        if key_code in (Qt.Key_Control, Qt.Key_Shift, Qt.Key_Alt, Qt.Key_Meta, Qt.Key_unknown):
             return
 
         # Capture base key only
@@ -496,10 +469,11 @@ class SingleKeyCaptureWidget(HotkeyCaptureWidget):
                 else QKeySequence(key_code).toString()
             )
 
-        if base_key:
-            self.current_key = base_key
-            self.setChecked(False)
-            self.textChanged.emit(self.current_key)
+        if not base_key:
+            return
+        self.current_key = base_key
+        self.setChecked(False)
+        self.textChanged.emit(self.current_key)
 
 
 class ScrollContent(QWidget):

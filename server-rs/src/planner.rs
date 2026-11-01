@@ -36,7 +36,8 @@ const MAX_RETURNS: usize = 4;
 /// Pause between the last Shift+Left and the Shift release.
 pub const SHIFT_RELEASE_DELAY_MS: u32 = 10;
 
-/// Where the plan's effects go: the uinput device and the clock in the server, a recorder in tests.
+/// Where the plan's effects go: the uinput device and the clock in the server, a recorder in
+/// tests.
 pub trait Output {
     /// Press + release of `code`.
     fn tap(&mut self, code: u16);
@@ -80,7 +81,10 @@ impl Default for Planner {
 impl Planner {
     /// Whether keys are still to be paced out.
     pub fn has_pending(&self) -> bool {
-        self.pending_backspaces > 0 || self.pending_selects > 0 || self.pending_anchor || self.pending_select_anchor
+        self.pending_backspaces > 0
+            || self.pending_selects > 0
+            || self.pending_anchor
+            || self.pending_select_anchor
     }
 
     /// ms between two paced keys, `None` when nothing is pending (wait forever).
@@ -99,40 +103,37 @@ impl Planner {
             out.tap(keys::BACKSPACE);
             self.pending_backspaces -= 1;
         } else if self.pending_anchor {
-            if self.post_delay > 0 {
-                out.sleep_ms(self.post_delay);
-            }
-            out.tap(keys::PAUSE);
+            self.tap_anchor(out);
             self.pending_anchor = false;
         } else if self.pending_selects > 0 {
             out.tap(keys::LEFT);
             self.pending_selects -= 1;
+        } else if self.pending_select_anchor && self.shift_held {
+            out.sleep_ms(SHIFT_RELEASE_DELAY_MS);
+            out.key(keys::LEFTSHIFT, false);
+            self.shift_held = false;
         } else if self.pending_select_anchor {
-            if self.shift_held {
-                out.sleep_ms(SHIFT_RELEASE_DELAY_MS);
-                out.key(keys::LEFTSHIFT, false);
-                self.shift_held = false;
-            } else {
-                out.tap(keys::DELETE);
-                if self.post_delay > 0 {
-                    out.sleep_ms(self.post_delay);
-                }
-                out.tap(keys::PAUSE);
-                self.pending_select_anchor = false;
-            }
+            out.tap(keys::DELETE);
+            self.tap_anchor(out);
+            self.pending_select_anchor = false;
         }
     }
 
     /// The keyboard client went away: never leave Shift down, drop the selection.
     pub fn disconnected(&mut self, out: &mut impl Output) {
-        self.release_shift(out);
-        self.pending_selects = 0;
-        self.pending_select_anchor = false;
+        self.drop_selection(out);
     }
 
     /// The server is exiting.
     pub fn shutdown(&mut self, out: &mut impl Output) {
         self.release_shift(out);
+    }
+
+    fn tap_anchor(&self, out: &mut impl Output) {
+        if self.post_delay > 0 {
+            out.sleep_ms(self.post_delay);
+        }
+        out.tap(keys::PAUSE);
     }
 
     fn release_shift(&mut self, out: &mut impl Output) {
@@ -149,27 +150,47 @@ impl Planner {
         }
     }
 
+    fn drop_selection(&mut self, out: &mut impl Output) {
+        self.release_shift(out);
+        self.pending_selects = 0;
+        self.pending_select_anchor = false;
+    }
+
     /// Handles one well-formed request. `shift` is the live physical Shift state.
     pub fn handle(&mut self, msg: &KbMsg, shift: ShiftState, out: &mut impl Output) {
-        self.interval = if msg.interval > 0 { msg.interval.min(MAX_INTERVAL_MS) } else { DEFAULT_INTERVAL_MS };
-        let pre_delay = msg.pre_delay.min(MAX_DELAY_MS);
-        let post_delay = msg.post_delay.min(MAX_DELAY_MS);
+        self.interval = match msg.interval {
+            0 => DEFAULT_INTERVAL_MS,
+            interval => interval.min(MAX_INTERVAL_MS),
+        };
         let op = resolve_keyboard_op(msg.op, shift);
         if op != msg.op {
-            if shift == ShiftState::Held {
-                out.log(Level::Info, "Shift is held: replacing with Backspace instead of Shift+Left");
-            } else {
-                out.log(Level::Info, "Shift state unknown, using safe Backspace fallback instead of Shift+Left");
-            }
+            out.log(
+                Level::Info,
+                if shift == ShiftState::Held {
+                    "Shift is held: replacing with Backspace instead of Shift+Left"
+                } else {
+                    "Shift state unknown, using safe Backspace fallback instead of Shift+Left"
+                },
+            );
         }
+        if op == KbOp::Cancel {
+            self.cancel(out);
+            return;
+        }
+        if msg.count == 0 {
+            return;
+        }
+        if let KbOp::Unknown(raw) = op {
+            out.log(Level::Warn, &format!("Unknown keyboard message op: {raw}"));
+            return;
+        }
+        let pre_delay = msg.pre_delay.min(MAX_DELAY_MS);
+        if pre_delay > 0 {
+            out.sleep_ms(pre_delay);
+        }
+        self.post_delay = msg.post_delay.min(MAX_DELAY_MS);
         match op {
-            KbOp::Cancel => self.cancel(out),
-            _ if msg.count == 0 => {}
             KbOp::Select => {
-                if pre_delay > 0 {
-                    out.sleep_ms(pre_delay);
-                }
-                self.post_delay = post_delay;
                 self.press_shift(out);
                 out.sleep_ms(self.interval);
                 out.tap(keys::LEFT);
@@ -179,33 +200,22 @@ impl Planner {
                 self.pending_anchor = false;
             }
             KbOp::Backspace => {
-                if pre_delay > 0 {
-                    out.sleep_ms(pre_delay);
-                }
-                self.post_delay = post_delay;
                 if self.shift_held {
-                    self.release_shift(out);
-                    self.pending_selects = 0;
-                    self.pending_select_anchor = false;
+                    self.drop_selection(out);
                 }
                 self.pending_anchor = true;
                 self.pending_backspaces = self.pending_backspaces.saturating_add(msg.count - 1);
                 out.tap(keys::BACKSPACE);
             }
             KbOp::Return => {
-                if pre_delay > 0 {
-                    out.sleep_ms(pre_delay);
-                }
-                self.post_delay = post_delay;
-                self.release_shift(out); // Shift+Return is another key in many apps
-                self.pending_selects = 0;
-                self.pending_select_anchor = false;
+                // Shift+Return is another key in many apps.
+                self.drop_selection(out);
                 for _ in 0..msg.count.min(MAX_RETURNS) {
                     out.tap(keys::ENTER);
                 }
                 self.pending_anchor = true;
             }
-            KbOp::Unknown(raw) => out.log(Level::Warn, &format!("Unknown keyboard message op: {raw}")),
+            KbOp::Cancel | KbOp::Unknown(_) => unreachable!(),
         }
     }
 
@@ -268,7 +278,11 @@ impl Output for Recorder {
 impl Recorder {
     /// The key effects only, without sleeps and logs.
     pub fn keys(&self) -> Vec<Event> {
-        self.events.iter().filter(|event| matches!(event, Event::Tap(_) | Event::Down(_) | Event::Up(_))).cloned().collect()
+        self.events
+            .iter()
+            .filter(|event| matches!(event, Event::Tap(_) | Event::Down(_) | Event::Up(_)))
+            .cloned()
+            .collect()
     }
 
     /// One line per effect (`tap 14`, `down 42`, `up 42`, `sleep 5`), the replay helper's format.
@@ -360,7 +374,12 @@ mod tests {
         planner.handle(&msg(KbOp::Select, 1, 1001, 3, 4_000_000), Released, &mut out);
         drain(&mut planner, &mut out);
         assert_eq!(out.events.first(), Some(&Sleep(MAX_DELAY_MS)));
-        assert!(out.events.contains(&Sleep(MAX_DELAY_MS)) && !out.events.iter().any(|event| matches!(event, Sleep(ms) if *ms > MAX_DELAY_MS)), "{:?}", out.events);
+        assert!(
+            out.events.contains(&Sleep(MAX_DELAY_MS))
+                && !out.events.iter().any(|event| matches!(event, Sleep(ms) if *ms > MAX_DELAY_MS)),
+            "{:?}",
+            out.events
+        );
 
         // In-range values pass unchanged.
         out.events.clear();
@@ -378,7 +397,18 @@ mod tests {
         assert!(planner.shift_held());
         out.events.clear();
         drain(&mut planner, &mut out);
-        assert_eq!(out.events, vec![Tap(LEFT), Tap(LEFT), Sleep(SHIFT_RELEASE_DELAY_MS), Up(SHIFT), Tap(DEL), Sleep(25), Tap(PAUSE)]);
+        assert_eq!(
+            out.events,
+            vec![
+                Tap(LEFT),
+                Tap(LEFT),
+                Sleep(SHIFT_RELEASE_DELAY_MS),
+                Up(SHIFT),
+                Tap(DEL),
+                Sleep(25),
+                Tap(PAUSE)
+            ]
+        );
         assert!(!planner.shift_held());
     }
 
@@ -447,7 +477,11 @@ mod tests {
         planner.handle(&msg(KbOp::Backspace, 2, 0, 3, 0), Released, &mut out);
         assert_eq!(out.events, vec![Up(SHIFT), Tap(BS)]);
         drain(&mut planner, &mut out);
-        assert_eq!(out.keys(), vec![Up(SHIFT), Tap(BS), Tap(BS), Tap(PAUSE)], "the selection is dropped");
+        assert_eq!(
+            out.keys(),
+            vec![Up(SHIFT), Tap(BS), Tap(BS), Tap(PAUSE)],
+            "the selection is dropped"
+        );
     }
 
     #[test]
@@ -458,7 +492,19 @@ mod tests {
         planner.handle(&msg(KbOp::Select, 2, 0, 3, 0), Released, &mut out);
         drain(&mut planner, &mut out);
         // The backspace anchor is replaced by the selection anchor; the BackSpace keeps draining first.
-        assert_eq!(out.keys(), vec![Tap(BS), Down(SHIFT), Tap(LEFT), Tap(BS), Tap(LEFT), Up(SHIFT), Tap(DEL), Tap(PAUSE)]);
+        assert_eq!(
+            out.keys(),
+            vec![
+                Tap(BS),
+                Down(SHIFT),
+                Tap(LEFT),
+                Tap(BS),
+                Tap(LEFT),
+                Up(SHIFT),
+                Tap(DEL),
+                Tap(PAUSE)
+            ]
+        );
     }
 
     #[test]
@@ -478,7 +524,10 @@ mod tests {
         let mut out = Recorder::default();
         planner.handle(&msg(KbOp::Backspace, 2, 0, 3, 0), Released, &mut out);
         planner.disconnected(&mut out);
-        assert!(planner.has_pending(), "as in the C++ server, BackSpace already promised still goes out");
+        assert!(
+            planner.has_pending(),
+            "as in the C++ server, BackSpace already promised still goes out"
+        );
     }
 
     #[test]

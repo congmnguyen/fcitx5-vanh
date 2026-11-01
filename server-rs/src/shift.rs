@@ -130,7 +130,7 @@ impl<K: ShiftSource> ShiftTracker<K> {
 }
 
 /// Bytes of a bitmap covering every key code (`(KEY_MAX + 7) / 8`).
-const KEY_BITS_LEN: usize = (keys::KEY_MAX as usize + 7) / 8;
+const KEY_BITS_LEN: usize = (keys::KEY_MAX as usize).div_ceil(8);
 
 /// A physical evdev keyboard, opened read-only (the server runs in group `input`).
 pub struct EvdevKeyboard {
@@ -140,15 +140,19 @@ pub struct EvdevKeyboard {
 impl EvdevKeyboard {
     /// Opens `devnode` and checks that it can report a Shift key, like the C++ libevdev check.
     pub fn probe(devnode: &str) -> Probe<EvdevKeyboard> {
-        let Ok(file) = File::options().read(true).custom_flags(sys::O_NONBLOCK).open(devnode) else {
+        let Ok(file) = File::options().read(true).custom_flags(sys::O_NONBLOCK).open(devnode)
+        else {
             return Probe::Unreadable;
         };
         let mut types = [0u8; 4];
         let mut codes = [0u8; KEY_BITS_LEN];
-        if sys::evdev_get_bits(file.as_fd(), 0, &mut types).is_err() || sys::evdev_get_bits(file.as_fd(), keys::EV_KEY, &mut codes).is_err() {
+        if sys::evdev_get_bits(file.as_fd(), 0, &mut types).is_err()
+            || sys::evdev_get_bits(file.as_fd(), keys::EV_KEY, &mut codes).is_err()
+        {
             return Probe::Unreadable;
         }
-        let has_shift = key_bit_set(&types, keys::EV_KEY) && (key_bit_set(&codes, keys::LEFTSHIFT) || key_bit_set(&codes, keys::RIGHTSHIFT));
+        let has_shift = key_bit_set(&types, keys::EV_KEY)
+            && (key_bit_set(&codes, keys::LEFTSHIFT) || key_bit_set(&codes, keys::RIGHTSHIFT));
         if has_shift {
             Probe::Keyboard(EvdevKeyboard { file })
         } else {
@@ -232,7 +236,8 @@ mod tests {
         assert_eq!(tracker.shift_state(), Held);
         first.set(None);
         assert_eq!(tracker.shift_state(), Unknown);
-        assert!(capture::take().iter().any(|(level, line)| *level == Level::Warn && line == "Failed to read Shift key state of /dev/input/event3"));
+        assert!(capture::take().iter().any(|(level, line)| *level == Level::Warn
+            && line == "Failed to read Shift key state of /dev/input/event3"));
         first.set(Some(false));
 
         // A duplicate add is not probed again.
@@ -244,7 +249,9 @@ mod tests {
         // An unreadable keyboard poisons the state until it goes away or becomes readable.
         tracker.track("/dev/input/event5", |_| Probe::Unreadable);
         assert_eq!(tracker.shift_state(), Unknown);
-        assert!(capture::take().iter().any(|(_, line)| line == "Not tracking Shift keys of /dev/input/event5"));
+        assert!(capture::take()
+            .iter()
+            .any(|(_, line)| line == "Not tracking Shift keys of /dev/input/event5"));
         let second = Rc::new(Cell::new(Some(false)));
         tracker.track("/dev/input/event5", |_| Probe::Keyboard(FakeKeyboard(second.clone())));
         assert_eq!(tracker.shift_state(), Released);

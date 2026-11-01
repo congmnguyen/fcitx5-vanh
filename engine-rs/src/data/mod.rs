@@ -11,21 +11,22 @@
 
 pub mod case;
 pub mod charset;
-pub mod vikey_autoswitch;
 pub mod tech_english;
+pub mod vikey_autoswitch;
 pub mod vikey_bigram;
 
 /// Vowels with their six tones, the tone being the index modulo 6.
 pub static VOWELS: [char; 72] = [
-    'a', 'à', 'á', 'ả', 'ã', 'ạ', 'ă', 'ằ', 'ắ', 'ẳ', 'ẵ', 'ặ', 'â', 'ầ', 'ấ', 'ẩ', 'ẫ', 'ậ', 'e', 'è', 'é', 'ẻ', 'ẽ', 'ẹ', 'ê',
-    'ề', 'ế', 'ể', 'ễ', 'ệ', 'i', 'ì', 'í', 'ỉ', 'ĩ', 'ị', 'o', 'ò', 'ó', 'ỏ', 'õ', 'ọ', 'ô', 'ồ', 'ố', 'ổ', 'ỗ', 'ộ', 'ơ', 'ờ',
-    'ớ', 'ở', 'ỡ', 'ợ', 'u', 'ù', 'ú', 'ủ', 'ũ', 'ụ', 'ư', 'ừ', 'ứ', 'ử', 'ữ', 'ự', 'y', 'ỳ', 'ý', 'ỷ', 'ỹ', 'ỵ',
+    'a', 'à', 'á', 'ả', 'ã', 'ạ', 'ă', 'ằ', 'ắ', 'ẳ', 'ẵ', 'ặ', 'â', 'ầ', 'ấ', 'ẩ', 'ẫ', 'ậ', 'e',
+    'è', 'é', 'ẻ', 'ẽ', 'ẹ', 'ê', 'ề', 'ế', 'ể', 'ễ', 'ệ', 'i', 'ì', 'í', 'ỉ', 'ĩ', 'ị', 'o', 'ò',
+    'ó', 'ỏ', 'õ', 'ọ', 'ô', 'ồ', 'ố', 'ổ', 'ỗ', 'ộ', 'ơ', 'ờ', 'ớ', 'ở', 'ỡ', 'ợ', 'u', 'ù', 'ú',
+    'ủ', 'ũ', 'ụ', 'ư', 'ừ', 'ứ', 'ử', 'ữ', 'ự', 'y', 'ỳ', 'ý', 'ỷ', 'ỹ', 'ỵ',
 ];
 
 /// Punctuation marks (all ASCII).
 pub static PUNCTUATION_MARKS: [char; 33] = [
-    ',', ';', ':', '.', '"', '\'', '!', '?', ' ', '<', '>', '=', '+', '-', '*', '/', '\\', '_', '~', '`', '@', '#', '$', '%',
-    '^', '&', '(', ')', '{', '}', '[', ']', '|',
+    ',', ';', ':', '.', '"', '\'', '!', '?', ' ', '<', '>', '=', '+', '-', '*', '/', '\\', '_',
+    '~', '`', '@', '#', '$', '%', '^', '&', '(', ')', '{', '}', '[', ']', '|',
 ];
 
 /// Mark family rows, indexed by `Mark`; '_' marks a missing slot.
@@ -49,8 +50,8 @@ pub fn mark_family(c: char) -> Option<&'static [char]> {
 
 /// Onsets.
 pub static FIRST_CONSONANT_SEQS: &[&[&str]] = &[&[
-    "b", "c", "ch", "d", "đ", "g", "gh", "gi", "h", "k", "kh", "kr", "l", "m", "n", "ng", "ngh", "nh", "p", "ph", "qu", "r", "s",
-    "t", "th", "tr", "v", "x", "z",
+    "b", "c", "ch", "d", "đ", "g", "gh", "gi", "h", "k", "kh", "kr", "l", "m", "n", "ng", "ngh",
+    "nh", "p", "ph", "qu", "r", "s", "t", "th", "tr", "v", "x", "z",
 ]];
 
 /// Rime vowels, grouped by the codas they accept (see VC_MATRIX).
@@ -61,15 +62,17 @@ pub static VOWEL_SEQS: &[&[&str]] = &[
     &["oă"],
     &["uơ"],
     &[
-        "ai", "ao", "au", "âu", "ay", "ây", "eo", "êu", "ia", "iêu", "iu", "oai", "oao", "oay", "oeo", "oi", "ôi", "ơi", "ưa",
-        "uây", "ui", "ưi", "uôi", "ươi", "ươu", "ưu", "uya", "uyu", "uêu", "yêu",
+        "ai", "ao", "au", "âu", "ay", "ây", "eo", "êu", "ia", "iêu", "iu", "oai", "oao", "oay",
+        "oeo", "oi", "ôi", "ơi", "ưa", "uây", "ui", "ưi", "uôi", "ươi", "ươu", "ưu", "uya", "uyu",
+        "uêu", "yêu",
     ],
     &["ă", "u"],
     &["i"],
 ];
 
 /// Codas.
-pub static LAST_CONSONANT_SEQS: &[&[&str]] = &[&["ch", "nh"], &["c", "ng"], &["m", "n", "p", "t"], &["k"], &["c"]];
+pub static LAST_CONSONANT_SEQS: &[&[&str]] =
+    &[&["ch", "nh"], &["c", "ng"], &["m", "n", "p", "t"], &["k"], &["c"]];
 
 /// Coda groups accepted by every vowel group.
 pub static VC_MATRIX: &[&[i32]] = &[&[0, 2], &[0, 1, 2], &[1, 2], &[1, 2], &[], &[], &[3], &[4]];

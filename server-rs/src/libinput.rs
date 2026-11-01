@@ -39,7 +39,8 @@ struct libinput_device {
 /// `struct libinput_interface`.
 #[repr(C)]
 struct LibinputInterface {
-    open_restricted: extern "C" fn(path: *const c_char, flags: c_int, user_data: *mut c_void) -> c_int,
+    open_restricted:
+        extern "C" fn(path: *const c_char, flags: c_int, user_data: *mut c_void) -> c_int,
     close_restricted: extern "C" fn(fd: c_int, user_data: *mut c_void),
 }
 
@@ -59,7 +60,11 @@ extern "C" {
 
 #[link(name = "input")]
 extern "C" {
-    fn libinput_udev_create_context(interface: *const LibinputInterface, user_data: *mut c_void, udev: *mut udev) -> *mut libinput;
+    fn libinput_udev_create_context(
+        interface: *const LibinputInterface,
+        user_data: *mut c_void,
+        udev: *mut udev,
+    ) -> *mut libinput;
     fn libinput_udev_assign_seat(libinput: *mut libinput, seat_id: *const c_char) -> c_int;
     fn libinput_unref(libinput: *mut libinput) -> *mut libinput;
     fn libinput_get_fd(libinput: *mut libinput) -> c_int;
@@ -74,8 +79,10 @@ extern "C" {
     fn libinput_device_get_sysname(device: *mut libinput_device) -> *const c_char;
     fn libinput_device_has_capability(device: *mut libinput_device, capability: c_int) -> c_int;
     fn libinput_device_config_tap_get_finger_count(device: *mut libinput_device) -> c_int;
-    fn libinput_device_config_tap_set_enabled(device: *mut libinput_device, enable: c_int) -> c_int;
-    fn libinput_device_config_tap_set_button_map(device: *mut libinput_device, map: c_int) -> c_int;
+    fn libinput_device_config_tap_set_enabled(device: *mut libinput_device, enable: c_int)
+        -> c_int;
+    fn libinput_device_config_tap_set_button_map(device: *mut libinput_device, map: c_int)
+        -> c_int;
 }
 
 extern "C" fn open_restricted(path: *const c_char, flags: c_int, _user_data: *mut c_void) -> c_int {
@@ -178,7 +185,9 @@ impl Event {
                 // SAFETY: the event is a pointer event, so the cast is valid (and non-null).
                 let pressed = unsafe {
                     let pointer = libinput_event_get_pointer_event(self.raw);
-                    !pointer.is_null() && libinput_event_pointer_get_button_state(pointer) == LIBINPUT_BUTTON_STATE_PRESSED
+                    !pointer.is_null()
+                        && libinput_event_pointer_get_button_state(pointer)
+                            == LIBINPUT_BUTTON_STATE_PRESSED
                 };
                 EventKind::PointerButton { pressed }
             }

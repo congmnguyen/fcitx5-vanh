@@ -40,7 +40,8 @@ namespace lotus::fcitx_text {
      * @param text UTF-32 text.
      * @param lastCommitTime Commit timestamp of the caller, updated on every commit.
      */
-    void commit(fcitx::InputContext* ic, std::u32string_view text, std::chrono::steady_clock::time_point& lastCommitTime);
+    void commit(fcitx::InputContext* ic, std::u32string_view text,
+        std::chrono::steady_clock::time_point& lastCommitTime);
 
     /**
      * @brief Code point of a key symbol, as a one code point text.

@@ -11,10 +11,10 @@
 //! what it created. The functions never unwind (the crate aborts on panic).
 
 use crate::dictionary::Dictionary;
-use crate::learning::Learned;
 use crate::encoder::encode;
 use crate::input_method::cached_input_method;
 use crate::key_processor::{KeyProcessor, Options, Shared};
+use crate::learning::Learned;
 use crate::macro_table::MacroTable;
 use crate::rule::InputMethod;
 use crate::rules_parser::parse_input_method;
@@ -22,7 +22,7 @@ use crate::time_format::format_time;
 use crate::types::{BracketTransformMode, Charset, InputMethodId, W2uMode};
 use crate::utf8;
 use std::ffi::{c_char, c_void};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, OnceLock, RwLock};
 
 /// A UTF-8 string slice.
 #[repr(C)]
@@ -83,39 +83,20 @@ fn send_bytes(sink: LotusBytesSink, ctx: *mut c_void, text: &[u8]) {
     sink(ctx, text.as_ptr().cast(), text.len());
 }
 
-fn w2u_mode(value: i8) -> Option<W2uMode> {
-    match value {
-        0 => Some(W2uMode::Disabled),
-        1 => Some(W2uMode::NonStart),
-        2 => Some(W2uMode::Everywhere),
-        _ => None,
-    }
+/// The mode a C value names; any value outside 0..=2 follows the engine flags.
+fn mode_from<T>(value: i8, modes: [T; 3]) -> Option<T> {
+    usize::try_from(value).ok().and_then(|i| modes.into_iter().nth(i))
 }
-
-fn bracket_mode(value: i8) -> Option<BracketTransformMode> {
-    match value {
-        0 => Some(BracketTransformMode::Disabled),
-        1 => Some(BracketTransformMode::NonStart),
-        2 => Some(BracketTransformMode::Everywhere),
-        _ => None,
-    }
-}
-
-// ---- Input methods ------------------------------------------------------------------------
 
 /// A built-in input method, owned by the library (never freed). Null for an unknown id.
 #[no_mangle]
 pub extern "C" fn lotus_input_method_builtin(id: u8) -> *const LotusInputMethod {
-    match InputMethodId::from_index(id as usize) {
-        // LotusInputMethod is a transparent-in-practice newtype; keep a static copy of each.
-        Some(id) => {
-            use std::sync::OnceLock;
-            static BUILTIN: OnceLock<Vec<LotusInputMethod>> = OnceLock::new();
-            let all = BUILTIN.get_or_init(|| InputMethodId::ALL.iter().map(|&i| LotusInputMethod(cached_input_method(i).clone())).collect());
-            &all[id as usize]
-        }
-        None => std::ptr::null(),
-    }
+    static BUILTIN: OnceLock<Vec<LotusInputMethod>> = OnceLock::new();
+    let all = BUILTIN.get_or_init(|| {
+        let clone = |&i| LotusInputMethod(cached_input_method(i).clone());
+        InputMethodId::ALL.iter().map(clone).collect()
+    });
+    all.get(usize::from(id)).map_or(std::ptr::null(), std::ptr::from_ref)
 }
 
 /// Parses a definition (key -> line pairs, UTF-8). Free with lotus_input_method_free.
@@ -123,7 +104,11 @@ pub extern "C" fn lotus_input_method_builtin(id: u8) -> *const LotusInputMethod 
 /// # Safety
 /// `keys` and `values` point to `count` valid strings.
 #[no_mangle]
-pub unsafe extern "C" fn lotus_input_method_parse(keys: *const LotusStr, values: *const LotusStr, count: usize) -> *mut LotusInputMethod {
+pub unsafe extern "C" fn lotus_input_method_parse(
+    keys: *const LotusStr,
+    values: *const LotusStr,
+    count: usize,
+) -> *mut LotusInputMethod {
     let mut definition = Vec::with_capacity(count);
     for i in 0..count {
         definition.push((bytes(*keys.add(i)), bytes(*values.add(i))));
@@ -139,8 +124,6 @@ pub unsafe extern "C" fn lotus_input_method_free(method: *mut LotusInputMethod) 
         drop(Box::from_raw(method));
     }
 }
-
-// ---- Macro table --------------------------------------------------------------------------
 
 #[no_mangle]
 pub extern "C" fn lotus_macro_table_new() -> *mut LotusMacroTable {
@@ -159,7 +142,11 @@ pub unsafe extern "C" fn lotus_macro_table_free(table: *mut LotusMacroTable) {
 /// # Safety
 /// Valid handle and strings.
 #[no_mangle]
-pub unsafe extern "C" fn lotus_macro_table_set(table: *mut LotusMacroTable, key: LotusStr, value: LotusStr) {
+pub unsafe extern "C" fn lotus_macro_table_set(
+    table: *mut LotusMacroTable,
+    key: LotusStr,
+    value: LotusStr,
+) {
     (*table).0.write().unwrap().set(bytes(key), bytes(value));
 }
 
@@ -191,8 +178,6 @@ pub unsafe extern "C" fn lotus_macro_table_get(
     }
 }
 
-// ---- Learned preferences ------------------------------------------------------------------
-
 #[no_mangle]
 pub extern "C" fn lotus_learned_new() -> *mut LotusLearned {
     Box::into_raw(Box::new(LotusLearned(Arc::new(RwLock::new(Learned::default())))))
@@ -217,7 +202,11 @@ pub unsafe extern "C" fn lotus_learned_load_from_text(learned: *mut LotusLearned
 /// # Safety
 /// Valid handle.
 #[no_mangle]
-pub unsafe extern "C" fn lotus_learned_to_text(learned: *const LotusLearned, sink: LotusBytesSink, ctx: *mut c_void) {
+pub unsafe extern "C" fn lotus_learned_to_text(
+    learned: *const LotusLearned,
+    sink: LotusBytesSink,
+    ctx: *mut c_void,
+) {
     send_bytes(sink, ctx, (*learned).0.read().unwrap().to_text().as_bytes());
 }
 
@@ -233,12 +222,13 @@ pub unsafe extern "C" fn lotus_learned_size(learned: *const LotusLearned) -> usi
 /// # Safety
 /// Valid handles (`learned` may be null).
 #[no_mangle]
-pub unsafe extern "C" fn lotus_key_processor_set_learned(processor: *mut LotusKeyProcessor, learned: *const LotusLearned) {
+pub unsafe extern "C" fn lotus_key_processor_set_learned(
+    processor: *mut LotusKeyProcessor,
+    learned: *const LotusLearned,
+) {
     let learned = if learned.is_null() { None } else { Some((*learned).0.clone()) };
     (*processor).0.set_learned(learned);
 }
-
-// ---- Dictionary ---------------------------------------------------------------------------
 
 #[no_mangle]
 pub extern "C" fn lotus_dictionary_new() -> *mut LotusDictionary {
@@ -257,14 +247,21 @@ pub unsafe extern "C" fn lotus_dictionary_free(dictionary: *mut LotusDictionary)
 /// # Safety
 /// Valid handle and string.
 #[no_mangle]
-pub unsafe extern "C" fn lotus_dictionary_load_from_text(dictionary: *mut LotusDictionary, text: LotusStr) {
+pub unsafe extern "C" fn lotus_dictionary_load_from_text(
+    dictionary: *mut LotusDictionary,
+    text: LotusStr,
+) {
     (*dictionary).0.write().unwrap().load_from_text(bytes(text));
 }
 
 /// # Safety
 /// Valid handle; `words` points to `count` valid strings.
 #[no_mangle]
-pub unsafe extern "C" fn lotus_dictionary_load_from_words(dictionary: *mut LotusDictionary, words: *const LotusStr, count: usize) {
+pub unsafe extern "C" fn lotus_dictionary_load_from_words(
+    dictionary: *mut LotusDictionary,
+    words: *const LotusStr,
+    count: usize,
+) {
     let list: Vec<&[u8]> = (0..count).map(|i| bytes(*words.add(i))).collect();
     (*dictionary).0.write().unwrap().load_from_words(&list);
 }
@@ -272,14 +269,22 @@ pub unsafe extern "C" fn lotus_dictionary_load_from_words(dictionary: *mut Lotus
 /// # Safety
 /// Valid handle and string.
 #[no_mangle]
-pub unsafe extern "C" fn lotus_dictionary_has_word(dictionary: *const LotusDictionary, word: *const u32, len: usize) -> bool {
+pub unsafe extern "C" fn lotus_dictionary_has_word(
+    dictionary: *const LotusDictionary,
+    word: *const u32,
+    len: usize,
+) -> bool {
     (*dictionary).0.read().unwrap().has_word(&chars(word, len))
 }
 
 /// # Safety
 /// Valid handle and string.
 #[no_mangle]
-pub unsafe extern "C" fn lotus_dictionary_has_word_or_prefix(dictionary: *const LotusDictionary, word: *const u32, len: usize) -> bool {
+pub unsafe extern "C" fn lotus_dictionary_has_word_or_prefix(
+    dictionary: *const LotusDictionary,
+    word: *const u32,
+    len: usize,
+) -> bool {
     (*dictionary).0.read().unwrap().has_word_or_prefix(&chars(word, len))
 }
 
@@ -290,15 +295,17 @@ pub unsafe extern "C" fn lotus_dictionary_size(dictionary: *const LotusDictionar
     (*dictionary).0.read().unwrap().words().len()
 }
 
-// ---- Key processor ------------------------------------------------------------------------
-
 /// A processor driving its own copy of the input method. Free with lotus_key_processor_free.
 ///
 /// # Safety
 /// `method` is a valid input method handle.
 #[no_mangle]
-pub unsafe extern "C" fn lotus_key_processor_new(method: *const LotusInputMethod, spell_check_with_dicts_default: bool) -> *mut LotusKeyProcessor {
-    Box::into_raw(Box::new(LotusKeyProcessor(KeyProcessor::new((*method).0.clone(), spell_check_with_dicts_default))))
+pub unsafe extern "C" fn lotus_key_processor_new(
+    method: *const LotusInputMethod,
+    spell_check_with_dicts_default: bool,
+) -> *mut LotusKeyProcessor {
+    let processor = KeyProcessor::new((*method).0.clone(), spell_check_with_dicts_default);
+    Box::into_raw(Box::new(LotusKeyProcessor(processor)))
 }
 
 /// # Safety
@@ -313,7 +320,10 @@ pub unsafe extern "C" fn lotus_key_processor_free(processor: *mut LotusKeyProces
 /// # Safety
 /// Valid handle and options.
 #[no_mangle]
-pub unsafe extern "C" fn lotus_key_processor_set_options(processor: *mut LotusKeyProcessor, options: *const LotusOptions) {
+pub unsafe extern "C" fn lotus_key_processor_set_options(
+    processor: *mut LotusKeyProcessor,
+    options: *const LotusOptions,
+) {
     let o = &*options;
     let options = Options {
         auto_non_vn_restore: o.auto_non_vn_restore,
@@ -325,8 +335,15 @@ pub unsafe extern "C" fn lotus_key_processor_set_options(processor: *mut LotusKe
         modern_style: o.modern_style,
         free_marking: o.free_marking,
         output_charset: Charset::from_index(o.output_charset as usize).unwrap_or(Charset::Unicode),
-        w2u: w2u_mode(o.w2u),
-        bracket_transform: bracket_mode(o.bracket_transform),
+        w2u: mode_from(o.w2u, [W2uMode::Disabled, W2uMode::NonStart, W2uMode::Everywhere]),
+        bracket_transform: mode_from(
+            o.bracket_transform,
+            [
+                BracketTransformMode::Disabled,
+                BracketTransformMode::NonStart,
+                BracketTransformMode::Everywhere,
+            ],
+        ),
         time_format: bytes(o.time_format).to_vec(),
         date_format: bytes(o.date_format).to_vec(),
     };
@@ -336,21 +353,29 @@ pub unsafe extern "C" fn lotus_key_processor_set_options(processor: *mut LotusKe
 /// # Safety
 /// Valid handle.
 #[no_mangle]
-pub unsafe extern "C" fn lotus_key_processor_set_macro_enabled(processor: *mut LotusKeyProcessor, enabled: bool) {
+pub unsafe extern "C" fn lotus_key_processor_set_macro_enabled(
+    processor: *mut LotusKeyProcessor,
+    enabled: bool,
+) {
     (*processor).0.set_macro_enabled(enabled);
 }
 
 /// # Safety
 /// Valid handle.
 #[no_mangle]
-pub unsafe extern "C" fn lotus_key_processor_set_should_restore_key_strokes(processor: *mut LotusKeyProcessor, restore: bool) {
+pub unsafe extern "C" fn lotus_key_processor_set_should_restore_key_strokes(
+    processor: *mut LotusKeyProcessor,
+    restore: bool,
+) {
     (*processor).0.set_should_restore_key_strokes(restore);
 }
 
 /// # Safety
 /// Valid handle.
 #[no_mangle]
-pub unsafe extern "C" fn lotus_key_processor_should_restore_key_strokes(processor: *const LotusKeyProcessor) -> bool {
+pub unsafe extern "C" fn lotus_key_processor_should_restore_key_strokes(
+    processor: *const LotusKeyProcessor,
+) -> bool {
     (*processor).0.should_restore_key_strokes()
 }
 
@@ -359,7 +384,10 @@ pub unsafe extern "C" fn lotus_key_processor_should_restore_key_strokes(processo
 /// # Safety
 /// Valid handles.
 #[no_mangle]
-pub unsafe extern "C" fn lotus_key_processor_set_macro_table(processor: *mut LotusKeyProcessor, table: *const LotusMacroTable) {
+pub unsafe extern "C" fn lotus_key_processor_set_macro_table(
+    processor: *mut LotusKeyProcessor,
+    table: *const LotusMacroTable,
+) {
     let table = if table.is_null() { None } else { Some((*table).0.clone()) };
     (*processor).0.set_macro_table(table);
 }
@@ -369,7 +397,10 @@ pub unsafe extern "C" fn lotus_key_processor_set_macro_table(processor: *mut Lot
 /// # Safety
 /// Valid handles.
 #[no_mangle]
-pub unsafe extern "C" fn lotus_key_processor_set_dictionary(processor: *mut LotusKeyProcessor, dictionary: *const LotusDictionary) {
+pub unsafe extern "C" fn lotus_key_processor_set_dictionary(
+    processor: *mut LotusKeyProcessor,
+    dictionary: *const LotusDictionary,
+) {
     let dictionary = if dictionary.is_null() { None } else { Some((*dictionary).0.clone()) };
     (*processor).0.set_dictionary(dictionary);
 }
@@ -377,28 +408,43 @@ pub unsafe extern "C" fn lotus_key_processor_set_dictionary(processor: *mut Lotu
 /// # Safety
 /// Valid handle.
 #[no_mangle]
-pub unsafe extern "C" fn lotus_key_processor_process_key(processor: *mut LotusKeyProcessor, key_val: u32, states: u32) -> bool {
+pub unsafe extern "C" fn lotus_key_processor_process_key(
+    processor: *mut LotusKeyProcessor,
+    key_val: u32,
+    states: u32,
+) -> bool {
     (*processor).0.process_key(key_val, states)
 }
 
 /// # Safety
 /// Valid handle.
 #[no_mangle]
-pub unsafe extern "C" fn lotus_key_processor_can_process_key(processor: *const LotusKeyProcessor, key_val: u32) -> bool {
+pub unsafe extern "C" fn lotus_key_processor_can_process_key(
+    processor: *const LotusKeyProcessor,
+    key_val: u32,
+) -> bool {
     (*processor).0.can_process_key(key_val)
 }
 
 /// # Safety
 /// Valid handle.
 #[no_mangle]
-pub unsafe extern "C" fn lotus_key_processor_preedit(processor: *const LotusKeyProcessor, sink: LotusU32Sink, ctx: *mut c_void) {
+pub unsafe extern "C" fn lotus_key_processor_preedit(
+    processor: *const LotusKeyProcessor,
+    sink: LotusU32Sink,
+    ctx: *mut c_void,
+) {
     send_chars(sink, ctx, (*processor).0.preedit());
 }
 
 /// # Safety
 /// Valid handle.
 #[no_mangle]
-pub unsafe extern "C" fn lotus_key_processor_take_commit(processor: *mut LotusKeyProcessor, sink: LotusU32Sink, ctx: *mut c_void) {
+pub unsafe extern "C" fn lotus_key_processor_take_commit(
+    processor: *mut LotusKeyProcessor,
+    sink: LotusU32Sink,
+    ctx: *mut c_void,
+) {
     let text = (*processor).0.take_commit();
     send_chars(sink, ctx, &text);
 }
@@ -420,21 +466,32 @@ pub unsafe extern "C" fn lotus_key_processor_reset(processor: *mut LotusKeyProce
 /// # Safety
 /// Valid handle and string.
 #[no_mangle]
-pub unsafe extern "C" fn lotus_key_processor_rebuild_from_text(processor: *mut LotusKeyProcessor, text: *const u32, len: usize) {
+pub unsafe extern "C" fn lotus_key_processor_rebuild_from_text(
+    processor: *mut LotusKeyProcessor,
+    text: *const u32,
+    len: usize,
+) {
     (*processor).0.rebuild_from_text(&chars(text, len));
 }
 
 /// # Safety
 /// Valid handle.
 #[no_mangle]
-pub unsafe extern "C" fn lotus_key_processor_set_rewrite_allowed(processor: *mut LotusKeyProcessor, allowed: bool) {
+pub unsafe extern "C" fn lotus_key_processor_set_rewrite_allowed(
+    processor: *mut LotusKeyProcessor,
+    allowed: bool,
+) {
     (*processor).0.set_rewrite_allowed(allowed);
 }
 
 /// # Safety
 /// Valid handle.
 #[no_mangle]
-pub unsafe extern "C" fn lotus_key_processor_take_rewritten_before(processor: *mut LotusKeyProcessor, sink: LotusU32Sink, ctx: *mut c_void) {
+pub unsafe extern "C" fn lotus_key_processor_take_rewritten_before(
+    processor: *mut LotusKeyProcessor,
+    sink: LotusU32Sink,
+    ctx: *mut c_void,
+) {
     let text = (*processor).0.take_rewritten_before();
     send_chars(sink, ctx, &text);
 }
@@ -456,18 +513,24 @@ pub unsafe extern "C" fn lotus_key_processor_end_word(processor: *mut LotusKeyPr
 /// # Safety
 /// Valid handle.
 #[no_mangle]
-pub unsafe extern "C" fn lotus_key_processor_revert_last_switch(processor: *mut LotusKeyProcessor) -> bool {
+pub unsafe extern "C" fn lotus_key_processor_revert_last_switch(
+    processor: *mut LotusKeyProcessor,
+) -> bool {
     (*processor).0.revert_last_switch()
 }
-
-// ---- Utilities ----------------------------------------------------------------------------
 
 /// Encodes text in a charset (UTF-8 bytes of the code points standing for the legacy bytes).
 ///
 /// # Safety
 /// Valid string.
 #[no_mangle]
-pub unsafe extern "C" fn lotus_encode(charset: u8, text: *const u32, len: usize, sink: LotusBytesSink, ctx: *mut c_void) {
+pub unsafe extern "C" fn lotus_encode(
+    charset: u8,
+    text: *const u32,
+    len: usize,
+    sink: LotusBytesSink,
+    ctx: *mut c_void,
+) {
     let charset = Charset::from_index(charset as usize).unwrap_or(Charset::Unicode);
     send_bytes(sink, ctx, encode(charset, &chars(text, len)).as_bytes());
 }
@@ -477,6 +540,10 @@ pub unsafe extern "C" fn lotus_encode(charset: u8, text: *const u32, len: usize,
 /// # Safety
 /// Valid string.
 #[no_mangle]
-pub unsafe extern "C" fn lotus_format_time(format: LotusStr, sink: LotusBytesSink, ctx: *mut c_void) {
+pub unsafe extern "C" fn lotus_format_time(
+    format: LotusStr,
+    sink: LotusBytesSink,
+    ctx: *mut c_void,
+) {
     send_bytes(sink, ctx, &format_time(bytes(format)));
 }

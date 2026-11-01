@@ -13,7 +13,8 @@ fn write<T: Copy>(name: &str, values: &[T], to_bytes: impl Fn(T) -> Vec<u8>) {
 }
 
 fn main() {
-    // With an argument, also writes the Vikey arrays as raw native-endian files into that directory.
+    // With an argument, also writes the Vikey arrays as raw native-endian files into that
+    // directory.
     if let Some(dir) = std::env::args().nth(1) {
         let path = |name: &str| format!("{dir}/rs_{name}");
         write(&path("vn_words"), words::VN_WORDS, |b| vec![b]);

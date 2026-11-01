@@ -51,9 +51,21 @@ pub struct DeviceSpec {
 pub fn lotus_keyboard() -> DeviceSpec {
     DeviceSpec {
         name: names::UINPUT_NAME,
-        id: sys::InputId { bustype: keys::BUS_USB, vendor: names::UINPUT_VENDOR, product: names::UINPUT_PRODUCT, version: 0 },
+        id: sys::InputId {
+            bustype: keys::BUS_USB,
+            vendor: names::UINPUT_VENDOR,
+            product: names::UINPUT_PRODUCT,
+            version: 0,
+        },
         event_types: &[keys::EV_SYN, keys::EV_KEY],
-        keys: &[keys::BACKSPACE, keys::LEFT, keys::LEFTSHIFT, keys::DELETE, keys::PAUSE, keys::ENTER],
+        keys: &[
+            keys::BACKSPACE,
+            keys::LEFT,
+            keys::LEFTSHIFT,
+            keys::DELETE,
+            keys::PAUSE,
+            keys::ENTER,
+        ],
     }
 }
 
@@ -104,7 +116,10 @@ impl UinputDevice {
                 // Only the first failure: a broken device must not flood the log.
                 if !self.write_failure_reported {
                     self.write_failure_reported = true;
-                    log::error(&format!("Failed to write an uinput event: {}", sys::error_text(&error)));
+                    log::error(&format!(
+                        "Failed to write an uinput event: {}",
+                        sys::error_text(&error)
+                    ));
                 }
                 false
             }
@@ -121,7 +136,8 @@ impl UinputDevice {
 
     /// One key event (1 = press, 0 = release) followed by SYN.
     pub fn key(&mut self, code: u16, pressed: bool) {
-        let _ = self.write(keys::EV_KEY, code, i32::from(pressed)) && self.write(keys::EV_SYN, keys::SYN_REPORT, 0);
+        let _ = self.write(keys::EV_KEY, code, i32::from(pressed))
+            && self.write(keys::EV_SYN, keys::SYN_REPORT, 0);
     }
 }
 
@@ -152,9 +168,20 @@ mod tests {
     fn device_identity_matches_the_cxx_server() {
         let spec = lotus_keyboard();
         assert_eq!(spec.name, "Vanh-Uinput-Server");
-        assert_eq!(spec.id, sys::InputId { bustype: 0x03, vendor: 0x1234, product: 0x5678, version: 0 });
-        assert_eq!(spec.event_types, &[keys::EV_SYN, keys::EV_KEY], "EV_KEY only (EV_SYN is implicit), no EV_REL");
-        assert_eq!(spec.keys, &[14, 105, 42, 111, 119, 28], "BackSpace, Left, LeftShift, Delete, Pause, Enter");
+        assert_eq!(
+            spec.id,
+            sys::InputId { bustype: 0x03, vendor: 0x1234, product: 0x5678, version: 0 }
+        );
+        assert_eq!(
+            spec.event_types,
+            &[keys::EV_SYN, keys::EV_KEY],
+            "EV_KEY only (EV_SYN is implicit), no EV_REL"
+        );
+        assert_eq!(
+            spec.keys,
+            &[14, 105, 42, 111, 119, 28],
+            "BackSpace, Left, LeftShift, Delete, Pause, Enter"
+        );
         assert!(!spec.keys.contains(&30), "no unrelated key (KEY_A)");
         let setup = spec.setup();
         assert_eq!(&setup.name[..18], b"Vanh-Uinput-Server");

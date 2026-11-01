@@ -23,7 +23,10 @@ pub fn authorize_peer(fd: BorrowedFd<'_>, expected_uid: u32, label: &str) -> Opt
         return None;
     };
     if cred.uid != expected_uid {
-        log::warn(&format!("Unauthorized UID connection attempt to {label} from UID: {} (PID: {})", cred.uid, cred.pid));
+        log::warn(&format!(
+            "Unauthorized UID connection attempt to {label} from UID: {} (PID: {})",
+            cred.uid, cred.pid
+        ));
         return None;
     }
     Some(cred.pid)
@@ -38,7 +41,8 @@ mod tests {
     #[test]
     fn peer_with_the_right_uid_is_accepted() {
         let (left, _right) = std::os::unix::net::UnixStream::pair().unwrap();
-        assert_eq!(authorize_peer(left.as_fd(), sys::current_uid(), "test socket"), Some(std::process::id() as i32));
+        let pid = std::process::id() as i32;
+        assert_eq!(authorize_peer(left.as_fd(), sys::current_uid(), "test socket"), Some(pid));
     }
 
     #[test]
@@ -50,7 +54,11 @@ mod tests {
         let lines = capture::take();
         assert_eq!(
             lines.last().unwrap().1,
-            format!("Unauthorized UID connection attempt to keyboard socket from UID: {} (PID: {})", sys::current_uid(), std::process::id())
+            format!(
+                "Unauthorized UID connection attempt to keyboard socket from UID: {} (PID: {})",
+                sys::current_uid(),
+                std::process::id()
+            )
         );
     }
 
@@ -59,6 +67,9 @@ mod tests {
         let file = std::fs::File::open("/dev/null").unwrap();
         capture::take();
         assert_eq!(authorize_peer(file.as_fd(), sys::current_uid(), "keyboard socket"), None);
-        assert_eq!(capture::take().last().unwrap().1, "Failed to get peer credentials for keyboard socket");
+        assert_eq!(
+            capture::take().last().unwrap().1,
+            "Failed to get peer credentials for keyboard socket"
+        );
     }
 }

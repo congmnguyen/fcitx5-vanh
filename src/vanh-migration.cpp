@@ -65,7 +65,8 @@ namespace vanh::migration {
         }
 
         /** @brief Key and value of a "key=value" line (both trimmed), std::nullopt otherwise. */
-        std::optional<std::pair<std::string_view, std::string_view>> keyValueOf(std::string_view line) {
+        std::optional<std::pair<std::string_view, std::string_view>> keyValueOf(
+            std::string_view line) {
             const auto content = body(line);
             const auto trimmed = trim(content);
             if (trimmed.empty() || trimmed.front() == '#' || trimmed.front() == ';') {
@@ -114,8 +115,10 @@ namespace vanh::migration {
         }
 
         /** @brief Writes a file through a temporary sibling and a rename, keeping the old mode. */
-        bool writeFileAtomically(const std::filesystem::path& path, std::string_view content, std::error_code& error) {
-            const auto temporary = path.parent_path() / (path.filename().string() + ".vanh-migration.tmp");
+        bool writeFileAtomically(
+            const std::filesystem::path& path, std::string_view content, std::error_code& error) {
+            const auto temporary =
+                path.parent_path() / (path.filename().string() + ".vanh-migration.tmp");
             {
                 std::ofstream file(temporary, std::ios::binary | std::ios::trunc);
                 if (!file) {
@@ -147,14 +150,17 @@ namespace vanh::migration {
          * @brief Copies one file to a new name unless the new name exists.
          * @param transform Optional rewrite of the content (nullptr copies the bytes).
          */
-        void migrateFile(const std::filesystem::path& from, const std::filesystem::path& to, std::string (*transform)(std::string_view), std::vector<std::string>& log) {
+        void migrateFile(const std::filesystem::path& from, const std::filesystem::path& to,
+            std::string (*transform)(std::string_view), std::vector<std::string>&        log) {
             std::error_code error;
-            if (!std::filesystem::is_regular_file(from, error) || std::filesystem::exists(to, error)) {
+            if (!std::filesystem::is_regular_file(from, error) ||
+                std::filesystem::exists(to, error)) {
                 return;
             }
             std::filesystem::create_directories(to.parent_path(), error);
             if (error) {
-                log.push_back("Cannot create " + to.parent_path().string() + ": " + error.message());
+                log.push_back(
+                    "Cannot create " + to.parent_path().string() + ": " + error.message());
                 return;
             }
             bool       ok      = false;
@@ -163,29 +169,15 @@ namespace vanh::migration {
                 log.push_back("Cannot read " + from.string());
                 return;
             }
-            if (!writeFileAtomically(to, transform != nullptr ? transform(content) : content, error)) {
+            if (!writeFileAtomically(
+                    to, transform != nullptr ? transform(content) : content, error)) {
                 log.push_back("Cannot write " + to.string() + ": " + error.message());
                 return;
             }
             log.push_back("Migrated " + from.string() + " -> " + to.string());
         }
 
-        std::string migrateMainConfigTextFn(std::string_view text) {
-            return migrateMainConfigText(text);
-        }
-
     } // namespace
-
-    const std::vector<FileRename>& configFileRenames() {
-        static const std::vector<FileRename> renames{
-            {.from = "conf/lotus.conf", .to = "conf/vanh.conf"},
-            {.from = "conf/lotus-macro-table.conf", .to = "conf/vanh-macro-table.conf"},
-            {.from = "conf/lotus-custom-keymap.conf", .to = "conf/vanh-custom-keymap.conf"},
-            {.from = "conf/lotus-app-rules.conf", .to = "conf/vanh-app-rules.conf"},
-            {.from = "conf/lotus-emoji-history.conf", .to = "conf/vanh-emoji-history.conf"},
-        };
-        return renames;
-    }
 
     std::string migrateMainConfigText(std::string_view text) {
         std::string result;
@@ -193,10 +185,8 @@ namespace vanh::migration {
         for (const auto line : splitLines(text)) {
             const auto keyValue = keyValueOf(line);
             if (keyValue && keyValue->first == "UseLotusIcons") {
-                const auto content = body(line);
-                const auto keyPos  = content.find("UseLotusIcons");
                 std::string rewritten(line);
-                rewritten.replace(keyPos, std::string_view("UseLotusIcons").size(), "UseVanhIcons");
+                rewritten.replace(body(line).find("UseLotusIcons"), 13, "UseVanhIcons");
                 result += rewritten;
             } else {
                 result += line;
@@ -217,10 +207,12 @@ namespace vanh::migration {
                 kind = classifySection(*section, group);
                 continue;
             }
-            if (kind == 2) {
-                if (const auto keyValue = keyValueOf(line); keyValue && keyValue->first == "Name" && keyValue->second == kNewId) {
-                    groupHasNew[group] = true;
-                }
+            if (kind != 2) {
+                continue;
+            }
+            const auto keyValue = keyValueOf(line);
+            if (keyValue && keyValue->first == "Name" && keyValue->second == kNewId) {
+                groupHasNew[group] = true;
             }
         }
 
@@ -237,7 +229,8 @@ namespace vanh::migration {
             }
             const auto keyValue = keyValueOf(line);
             if (keyValue && keyValue->second == kOldId) {
-                const bool renameItem    = kind == 2 && keyValue->first == "Name" && !groupHasNew[group];
+                const bool renameItem =
+                    kind == 2 && keyValue->first == "Name" && !groupHasNew[group];
                 const bool renameDefault = kind == 1 && keyValue->first == "DefaultIM";
                 if (renameItem || renameDefault) {
                     result += replaceValue(line, kNewId);
@@ -254,12 +247,12 @@ namespace vanh::migration {
     }
 
     std::vector<ProfileGroup> parseProfileGroups(std::string_view text) {
-        std::vector<ProfileGroup>                 groups;
-        std::map<std::string_view, std::size_t>   groupIndex;
-        std::string_view                          group;
-        int                                       kind = 0;
-        ProfileGroup::Item*                       item = nullptr;
-        auto                                      groupFor = [&groups, &groupIndex](std::string_view section) -> ProfileGroup& {
+        std::vector<ProfileGroup>               groups;
+        std::map<std::string_view, std::size_t> groupIndex;
+        std::string_view                        group;
+        int                                     kind = 0;
+        ProfileGroup::Item*                     item = nullptr;
+        auto groupFor = [&groups, &groupIndex](std::string_view section) -> ProfileGroup& {
             const auto [it, inserted] = groupIndex.try_emplace(section, groups.size());
             if (inserted) {
                 groups.emplace_back();
@@ -298,24 +291,32 @@ namespace vanh::migration {
         return groups;
     }
 
-    std::vector<std::string> migrateUserFiles(const std::filesystem::path& fcitxConfigDir, const std::filesystem::path& fcitxDataDir) {
+    std::vector<std::string> migrateUserFiles(
+        const std::filesystem::path& fcitxConfigDir, const std::filesystem::path& fcitxDataDir) {
         std::vector<std::string> log;
-        for (const auto& rename : configFileRenames()) {
-            migrateFile(fcitxConfigDir / rename.from, fcitxConfigDir / rename.to, rename.from == "conf/lotus.conf" ? &migrateMainConfigTextFn : nullptr, log);
+        for (const auto* name :
+            {"", "-macro-table", "-custom-keymap", "-app-rules", "-emoji-history"}) {
+            const std::string suffix = std::string(name) + ".conf";
+            migrateFile(fcitxConfigDir / ("conf/" + std::string(kOldId) + suffix),
+                fcitxConfigDir / ("conf/" + std::string(kNewId) + suffix),
+                *name == '\0' ? migrateMainConfigText : nullptr, log);
         }
 
         const auto      oldData = fcitxDataDir / std::string(kOldId);
         const auto      newData = fcitxDataDir / std::string(kNewId);
         std::error_code error;
-        if (std::filesystem::is_directory(oldData, error)) {
-            for (auto it = std::filesystem::recursive_directory_iterator(oldData, error); !error && it != std::filesystem::recursive_directory_iterator(); it.increment(error)) {
-                if (it->is_regular_file(error)) {
-                    migrateFile(it->path(), newData / std::filesystem::relative(it->path(), oldData), nullptr, log);
-                }
+        if (!std::filesystem::is_directory(oldData, error)) {
+            return log;
+        }
+        using Iterator = std::filesystem::recursive_directory_iterator;
+        for (auto it = Iterator(oldData, error); !error && it != Iterator(); it.increment(error)) {
+            if (it->is_regular_file(error)) {
+                migrateFile(it->path(), newData / std::filesystem::relative(it->path(), oldData),
+                    nullptr, log);
             }
-            if (error) {
-                log.push_back("Cannot list " + oldData.string() + ": " + error.message());
-            }
+        }
+        if (error) {
+            log.push_back("Cannot list " + oldData.string() + ": " + error.message());
         }
         return log;
     }

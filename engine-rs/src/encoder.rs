@@ -39,19 +39,36 @@ mod tests {
     #[test]
     fn golden_charset_corpus() {
         let names = [
-            "Unicode", "BKHCM 1", "BKHCM 2", "NCR Decimal", "NCR Hex", "TCVN3 (ABC)", "UTF-8", "Unicode C string Decimal",
-            "Unicode C string Hex", "Unicode tổ hợp", "VIQR", "VISCII", "VNI Windows", "VPS", "Vietware Full", "Vietware X",
+            "Unicode",
+            "BKHCM 1",
+            "BKHCM 2",
+            "NCR Decimal",
+            "NCR Hex",
+            "TCVN3 (ABC)",
+            "UTF-8",
+            "Unicode C string Decimal",
+            "Unicode C string Hex",
+            "Unicode tổ hợp",
+            "VIQR",
+            "VISCII",
+            "VNI Windows",
+            "VPS",
+            "Vietware Full",
+            "Vietware X",
             "Windows 1258 codepage",
         ];
         let rows = crate::test_support::read_golden("charset.tsv");
         assert!(rows.len() > 1000);
         let mut seen = std::collections::HashSet::new();
         for row in rows {
-            let charset = names.iter().position(|n| *n == row[0]).map(|i| Charset::ALL[i]).expect("known charset");
+            let index = names.iter().position(|n| *n == row[0]).expect("known charset");
+            let charset = Charset::ALL[index];
             seen.insert(charset as usize);
-            let code_point = char::from_u32(u32::from_str_radix(&row[1][2..], 16).unwrap()).unwrap();
-            let expected = crate::test_support::from_hex(row.get(2).map(String::as_str).unwrap_or(""));
-            assert_eq!(encode(charset, &[code_point]).as_bytes(), expected.as_slice(), "{} U+{:04X}", row[0], code_point as u32);
+            let code_point = u32::from_str_radix(&row[1][2..], 16).unwrap();
+            let c = char::from_u32(code_point).unwrap();
+            let expected = crate::test_support::from_hex(row.get(2).map_or("", String::as_str));
+            let actual = encode(charset, &[c]);
+            assert_eq!(actual.as_bytes(), expected, "{} U+{code_point:04X}", row[0]);
         }
         assert_eq!(seen.len(), 17);
     }

@@ -155,8 +155,22 @@ class DynamicSettingsPage(QWidget):
         self.shortcut_warning_labels = {}
         self.validation_errors = []
         self.list_widgets = []  # Track list widgets for layout refresh
+        self.all_metadata = {}
 
-        self._setup_ui()
+        self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setFrameShape(QFrame.NoFrame)
+
+        self.container = ScrollContent()
+        self.container_layout = QVBoxLayout(self.container)
+        self.container_layout.setContentsMargins(30, 20, 30, 20)
+        self.container_layout.setSpacing(20)
+
+        self.scroll.setWidget(self.container)
+        self.layout.addWidget(self.scroll)
         self.load_config()
 
     def showEvent(self, event):
@@ -177,22 +191,6 @@ class DynamicSettingsPage(QWidget):
                     total_h += h + 4
             lw.setFixedHeight(total_h + 15)
             lw.update()
-
-    def _setup_ui(self):
-        self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(0, 0, 0, 0)
-
-        self.scroll = QScrollArea()
-        self.scroll.setWidgetResizable(True)
-        self.scroll.setFrameShape(QFrame.NoFrame)
-
-        self.container = ScrollContent()
-        self.container_layout = QVBoxLayout(self.container)
-        self.container_layout.setContentsMargins(30, 20, 30, 20)
-        self.container_layout.setSpacing(20)
-
-        self.scroll.setWidget(self.container)
-        self.layout.addWidget(self.scroll)
 
     def load_config(self):
         self.blockSignals(True)
@@ -287,8 +285,6 @@ class DynamicSettingsPage(QWidget):
             self.blockSignals(False)
 
     def is_modified_from_default(self):
-        if not hasattr(self, "all_metadata"):
-            return False
         for key, val in self.current_values.items():
             meta = self.all_metadata.get(key)
             if meta:
@@ -325,9 +321,6 @@ class DynamicSettingsPage(QWidget):
     def _render_combobox(self, item, layout):
         key, type_str, label, default, annotations = item
         val = str(self.current_values.get(key, default))
-
-        if "Enum" not in annotations:
-            return
 
         row_layout = QHBoxLayout()
         label_widget = QLabel(_(label))
@@ -458,7 +451,6 @@ class DynamicSettingsPage(QWidget):
         # Map internal name back to shortcut key
         internal_to_key = {v: k for k, v in MODE_KEY_TO_INTERNAL_NAME.items()}
 
-        total_height = 0
         for name in order:
             key = internal_to_key.get(name)
             if not key:
@@ -499,7 +491,6 @@ class DynamicSettingsPage(QWidget):
             # ONLY use the height from hint, use small width to let QListWidget expand it properly.
             # Large width hints from QHBoxLayout+Stretch cause overflow.
             list_item.setSizeHint(QSize(100, hint.height()))
-            total_height += hint.height() + 4  # 4 for margins/spacing
 
             list_widget.addItem(list_item)
             list_widget.setItemWidget(list_item, container)
@@ -508,18 +499,15 @@ class DynamicSettingsPage(QWidget):
             list_item.setData(Qt.UserRole, name)
 
         self.list_widgets.append(list_widget)
-        list_widget.model().rowsMoved.connect(lambda *args: self._update_mode_order(list_widget))
+        list_widget.model().rowsMoved.connect(
+            lambda *args: self.update_config(
+                "ModeOrder",
+                ",".join(list_widget.item(i).data(Qt.UserRole) for i in range(list_widget.count())),
+            )
+        )
 
         card.content_layout.addWidget(list_widget)
         card_layout.addWidget(card)
-
-    def _update_mode_order(self, list_widget):
-        new_order = []
-        for i in range(list_widget.count()):
-            item = list_widget.item(i)
-            new_order.append(item.data(Qt.UserRole))
-
-        self.update_config("ModeOrder", ",".join(new_order))
 
     def _validate_mode_shortcuts(self):
         """Check for duplicate shortcuts among enabled modes."""
@@ -536,26 +524,19 @@ class DynamicSettingsPage(QWidget):
         enabled_shortcuts = {}
         for shortcut_key, visibility_key in MODE_SHORTCUT_TO_VISIBILITY.items():
             default_visibility = "True"
-            vis_meta = (
-                self.all_metadata.get(visibility_key) if hasattr(self, "all_metadata") else None
-            )
+            vis_meta = self.all_metadata.get(visibility_key)
             if vis_meta:
                 default_visibility = vis_meta[3]
 
-            is_enabled = config_bool(self.current_values, visibility_key, default_visibility)
-            if is_enabled:
-                default_shortcut = ""
-                shortcut_meta = (
-                    self.all_metadata.get(shortcut_key) if hasattr(self, "all_metadata") else None
-                )
-                if shortcut_meta:
-                    default_shortcut = shortcut_meta[3]
-                val = self.current_values.get(shortcut_key, default_shortcut)
-                if val:
-                    if val in enabled_shortcuts:
-                        enabled_shortcuts[val].append(shortcut_key)
-                    else:
-                        enabled_shortcuts[val] = [shortcut_key]
+            if not config_bool(self.current_values, visibility_key, default_visibility):
+                continue
+            default_shortcut = ""
+            shortcut_meta = self.all_metadata.get(shortcut_key)
+            if shortcut_meta:
+                default_shortcut = shortcut_meta[3]
+            val = self.current_values.get(shortcut_key, default_shortcut)
+            if val:
+                enabled_shortcuts.setdefault(val, []).append(shortcut_key)
 
         # Flag duplicates
         for shortcut, keys in enabled_shortcuts.items():
@@ -613,16 +594,14 @@ class DynamicSettingsPage(QWidget):
             return True
 
         config_data = self.dbus.get_config()
-        if config_data:
-            latest_values = config_data.get("values", {})
-            latest_values.update(self.modified_values)
-            if not self.dbus.set_config(latest_values):
-                return False
-            self.modified_values.clear()
-            self.initial_values = self.current_values.copy()
-            return True
-        elif not self.dbus.iface:
+        if not config_data:
+            return bool(self.dbus.iface)
+        latest_values = config_data.get("values", {})
+        latest_values.update(self.modified_values)
+        if not self.dbus.set_config(latest_values):
             return False
+        self.modified_values.clear()
+        self.initial_values = self.current_values.copy()
         return True
 
     def update_config(self, key: str, new_value):

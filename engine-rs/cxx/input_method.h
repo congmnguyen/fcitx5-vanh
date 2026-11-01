@@ -30,13 +30,14 @@ namespace lotus {
         }
 
       private:
-        friend InputMethod        parseInputMethod(const std::unordered_map<std::string, std::string>& definition);
-        friend const InputMethod& cachedInputMethod(InputMethodId id);
+        friend InputMethod parseInputMethod(
+            const std::unordered_map<std::string, std::string>& definition);
+        friend const InputMethod&               cachedInputMethod(InputMethodId id);
         std::shared_ptr<const LotusInputMethod> handle_;
     };
 
     /**
-     * @brief Parses an input method definition (key -> definition line), like Go's ParseInputMethod.
+     * @brief Parses a definition (key -> definition line), like Go's ParseInputMethod.
      * @param definition Definition lines by key, UTF-8.
      * @return Parsed input method.
      */

@@ -15,8 +15,8 @@
 
 namespace fcitx {
 
-    // EmojiCandidateWord implementation
-    EmojiCandidateWord::EmojiCandidateWord(Text text, LotusState* state, EmojiEntry entry) : CandidateWord(std::move(text)), state_(*state), entry_(std::move(entry)) {}
+    EmojiCandidateWord::EmojiCandidateWord(Text text, LotusState* state, EmojiEntry entry) :
+        CandidateWord(std::move(text)), state_(*state), entry_(std::move(entry)) {}
 
     void EmojiCandidateWord::select(InputContext* /*inputContext*/) const {
         state_.ic_.commitString(entry_.output);
@@ -32,13 +32,12 @@ namespace fcitx {
         state_.updateEmojiPreedit();
     }
 
-    // AppModeCandidateWord implementation
-    AppModeCandidateWord::AppModeCandidateWord(Text text, std::function<void(InputContext*)> callback) : CandidateWord(std::move(text)), callback_(std::move(callback)) {}
+    AppModeCandidateWord::AppModeCandidateWord(
+        Text text, std::function<void(InputContext*)> callback) :
+        CandidateWord(std::move(text)), callback_(std::move(callback)) {}
 
     void AppModeCandidateWord::select(InputContext* ic) const {
-        if (callback_) {
-            callback_(ic);
-        }
+        callback_(ic);
     }
 
 } // namespace fcitx

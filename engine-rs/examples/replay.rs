@@ -5,9 +5,10 @@
 //! replace the shown word, a rewrite deletes the earlier words first, Enter keeps what is shown),
 //! and counts the words that come out wrong.
 //!
-//!   replay run   CORPUS [--config default|user|bamboo|off] [--split test|dev|all] [--tier typed|doc|all]
-//!                       [--worst N] [--errors FILE] [--learn FILE]
-//!   replay keys  CORPUS OUT        writes the keystrokes of every segment (one line each, for other engines)
+//!   replay run   CORPUS [--config default|user|bamboo|off] [--split test|dev|all]
+//!                       [--tier typed|doc|all] [--worst N] [--errors FILE] [--learn FILE]
+//!   replay keys  CORPUS OUT        writes the keystrokes of every segment (one line each, for
+//!                                  other engines)
 //!   replay score CORPUS OUTPUTS [--split ..] [--tier ..] [--worst N] [--name NAME]
 //!                                  scores the text another engine produced for those keystrokes
 //!   replay bench CORPUS            latency of process_key over the corpus keystrokes
@@ -21,6 +22,7 @@ use lotus_engine::input_method::cached_input_method;
 use lotus_engine::key_processor::{KeyProcessor, Options, Shared};
 use lotus_engine::types::{key_state, BracketTransformMode, InputMethodId, W2uMode};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
@@ -127,7 +129,7 @@ fn telex_candidates(word: &[char]) -> Vec<Vec<char>> {
     let tone_char = TONE_KEYS[tone];
     let mut out = Vec::new();
     let with_tone = |at: usize| if tone == 0 { None } else { Some((at, tone_char)) };
-    if TONE_AFTER_VOWEL.load(std::sync::atomic::Ordering::Relaxed) {
+    if TONE_AFTER_VOWEL.load(Ordering::Relaxed) {
         out.push(cased(keys.clone(), with_tone(last_vowel)));
     }
     out.push(cased(keys.clone(), with_tone(last)));
@@ -156,7 +158,8 @@ enum Config {
 }
 
 fn options(config: Config) -> Options {
-    let mut o = Options::default();
+    let mut o =
+        Options { bracket_transform: Some(BracketTransformMode::Disabled), ..Default::default() };
     match config {
         Config::Default => {
             o.english_restore = true;
@@ -165,32 +168,24 @@ fn options(config: Config) -> Options {
             o.modern_style = true;
             o.macro_enabled = true;
             o.w2u = Some(W2uMode::NonStart);
-            o.bracket_transform = Some(BracketTransformMode::Disabled);
         }
-        Config::User => {
+        Config::User | Config::UserRestore => {
             o.english_restore = true;
-            o.auto_non_vn_restore = false;
-            o.spell_check_with_dicts = false;
+            o.auto_non_vn_restore = config == Config::UserRestore;
+            o.spell_check_with_dicts = config == Config::UserRestore;
             o.modern_style = false;
             o.macro_enabled = false;
             o.w2u = Some(W2uMode::Disabled);
-            o.bracket_transform = Some(BracketTransformMode::Disabled);
-        }
-        Config::UserRestore => {
-            o = options(Config::User);
-            o.auto_non_vn_restore = true;
-            o.spell_check_with_dicts = true;
         }
         Config::Bamboo => {
-            // bamboo-core with fcitx5-bamboo's wrapper (what ibus-bamboo runs, minus its UI layer):
-            // invalid words go back to the keys, no English restore.
+            // bamboo-core with fcitx5-bamboo's wrapper (what ibus-bamboo runs, minus its UI
+            // layer): invalid words go back to the keys, no English restore.
             o.english_restore = false;
             o.auto_non_vn_restore = true;
             o.spell_check_with_dicts = true;
             o.modern_style = false;
             o.macro_enabled = false;
             o.w2u = Some(W2uMode::NonStart);
-            o.bracket_transform = Some(BracketTransformMode::Disabled);
         }
         Config::Off => {
             o.english_restore = false;
@@ -198,10 +193,19 @@ fn options(config: Config) -> Options {
             o.spell_check_with_dicts = false;
             o.macro_enabled = false;
             o.w2u = Some(W2uMode::Disabled);
-            o.bracket_transform = Some(BracketTransformMode::Disabled);
         }
     }
     o
+}
+
+fn config_of(args: &[String]) -> Config {
+    match arg(args, "--config").as_deref() {
+        Some("user") => Config::User,
+        Some("user-restore") => Config::UserRestore,
+        Some("bamboo") => Config::Bamboo,
+        Some("off") => Config::Off,
+        _ => Config::Default,
+    }
 }
 
 fn dictionary() -> Shared<Dictionary> {
@@ -227,17 +231,26 @@ fn key_event(c: char) -> (u32, u32) {
 /// What the uinput modes leave on screen for a run of keys, ended by Enter.
 /// The addon runs the restore at Enter (`--no-enter-fix` models the addon before it did).
 /// `--tone-after-vowel`: type the tone key right after the vowels ("Vieejt"), not last ("Vieetj").
-static TONE_AFTER_VOWEL: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-static ENTER_FIX: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
+static TONE_AFTER_VOWEL: AtomicBool = AtomicBool::new(false);
+static ENTER_FIX: AtomicBool = AtomicBool::new(true);
 
+#[derive(Default)]
 struct Screen {
     committed: Vec<char>,
     preedit: Vec<char>,
 }
 
 impl Screen {
-    fn new() -> Screen {
-        Screen { committed: Vec::new(), preedit: Vec::new() }
+    /// Replaces the last `before` characters by `commit`.
+    fn replace_tail(&mut self, before: &[char], commit: &[char]) {
+        if self.committed.ends_with(before) {
+            self.committed.truncate(self.committed.len() - before.len());
+        } else {
+            // The engine asked to delete text that is not there: count it as damage.
+            self.committed.push('\u{FFFD}');
+        }
+        self.preedit.clear();
+        self.committed.extend_from_slice(commit);
     }
 
     fn key(&mut self, p: &mut KeyProcessor, c: char) {
@@ -245,23 +258,11 @@ impl Screen {
         let processed = p.process_key(kv, st);
         let commit = p.take_commit();
         if !commit.is_empty() || (processed && p.preedit().is_empty() && !self.preedit.is_empty()) {
-            let before = p.take_rewritten_before();
-            if !before.is_empty() {
-                if self.committed.ends_with(&before) {
-                    self.committed.truncate(self.committed.len() - before.len());
-                } else {
-                    // The engine asked to delete text that is not there: count it as damage.
-                    self.committed.push('\u{FFFD}');
-                }
-            }
-            self.preedit.clear();
-            self.committed.extend_from_slice(&commit);
+            self.replace_tail(&p.take_rewritten_before(), &commit);
             if !processed {
                 self.committed.push(c);
             }
-            return;
-        }
-        if processed {
+        } else if processed {
             self.preedit = p.preedit().to_vec();
         } else {
             self.committed.append(&mut self.preedit);
@@ -271,16 +272,9 @@ impl Screen {
 
     /// Enter: the shown text stays, the engine starts over.
     fn enter(&mut self, p: &mut KeyProcessor) -> Vec<char> {
-        if ENTER_FIX.load(std::sync::atomic::Ordering::Relaxed) && p.end_word() {
+        if ENTER_FIX.load(Ordering::Relaxed) && p.end_word() {
             let commit = p.take_commit();
-            let before = p.take_rewritten_before();
-            if self.committed.ends_with(&before) {
-                self.committed.truncate(self.committed.len() - before.len());
-            } else {
-                self.committed.push('\u{FFFD}');
-            }
-            self.preedit.clear();
-            self.committed.extend_from_slice(&commit);
+            self.replace_tail(&p.take_rewritten_before(), &commit);
         }
         let _ = p.take_commit();
         p.reset();
@@ -288,6 +282,15 @@ impl Screen {
         let mut out = std::mem::take(&mut self.committed);
         out.append(&mut self.preedit);
         out
+    }
+
+    /// Types `keys`, then Enter; the text left on screen.
+    fn type_line(p: &mut KeyProcessor, keys: &[char]) -> String {
+        let mut screen = Screen::default();
+        for &c in keys {
+            screen.key(p, c);
+        }
+        screen.enter(p).into_iter().collect()
     }
 }
 
@@ -323,10 +326,14 @@ fn read_corpus(path: &str) -> Vec<Row> {
 struct Typist {
     dict: Shared<Dictionary>,
     cache: HashMap<Vec<char>, Option<Vec<char>>>,
-    pub untypeable: HashMap<String, usize>,
+    untypeable: HashMap<String, usize>,
 }
 
 impl Typist {
+    fn new(dict: &Shared<Dictionary>) -> Typist {
+        Typist { dict: dict.clone(), cache: HashMap::new(), untypeable: HashMap::new() }
+    }
+
     fn word_keys(&mut self, word: &[char]) -> Option<Vec<char>> {
         if let Some(k) = self.cache.get(word) {
             return k.clone();
@@ -334,13 +341,14 @@ impl Typist {
         let mut found = None;
         for cand in telex_candidates(word) {
             let mut p = processor(Config::Off, &self.dict);
-            let mut s = Screen::new();
+            let mut s = Screen::default();
             for &c in &cand {
                 s.key(&mut p, c);
             }
             s.key(&mut p, ' ');
             let out = s.enter(&mut p);
-            if out.len() == word.len() + 1 && (out[..word.len()] == *word || canon(&out[..word.len()]) == canon(word)) {
+            let typed = &out[..word.len().min(out.len())];
+            if out.len() == word.len() + 1 && (typed == word || canon(typed) == canon(word)) {
                 found = Some(cand);
                 break;
             }
@@ -395,20 +403,10 @@ struct Err {
 fn classify(label: char, expected: &str, got: &str) -> &'static str {
     let has_vn = |s: &str| s.chars().any(is_vn_letter);
     match label {
-        'v' => {
-            if !has_vn(got) && has_vn(expected) {
-                "vn->en"
-            } else {
-                "vn-mangled"
-            }
-        }
-        'e' => {
-            if has_vn(got) {
-                "en->vn"
-            } else {
-                "en-mangled"
-            }
-        }
+        'v' if !has_vn(got) && has_vn(expected) => "vn->en",
+        'v' => "vn-mangled",
+        'e' if has_vn(got) => "en->vn",
+        'e' => "en-mangled",
         'c' => "code-mangled",
         _ => "other-mangled",
     }
@@ -435,15 +433,20 @@ struct Tally {
 fn score_row(t: &mut Tally, row: &Row, out: &str) {
     let exp: Vec<&str> = row.text.split(' ').collect();
     let got: Vec<&str> = out.split(' ').collect();
-    for &l in row.labels.iter() {
-        if l != 'o' {
-            *t.words.entry(l).or_default() += 1;
-        }
+    for &l in row.labels.iter().filter(|&&l| l != 'o') {
+        *t.words.entry(l).or_default() += 1;
     }
     if exp.len() != got.len() {
         // Spaces moved: blame every letter token that differs by position up to the first gap.
-        let e = Err { label: 'x', kind: "split", expected: row.text.clone(), got: out.into(), context: row.text.clone(), id: row.id.clone(), eol: false };
-        t.errors.push(e);
+        t.errors.push(Err {
+            label: 'x',
+            kind: "split",
+            expected: row.text.clone(),
+            got: out.into(),
+            context: row.text.clone(),
+            id: row.id.clone(),
+            eol: false,
+        });
         return;
     }
     for (i, (&e, &g)) in exp.iter().zip(&got).enumerate() {
@@ -471,8 +474,12 @@ fn report(name: &str, t: &Tally, worst: usize, errors_file: Option<&str>) {
     let per_k = |c: usize, d: usize| if d == 0 { 0.0 } else { 1000.0 * c as f64 / d as f64 };
     println!("== {name}");
     println!(
-        "segments {} (skipped {} with untypeable words), words {} (vn {}, en {}, code {})",
-        t.segments, t.skipped_segments, total, n('v'), n('e'), n('c')
+        "segments {} (skipped {} with untypeable words), words {total} (vn {}, en {}, code {})",
+        t.segments,
+        t.skipped_segments,
+        n('v'),
+        n('e'),
+        n('c')
     );
     let vn_en = count("vn->en");
     let vn_m = count("vn-mangled");
@@ -489,14 +496,14 @@ fn report(name: &str, t: &Tally, worst: usize, errors_file: Option<&str>) {
         ("code token mangled", code, n('c')),
         ("other (spacing/punctuation)", split, total),
     ] {
-        println!("{:<34}{:>7}{:>14.2}{:>16.2}", label, c, per_k(c, total), per_k(c, d));
+        println!("{label:<34}{c:>7}{:>14.2}{:>16.2}", per_k(c, total), per_k(c, d));
     }
     let all = t.errors.len();
     println!("{:<34}{:>7}{:>14.2}", "TOTAL", all, per_k(all, total));
     let mut groups: HashMap<(String, String, &str), (usize, String)> = HashMap::new();
     for e in &t.errors {
-        let g = groups.entry((e.expected.clone(), e.got.clone(), e.kind)).or_insert((0, e.context.clone()));
-        g.0 += 1;
+        let key = (e.expected.clone(), e.got.clone(), e.kind);
+        groups.entry(key).or_insert((0, e.context.clone())).0 += 1;
     }
     let mut g: Vec<_> = groups.into_iter().collect();
     g.sort_by(|a, b| b.1 .0.cmp(&a.1 .0).then(a.0.cmp(&b.0)));
@@ -509,7 +516,11 @@ fn report(name: &str, t: &Tally, worst: usize, errors_file: Option<&str>) {
     if let Some(path) = errors_file {
         let mut s = String::new();
         for e in &t.errors {
-            s.push_str(&format!("{}\t{}\t{}\t{}\t{}\t{}\t{}\n", e.kind, e.label, e.expected, e.got, e.id, if e.eol { "eol" } else { "mid" }, e.context));
+            let eol = if e.eol { "eol" } else { "mid" };
+            s.push_str(&format!(
+                "{}\t{}\t{}\t{}\t{}\t{eol}\t{}\n",
+                e.kind, e.label, e.expected, e.got, e.id, e.context
+            ));
         }
         std::fs::write(path, s).unwrap();
     }
@@ -519,14 +530,15 @@ fn arg(args: &[String], name: &str) -> Option<String> {
     args.iter().position(|a| a == name).and_then(|i| args.get(i + 1).cloned())
 }
 
-fn selected<'a>(rows: &'a [Row], args: &[String]) -> Vec<&'a Row> {
+fn selected<'a>(rows: &'a [Row], args: &[String]) -> Vec<(usize, &'a Row)> {
     let split = arg(args, "--split").unwrap_or_else(|| "test".into());
     let tier = arg(args, "--tier").unwrap_or_else(|| "all".into());
     let source = arg(args, "--source");
     rows.iter()
-        .filter(|r| split == "all" || r.split == split)
-        .filter(|r| tier == "all" || r.tier == tier)
-        .filter(|r| source.as_deref().is_none_or(|s| r.source == s))
+        .enumerate()
+        .filter(|(_, r)| split == "all" || r.split == split)
+        .filter(|(_, r)| tier == "all" || r.tier == tier)
+        .filter(|(_, r)| source.as_deref().is_none_or(|s| r.source == s))
         .collect()
 }
 
@@ -534,17 +546,12 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     let cmd = args.get(1).map(String::as_str).unwrap_or("");
     let dict = dictionary();
+    let mut typist = Typist::new(&dict);
     if cmd == "type" {
-        // replay type [--config X] [--raw] TEXT...: the output for each text (Telex keys unless --raw).
-        let config = match arg(&args, "--config").as_deref() {
-            Some("user") => Config::User,
-            Some("user-restore") => Config::UserRestore,
-            Some("bamboo") => Config::Bamboo,
-            _ => Config::Default,
-        };
-        let mut typist = Typist { dict: dict.clone(), cache: HashMap::new(), untypeable: HashMap::new() };
+        // replay type [--config X] [--raw] TEXT...: the output for each text (Telex keys unless
+        // --raw).
         let raw = args.iter().any(|a| a == "--raw");
-        let mut p = processor(config, &dict);
+        let mut p = processor(config_of(&args), &dict);
         let mut skip = false;
         for a in &args[2..] {
             if skip || a == "--raw" {
@@ -555,24 +562,20 @@ fn main() {
                 skip = true;
                 continue;
             }
-            let keys: Vec<char> = if raw { a.chars().collect() } else { typist.segment_keys(a).unwrap_or_default() };
-            let mut s = Screen::new();
-            for &c in &keys {
-                s.key(&mut p, c);
-            }
-            let out: String = s.enter(&mut p).into_iter().collect();
-            println!("{} | {} -> {}", if out == *a { "ok " } else { "BAD" }, keys.iter().collect::<String>(), out);
+            let keys: Vec<char> =
+                if raw { a.chars().collect() } else { typist.segment_keys(a).unwrap_or_default() };
+            let out = Screen::type_line(&mut p, &keys);
+            let status = if out == *a { "ok " } else { "BAD" };
+            println!("{status} | {} -> {out}", keys.iter().collect::<String>());
         }
         return;
     }
-    let corpus = args.get(2).expect("corpus path");
-    let rows = read_corpus(corpus);
-    let mut typist = Typist { dict: dict.clone(), cache: HashMap::new(), untypeable: HashMap::new() };
+    let rows = read_corpus(args.get(2).expect("corpus path"));
     if args.iter().any(|a| a == "--tone-after-vowel") {
-        TONE_AFTER_VOWEL.store(true, std::sync::atomic::Ordering::Relaxed);
+        TONE_AFTER_VOWEL.store(true, Ordering::Relaxed);
     }
     if args.iter().any(|a| a == "--no-enter-fix") {
-        ENTER_FIX.store(false, std::sync::atomic::Ordering::Relaxed);
+        ENTER_FIX.store(false, Ordering::Relaxed);
     }
     let worst: usize = arg(&args, "--worst").map_or(50, |w| w.parse().unwrap());
     match cmd {
@@ -588,30 +591,20 @@ fn main() {
             std::fs::write(&args[3], s).unwrap();
         }
         "run" => {
-            let config = match arg(&args, "--config").as_deref() {
-                Some("user") => Config::User,
-                Some("user-restore") => Config::UserRestore,
-                Some("bamboo") => Config::Bamboo,
-                Some("off") => Config::Off,
-                _ => Config::Default,
-            };
-            let mut p = processor(config, &dict);
+            let mut p = processor(config_of(&args), &dict);
             let mut t = Tally::default();
-            for r in selected(&rows, &args) {
+            for (_, r) in selected(&rows, &args) {
                 let Some(keys) = typist.segment_keys(&r.text) else {
                     t.skipped_segments += 1;
                     t.skipped_words += r.labels.iter().filter(|&&l| l != 'o').count();
                     continue;
                 };
                 t.segments += 1;
-                let mut s = Screen::new();
-                for &c in &keys {
-                    s.key(&mut p, c);
-                }
-                let out: String = s.enter(&mut p).into_iter().collect();
-                score_row(&mut t, r, &out);
+                score_row(&mut t, r, &Screen::type_line(&mut p, &keys));
             }
-            let name = arg(&args, "--name").unwrap_or_else(|| format!("vanh ({})", arg(&args, "--config").unwrap_or("default".into())));
+            let name = arg(&args, "--name").unwrap_or_else(|| {
+                format!("vanh ({})", arg(&args, "--config").unwrap_or("default".into()))
+            });
             report(&name, &t, worst, arg(&args, "--errors").as_deref());
             let mut u: Vec<_> = typist.untypeable.iter().collect();
             u.sort_by(|a, b| b.1.cmp(a.1));
@@ -619,37 +612,32 @@ fn main() {
             println!("untypeable words: {} ({})", u.len(), top.join(" "));
         }
         "score" => {
-            let outputs: Vec<String> = std::fs::read_to_string(&args[3]).unwrap().lines().map(String::from).collect();
+            let outputs = std::fs::read_to_string(&args[3]).unwrap();
+            let outputs: Vec<&str> = outputs.lines().collect();
             assert_eq!(outputs.len(), rows.len(), "one output line per corpus row");
-            let index: HashMap<*const Row, usize> = rows.iter().enumerate().map(|(i, r)| (r as *const Row, i)).collect();
             let mut t = Tally::default();
-            for r in selected(&rows, &args) {
-                let out = &outputs[index[&(r as *const Row)]];
-                if out.starts_with('\u{1}') {
+            for (i, r) in selected(&rows, &args) {
+                if outputs[i].starts_with('\u{1}') {
                     t.skipped_segments += 1;
                     continue;
                 }
                 t.segments += 1;
-                score_row(&mut t, r, out);
+                score_row(&mut t, r, outputs[i]);
             }
-            report(&arg(&args, "--name").unwrap_or("external".into()), &t, worst, arg(&args, "--errors").as_deref());
+            let name = arg(&args, "--name").unwrap_or("external".into());
+            report(&name, &t, worst, arg(&args, "--errors").as_deref());
         }
         "bench" => {
-            let config = match arg(&args, "--config").as_deref() {
-                Some("user") => Config::User,
-                Some("user-restore") => Config::UserRestore,
-                Some("bamboo") => Config::Bamboo,
-                _ => Config::Default,
-            };
-            let all: Vec<Vec<char>> = rows.iter().filter_map(|r| typist.segment_keys(&r.text)).collect();
-            let mut p = processor(config, &dict);
+            let all: Vec<Vec<char>> =
+                rows.iter().filter_map(|r| typist.segment_keys(&r.text)).collect();
+            let mut p = processor(config_of(&args), &dict);
             let mut lat: Vec<u64> = Vec::new();
             let (mut letter_ns, mut letter_n, mut other_ns, mut other_n) = (0u64, 0u64, 0u64, 0u64);
             for _ in 0..2 {
                 lat.clear();
                 (letter_ns, letter_n, other_ns, other_n) = (0, 0, 0, 0);
                 for keys in &all {
-                    let mut s = Screen::new();
+                    let mut s = Screen::default();
                     for &c in keys {
                         let t0 = Instant::now();
                         let (kv, st) = key_event(c);
@@ -657,7 +645,13 @@ fn main() {
                         let _ = p.take_commit();
                         let _ = p.take_rewritten_before();
                         let ns = t0.elapsed().as_nanos() as u64;
-                        if c.is_ascii_alphabetic() { letter_ns += ns; letter_n += 1 } else { other_ns += ns; other_n += 1 }
+                        if c.is_ascii_alphabetic() {
+                            letter_ns += ns;
+                            letter_n += 1;
+                        } else {
+                            other_ns += ns;
+                            other_n += 1;
+                        }
                         lat.push(ns);
                     }
                     let _ = s.enter(&mut p);
@@ -666,8 +660,19 @@ fn main() {
             lat.sort_unstable();
             let q = |f: f64| lat[((lat.len() as f64 - 1.0) * f) as usize] as f64 / 1000.0;
             let mean = lat.iter().sum::<u64>() as f64 / lat.len() as f64 / 1000.0;
-            println!("keys {} mean {:.2}us p50 {:.2}us p99 {:.2}us p99.9 {:.2}us max {:.2}us", lat.len(), mean, q(0.5), q(0.99), q(0.999), q(1.0));
-            println!("  letters {} mean {:.2}us, other keys {} mean {:.2}us", letter_n, letter_ns as f64 / letter_n as f64 / 1000.0, other_n, other_ns as f64 / other_n as f64 / 1000.0);
+            println!(
+                "keys {} mean {mean:.2}us p50 {:.2}us p99 {:.2}us p99.9 {:.2}us max {:.2}us",
+                lat.len(),
+                q(0.5),
+                q(0.99),
+                q(0.999),
+                q(1.0)
+            );
+            println!(
+                "  letters {letter_n} mean {:.2}us, other keys {other_n} mean {:.2}us",
+                letter_ns as f64 / letter_n as f64 / 1000.0,
+                other_ns as f64 / other_n as f64 / 1000.0
+            );
         }
         _ => eprintln!("usage: replay run|keys|score|bench CORPUS ..."),
     }

@@ -9,7 +9,13 @@
 //! layout:
 //!
 //! ```c
-//! struct KbMsg { int8_t op; size_t count; uint32_t preDelay; uint32_t interval; uint32_t postDelay; };
+//! struct KbMsg {
+//!     int8_t op;
+//!     size_t count;
+//!     uint32_t preDelay;
+//!     uint32_t interval;
+//!     uint32_t postDelay;
+//! };
 //! ```
 //!
 //! 32 bytes on LP64 (op at 0, count at 8, the delays at 16/20/24, 4 bytes tail padding), 20 bytes
@@ -107,7 +113,8 @@ pub fn decode(buf: &[u8; KB_MSG_SIZE], len: usize) -> Option<KbMsg> {
         return None;
     }
     let count_at = offset_of!(WireKbMsg, count);
-    let count = usize::from_ne_bytes(buf[count_at..count_at + size_of::<usize>()].try_into().expect("usize bytes"));
+    let count_bytes = &buf[count_at..count_at + size_of::<usize>()];
+    let count = usize::from_ne_bytes(count_bytes.try_into().expect("usize bytes"));
     Some(KbMsg {
         op: KbOp::from_raw(buf[offset_of!(WireKbMsg, op)] as i8),
         count,
@@ -143,7 +150,11 @@ mod tests {
 
     #[test]
     fn round_trip() {
-        for original in [msg(KbOp::Backspace, 3, 0, 7, 0), msg(KbOp::Select, 5, 12, 9, 40), msg(KbOp::Cancel, 0, 0, 0, 0)] {
+        for original in [
+            msg(KbOp::Backspace, 3, 0, 7, 0),
+            msg(KbOp::Select, 5, 12, 9, 40),
+            msg(KbOp::Cancel, 0, 0, 0, 0),
+        ] {
             assert_eq!(decode(&encode(&original), KB_MSG_SIZE), Some(original));
         }
     }

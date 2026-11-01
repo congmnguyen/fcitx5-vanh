@@ -23,8 +23,11 @@ namespace lotus {
             values.push_back(ffi::str(value));
         }
         InputMethod method;
-        method.handle_ = std::shared_ptr<const LotusInputMethod>(lotus_input_method_parse(keys.data(), values.data(), keys.size()),
-                                                                 [](const LotusInputMethod* handle) { lotus_input_method_free(const_cast<LotusInputMethod*>(handle)); });
+        method.handle_ = std::shared_ptr<const LotusInputMethod>(
+            lotus_input_method_parse(keys.data(), values.data(), keys.size()),
+            [](const LotusInputMethod* handle) {
+                lotus_input_method_free(const_cast<LotusInputMethod*>(handle));
+            });
         return method;
     }
 
@@ -33,7 +36,9 @@ namespace lotus {
             std::array<InputMethod, kInputMethodCount> cache;
             for (std::size_t i = 0; i < kInputMethodCount; ++i) {
                 // Built-in methods belong to the library: no deleter.
-                cache.at(i).handle_ = std::shared_ptr<const LotusInputMethod>(lotus_input_method_builtin(static_cast<uint8_t>(i)), [](const LotusInputMethod*) {});
+                cache.at(i).handle_ = std::shared_ptr<const LotusInputMethod>(
+                    lotus_input_method_builtin(static_cast<uint8_t>(i)),
+                    [](const LotusInputMethod*) {});
             }
             return cache;
         }();

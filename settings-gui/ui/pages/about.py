@@ -23,13 +23,12 @@ except ImportError:
     __version__ = "dev version"  # Fallback for local development
 
 
+ISSUES_URL = "https://github.com/congmnguyen/fcitx5-vanh/issues/new"
+
+
 class AboutPage(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._setup_ui()
-
-    def _setup_ui(self):
-        # Root layout for this widget
         root_layout = QVBoxLayout(self)
         root_layout.setContentsMargins(0, 0, 0, 0)
 
@@ -48,19 +47,17 @@ class AboutPage(QWidget):
         layout.setSpacing(20)
         layout.setAlignment(Qt.AlignTop | Qt.AlignHCenter)
 
-        # Logo/Icon
         try:
             pixmap = QIcon.fromTheme("fcitx-vanh").pixmap(80, 80)
-            if pixmap.isNull():
-                logo = QLabel("🪷")
-                logo.setStyleSheet("font-size: 64px; margin-bottom: 5px;")
-            else:
-                logo = QLabel()
-                logo.setPixmap(pixmap)
-                logo.setStyleSheet("margin-bottom: 5px;")
         except Exception:
+            pixmap = None
+        if pixmap is None or pixmap.isNull():
             logo = QLabel("🪷")
             logo.setStyleSheet("font-size: 64px; margin-bottom: 5px;")
+        else:
+            logo = QLabel()
+            logo.setPixmap(pixmap)
+            logo.setStyleSheet("margin-bottom: 5px;")
 
         layout.addWidget(logo, alignment=Qt.AlignCenter)
 
@@ -105,24 +102,12 @@ class AboutPage(QWidget):
         btn_bug = QPushButton(_("Report Bug"))
         btn_bug.setObjectName("BugReport")
         btn_bug.setFixedWidth(200)
-        btn_bug.clicked.connect(
-            lambda: QDesktopServices.openUrl(
-                QUrl(
-                    "https://github.com/congmnguyen/fcitx5-vanh/issues/new"
-                )
-            )
-        )
+        btn_bug.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(ISSUES_URL)))
 
         btn_feature = QPushButton(_("Request Feature"))
         btn_feature.setObjectName("FeatureRequest")
         btn_feature.setFixedWidth(200)
-        btn_feature.clicked.connect(
-            lambda: QDesktopServices.openUrl(
-                QUrl(
-                    "https://github.com/congmnguyen/fcitx5-vanh/issues/new"
-                )
-            )
-        )
+        btn_feature.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(ISSUES_URL)))
 
         support_layout.addWidget(btn_bug)
         support_layout.addWidget(btn_feature)

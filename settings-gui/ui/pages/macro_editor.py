@@ -41,10 +41,6 @@ class MacroEditorPage(BaseEditorPage):
         super().__init__(parent)
         self.dbus = dbus_handler
         self.initial_state = {}
-        self._setup_ui()
-        self.load_data()
-
-    def _setup_ui(self):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(30, 20, 30, 20)
         main_layout.setSpacing(15)
@@ -232,6 +228,7 @@ class MacroEditorPage(BaseEditorPage):
 
         content_layout.addLayout(toolbar_layout)
         self.update_button_states()
+        self.load_data()
 
     def load_data(self):
         self.blockSignals(True)
@@ -264,21 +261,17 @@ class MacroEditorPage(BaseEditorPage):
                 # Set time format (default %H:%M)
                 time_fmt = values.get("TimeFormat", "%H:%M")
                 index = self.input_time_format.findData(time_fmt)
-                if index >= 0:
-                    self.input_time_format.setCurrentIndex(index)
-                else:
+                if index < 0:
                     # Fallback to default if not in list (since it's not editable anymore)
-                    self.input_time_format.setCurrentIndex(self.input_time_format.findData("%H:%M"))
+                    index = self.input_time_format.findData("%H:%M")
+                self.input_time_format.setCurrentIndex(index)
 
                 # Set date format
                 date_fmt = values.get("DateFormat", "%d/%m/%Y")
                 index = self.input_date_format.findData(date_fmt)
-                if index >= 0:
-                    self.input_date_format.setCurrentIndex(index)
-                else:
-                    self.input_date_format.setCurrentIndex(
-                        self.input_date_format.findData("%d/%m/%Y")
-                    )
+                if index < 0:
+                    index = self.input_date_format.findData("%d/%m/%Y")
+                self.input_date_format.setCurrentIndex(index)
 
             self.table.setRowCount(0)
             data = self.dbus.get_sub_config_list("vanh-macro", "Macro")
@@ -319,21 +312,20 @@ class MacroEditorPage(BaseEditorPage):
         """Returns True if the current state differs from the initial loaded state."""
         return self._get_current_state() != self.initial_state
 
-    def _get_current_state(self):
-        """Captures the current UI state for comparison."""
+    def _table_data(self):
+        """Returns the non-empty macro rows as config entries."""
         data = []
         for row in range(self.table.rowCount()):
             key_item = self.table.item(row, 0)
             val_item = self.table.item(row, 1)
             if key_item and key_item.text():
-                data.append(
-                    {
-                        "Key": key_item.text(),
-                        "Value": val_item.text() if val_item else "",
-                    }
-                )
+                data.append({"Key": key_item.text(), "Value": val_item.text() if val_item else ""})
+        return data
+
+    def _get_current_state(self):
+        """Captures the current UI state for comparison."""
         return {
-            "data": data,
+            "data": self._table_data(),
             "EnableMacro": self.cb_enable.isChecked(),
             "CapitalizeMacro": self.cb_capitalize.isChecked(),
             "EnableMacroInOffMode": self.cb_enable_off_mode.isChecked(),
@@ -355,15 +347,7 @@ class MacroEditorPage(BaseEditorPage):
         if not self.dbus.save_values(updates):
             return False
 
-        data = []
-        for row in range(self.table.rowCount()):
-            key_item = self.table.item(row, 0)
-            val_item = self.table.item(row, 1)
-            if not key_item or not key_item.text():
-                continue
-            data.append({"Key": key_item.text(), "Value": val_item.text() if val_item else ""})
-
-        if not self.dbus.set_sub_config_list("vanh-macro", "Macro", data):
+        if not self.dbus.set_sub_config_list("vanh-macro", "Macro", self._table_data()):
             return False
 
         self.initial_state = self._get_current_state()
@@ -388,8 +372,6 @@ class MacroEditorPage(BaseEditorPage):
         self.table.setItem(row, 1, QTableWidgetItem(value))
         self._apply_row_highlight(row, key)
         self.on_search_changed()
-        if sort:
-            self.on_search_changed()  # Re-apply filter
         self.update_button_states()
         self._on_item_changed()
 

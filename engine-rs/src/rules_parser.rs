@@ -13,7 +13,8 @@ use crate::utf8;
 use crate::utils;
 
 /// Tone order used when expanding a mark rule, 1:1 with Go's ParseToneLessRule.
-const TONE_ORDER: [Tone; 6] = [Tone::None, Tone::Dot, Tone::Acute, Tone::Grave, Tone::Hook, Tone::Tilde];
+const TONE_ORDER: [Tone; 6] =
+    [Tone::None, Tone::Dot, Tone::Acute, Tone::Grave, Tone::Hook, Tone::Tilde];
 
 /// Definition lines naming a tone, 1:1 with Go's tones map.
 const TONE_NAMES: [(&str, Tone); 6] = [
@@ -94,12 +95,9 @@ pub fn match_appending_letters(value: &[char]) -> Option<Vec<char>> {
     None
 }
 
-pub fn tone_from_name(name: &[char]) -> Option<Tone> {
-    TONE_NAMES.iter().find(|(text, _)| text.chars().eq(name.iter().copied())).map(|&(_, tone)| tone)
-}
-
 pub fn parse_rules(key: char, line: &[char]) -> Vec<Rule> {
-    if let Some(tone) = tone_from_name(line) {
+    let tone = TONE_NAMES.iter().find(|(text, _)| text.chars().eq(line.iter().copied()));
+    if let Some(&(_, tone)) = tone {
         let mut rule = Rule { key, effect_type: EffectType::ToneTransformation, ..Rule::default() };
         rule.set_tone(tone);
         return vec![rule];
@@ -109,51 +107,51 @@ pub fn parse_rules(key: char, line: &[char]) -> Vec<Rule> {
 
 pub fn parse_toneless_rules(key: char, line: &[char]) -> Vec<Rule> {
     let mut rules = Vec::new();
-    if match_dsl(line).is_some() {
-        // Go matches the original line but captures the groups from the lowercased one.
-        let Some(parts) = match_dsl(&case_map::lower(line)) else {
-            return rules;
-        };
-        for (&effective_on, &result) in parts.effective_ons.iter().zip(&parts.results) {
-            let Some(effect) = utils::find_mark_from_char(result) else {
-                continue;
-            };
-            rules.extend(parse_toneless_rule(key, effective_on, result, effect));
-        }
-        if let Some(appending) = get_appending_rule(key, &parts.appended) {
-            rules.push(appending);
-        }
-    } else if let Some(appending) = get_appending_rule(key, line) {
-        rules.push(appending);
+    if match_dsl(line).is_none() {
+        rules.extend(get_appending_rule(key, line));
+        return rules;
     }
-    rules
-}
-
-pub fn parse_toneless_rule(key: char, effective_on: char, result: char, effect: Mark) -> Vec<Rule> {
-    let mut rules = Vec::new();
+    // Go matches the original line but captures the groups from the lowercased one.
+    let Some(parts) = match_dsl(&case_map::lower(line)) else {
+        return rules;
+    };
     let mark_rule = |effect_on: char, mark: Mark, result: char| {
-        let mut rule = Rule { key, effect_type: EffectType::MarkTransformation, effect_on, result, ..Rule::default() };
+        let effect_type = EffectType::MarkTransformation;
+        let mut rule = Rule { key, effect_type, effect_on, result, ..Rule::default() };
         rule.set_mark(mark);
         rule
     };
-    for c in utils::get_mark_family(effective_on) {
-        if c == result {
-            rules.push(mark_rule(result, Mark::None, effective_on));
-        } else if utils::is_vowel(c) {
-            for tone in TONE_ORDER {
-                rules.push(mark_rule(utils::add_tone_to_char(c, tone), effect, utils::add_tone_to_char(result, tone)));
+    for (&effective_on, &result) in parts.effective_ons.iter().zip(&parts.results) {
+        let Some(effect) = utils::find_mark_from_char(result) else {
+            continue;
+        };
+        for c in utils::get_mark_family(effective_on) {
+            if c == result {
+                rules.push(mark_rule(result, Mark::None, effective_on));
+            } else if utils::is_vowel(c) {
+                for tone in TONE_ORDER {
+                    let (from, to) = (utils::add_tone_to_char(c, tone), result);
+                    rules.push(mark_rule(from, effect, utils::add_tone_to_char(to, tone)));
+                }
+            } else {
+                rules.push(mark_rule(c, effect, result));
             }
-        } else {
-            rules.push(mark_rule(c, effect, result));
         }
     }
+    rules.extend(get_appending_rule(key, &parts.appended));
     rules
 }
 
 pub fn get_appending_rule(key: char, value: &[char]) -> Option<Rule> {
     let letters = match_appending_letters(value)?;
     let (&first, rest) = letters.split_first()?;
-    let appending = |c: char| Rule { key, effect_type: EffectType::Appending, effect_on: c, result: c, ..Rule::default() };
+    let appending = |c: char| Rule {
+        key,
+        effect_type: EffectType::Appending,
+        effect_on: c,
+        result: c,
+        ..Rule::default()
+    };
     let mut rule = appending(first);
     rule.appended_rules = rest.iter().map(|&c| appending(c)).collect();
     Some(rule)
@@ -164,7 +162,8 @@ pub fn get_appending_rule(key: char, value: &[char]) -> Option<Rule> {
 /// Go iterates a map here, so the order of the keys is random; the keys are sorted (byte-wise,
 /// like the C++ port did) to keep the result deterministic.
 pub fn parse_input_method<K: AsRef<[u8]>, V: AsRef<[u8]>>(definition: &[(K, V)]) -> InputMethod {
-    let mut entries: Vec<(&[u8], &[u8])> = definition.iter().map(|(k, v)| (k.as_ref(), v.as_ref())).collect();
+    let mut entries: Vec<(&[u8], &[u8])> =
+        definition.iter().map(|(k, v)| (k.as_ref(), v.as_ref())).collect();
     entries.sort();
     let mut method = InputMethod::default();
     for (key, value) in entries {

@@ -23,14 +23,17 @@ use std::mem::{size_of, MaybeUninit};
 use std::os::fd::{AsRawFd, BorrowedFd, FromRawFd, OwnedFd, RawFd};
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 
-// ---------------------------------------------------------------------------------------------
 // Per-architecture constants. Values from the kernel's arch/*/include/uapi/asm headers.
-// ---------------------------------------------------------------------------------------------
 
 #[cfg(not(target_os = "linux"))]
 compile_error!("fcitx5-vanh-server only supports Linux");
 
-#[cfg(any(target_arch = "mips", target_arch = "mips64", target_arch = "mips32r6", target_arch = "mips64r6"))]
+#[cfg(any(
+    target_arch = "mips",
+    target_arch = "mips64",
+    target_arch = "mips32r6",
+    target_arch = "mips64r6"
+))]
 mod arch {
     use std::ffi::c_int;
     pub const O_NONBLOCK: c_int = 0x80;
@@ -119,9 +122,7 @@ const fn ioc(dir: u32, kind: u8, nr: u32, size: usize) -> c_ulong {
     ((dir << (16 + IOC_SIZEBITS)) | ((size as u32) << 16) | ((kind as u32) << 8) | nr) as c_ulong
 }
 
-// ---------------------------------------------------------------------------------------------
 // Kernel / libc structs.
-// ---------------------------------------------------------------------------------------------
 
 /// `struct sockaddr_un`.
 #[repr(C)]
@@ -229,7 +230,7 @@ const fn eviocgkey(len: usize) -> c_ulong {
 
 // `cpu_set_t`: 1024 bits stored as unsigned longs.
 const CPU_SETSIZE: usize = 1024;
-const CPU_WORD_BITS: usize = 8 * size_of::<c_ulong>();
+const CPU_WORD_BITS: usize = c_ulong::BITS as usize;
 type CpuSet = [c_ulong; CPU_SETSIZE / CPU_WORD_BITS];
 
 extern "C" {
@@ -240,7 +241,8 @@ extern "C" {
     fn accept4(fd: c_int, addr: *mut c_void, len: *mut u32, flags: c_int) -> c_int;
     fn recv(fd: c_int, buf: *mut c_void, len: usize, flags: c_int) -> isize;
     fn send(fd: c_int, buf: *const c_void, len: usize, flags: c_int) -> isize;
-    fn getsockopt(fd: c_int, level: c_int, name: c_int, value: *mut c_void, len: *mut u32) -> c_int;
+    fn getsockopt(fd: c_int, level: c_int, name: c_int, value: *mut c_void, len: *mut u32)
+        -> c_int;
     fn poll(fds: *mut PollFd, nfds: c_ulong, timeout: c_int) -> c_int;
     fn ioctl(fd: c_int, request: c_ulong, ...) -> c_int;
     fn open(path: *const c_char, flags: c_int, ...) -> c_int;
@@ -255,8 +257,20 @@ extern "C" {
     fn capget(header: *mut CapHeader, data: *mut CapData) -> c_int;
     fn capset(header: *mut CapHeader, data: *const CapData) -> c_int;
     fn prctl(option: c_int, ...) -> c_int;
-    fn getpwuid_r(uid: u32, pwd: *mut passwd, buf: *mut c_char, len: usize, result: *mut *mut passwd) -> c_int;
-    fn getpwnam_r(name: *const c_char, pwd: *mut passwd, buf: *mut c_char, len: usize, result: *mut *mut passwd) -> c_int;
+    fn getpwuid_r(
+        uid: u32,
+        pwd: *mut passwd,
+        buf: *mut c_char,
+        len: usize,
+        result: *mut *mut passwd,
+    ) -> c_int;
+    fn getpwnam_r(
+        name: *const c_char,
+        pwd: *mut passwd,
+        buf: *mut c_char,
+        len: usize,
+        result: *mut *mut passwd,
+    ) -> c_int;
     fn access(path: *const c_char, mode: c_int) -> c_int;
     fn strerror(errnum: c_int) -> *const c_char;
 }
@@ -298,9 +312,7 @@ pub fn error_text(error: &io::Error) -> String {
     }
 }
 
-// ---------------------------------------------------------------------------------------------
 // Filesystem AF_UNIX sockets.
-// ---------------------------------------------------------------------------------------------
 
 /// Longest socket path: `sun_path` minus the terminating NUL.
 pub const MAX_SOCKET_PATH: usize = SUN_PATH_LEN - 1;
@@ -373,7 +385,14 @@ pub fn listen_socket(fd: BorrowedFd<'_>, backlog: i32) -> io::Result<()> {
 /// `accept4(SOCK_NONBLOCK | SOCK_CLOEXEC)`.
 pub fn accept_nonblocking(fd: BorrowedFd<'_>) -> io::Result<OwnedFd> {
     // SAFETY: null address/length pointers are allowed by accept4().
-    let client = cvt(unsafe { accept4(fd.as_raw_fd(), std::ptr::null_mut(), std::ptr::null_mut(), SOCK_NONBLOCK | SOCK_CLOEXEC) })?;
+    let client = cvt(unsafe {
+        accept4(
+            fd.as_raw_fd(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            SOCK_NONBLOCK | SOCK_CLOEXEC,
+        )
+    })?;
     // SAFETY: client is a fresh, valid descriptor.
     Ok(unsafe { OwnedFd::from_raw_fd(client) })
 }
@@ -387,7 +406,8 @@ pub fn recv_packet(fd: BorrowedFd<'_>, buf: &mut [u8]) -> io::Result<usize> {
 /// `send(MSG_NOSIGNAL | MSG_DONTWAIT)`.
 pub fn send_nonblocking(fd: BorrowedFd<'_>, buf: &[u8]) -> io::Result<usize> {
     // SAFETY: buf is a valid readable buffer of buf.len() bytes.
-    cvt_size(unsafe { send(fd.as_raw_fd(), buf.as_ptr().cast(), buf.len(), MSG_NOSIGNAL | MSG_DONTWAIT) })
+    let flags = MSG_NOSIGNAL | MSG_DONTWAIT;
+    cvt_size(unsafe { send(fd.as_raw_fd(), buf.as_ptr().cast(), buf.len(), flags) })
 }
 
 /// `send(MSG_NOSIGNAL)`, blocking (used by the tests and the replay helper).
@@ -409,19 +429,22 @@ pub fn peer_credentials(fd: BorrowedFd<'_>) -> io::Result<PeerCred> {
     let mut cred = ucred::default();
     let mut len = size_of::<ucred>() as u32;
     // SAFETY: cred is a writable ucred and len holds its size.
-    cvt(unsafe { getsockopt(fd.as_raw_fd(), SOL_SOCKET, SO_PEERCRED, (&mut cred as *mut ucred).cast(), &mut len) })?;
+    cvt(unsafe {
+        let value = (&mut cred as *mut ucred).cast();
+        getsockopt(fd.as_raw_fd(), SOL_SOCKET, SO_PEERCRED, value, &mut len)
+    })?;
     Ok(PeerCred { pid: cred.pid, uid: cred.uid, gid: cred.gid })
 }
 
-/// `poll()`; returns the number of ready descriptors (0 on timeout). `timeout_ms < 0` waits forever.
+/// `poll()`; returns the number of ready descriptors (0 on timeout). `timeout_ms < 0` waits
+/// forever.
 pub fn poll_fds(fds: &mut [PollFd], timeout_ms: i32) -> io::Result<usize> {
     // SAFETY: fds is a valid array of fds.len() pollfd structs.
-    cvt(unsafe { poll(fds.as_mut_ptr(), fds.len() as c_ulong, timeout_ms) }).map(|ready| ready as usize)
+    cvt(unsafe { poll(fds.as_mut_ptr(), fds.len() as c_ulong, timeout_ms) })
+        .map(|ready| ready as usize)
 }
 
-// ---------------------------------------------------------------------------------------------
 // uinput and evdev ioctls.
-// ---------------------------------------------------------------------------------------------
 
 /// `UI_SET_EVBIT`.
 pub fn ui_set_evbit(fd: BorrowedFd<'_>, kind: u16) -> io::Result<()> {
@@ -451,7 +474,8 @@ pub fn ui_dev_setup(fd: BorrowedFd<'_>, setup: &UinputSetup) -> io::Result<()> {
                 absfuzz: [0; 64],
                 absflat: [0; 64],
             };
-            write_all_once(fd, (&legacy as *const uinput_user_dev).cast(), size_of::<uinput_user_dev>())
+            let bytes = (&legacy as *const uinput_user_dev).cast();
+            write_all_once(fd, bytes, size_of::<uinput_user_dev>())
         }
         Err(error) => Err(error),
     }
@@ -497,7 +521,8 @@ fn write_all_once(fd: BorrowedFd<'_>, data: *const c_void, len: usize) -> io::Re
 /// `EVIOCGBIT(ev, len)`: capability bitmap of one event type (`ev = 0`: the event types).
 pub fn evdev_get_bits(fd: BorrowedFd<'_>, ev: u16, bits: &mut [u8]) -> io::Result<()> {
     // SAFETY: the kernel writes at most bits.len() bytes, the size encoded in the request.
-    cvt(unsafe { ioctl(fd.as_raw_fd(), eviocgbit(u32::from(ev), bits.len()), bits.as_mut_ptr()) }).map(drop)
+    let request = eviocgbit(u32::from(ev), bits.len());
+    cvt(unsafe { ioctl(fd.as_raw_fd(), request, bits.as_mut_ptr()) }).map(drop)
 }
 
 /// `EVIOCGKEY(len)`: bitmap of the keys currently down.
@@ -506,11 +531,10 @@ pub fn evdev_get_key_state(fd: BorrowedFd<'_>, bits: &mut [u8]) -> io::Result<()
     cvt(unsafe { ioctl(fd.as_raw_fd(), eviocgkey(bits.len()), bits.as_mut_ptr()) }).map(drop)
 }
 
-// ---------------------------------------------------------------------------------------------
 // Raw open/close for the libinput interface callbacks.
-// ---------------------------------------------------------------------------------------------
 
-/// `open(path, flags)`; returns the descriptor or `-errno`, the libinput `open_restricted` contract.
+/// `open(path, flags)`; returns the descriptor or `-errno`, the libinput `open_restricted`
+/// contract.
 pub fn open_raw(path: &CStr, flags: i32) -> RawFd {
     // SAFETY: path is NUL-terminated; the caller (libinput) takes ownership of the descriptor.
     let fd = unsafe { open(path.as_ptr(), flags) };
@@ -529,9 +553,7 @@ pub fn close_raw(fd: RawFd) {
     }
 }
 
-// ---------------------------------------------------------------------------------------------
 // Process: users, priority, affinity, file access.
-// ---------------------------------------------------------------------------------------------
 
 /// Real uid of the process.
 pub fn current_uid() -> u32 {
@@ -616,9 +638,7 @@ pub fn is_readable(path: &std::path::Path) -> bool {
     unsafe { access(path.as_ptr(), R_OK) == 0 }
 }
 
-// ---------------------------------------------------------------------------------------------
 // Capabilities and process hardening.
-// ---------------------------------------------------------------------------------------------
 
 /// `struct __user_cap_header_struct`.
 #[repr(C)]
@@ -674,7 +694,9 @@ pub fn capabilities() -> io::Result<CapSets> {
 /// Whether `cap` is in the ambient set of the calling thread.
 pub fn ambient_capability_is_set(cap: u32) -> io::Result<bool> {
     // SAFETY: plain prctl() with integer arguments.
-    cvt(unsafe { prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_IS_SET, c_ulong::from(cap), 0 as c_ulong, 0 as c_ulong) }).map(|set| set == 1)
+    let cap = c_ulong::from(cap);
+    cvt(unsafe { prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_IS_SET, cap, 0 as c_ulong, 0 as c_ulong) })
+        .map(|set| set == 1)
 }
 
 /// Empties the ambient set, then the effective, permitted and inheritable sets of the calling
@@ -682,7 +704,8 @@ pub fn ambient_capability_is_set(cap: u32) -> io::Result<bool> {
 /// calls this, so the whole process ends up without capabilities.
 pub fn drop_all_capabilities() -> io::Result<()> {
     // SAFETY: plain prctl() with integer arguments.
-    cvt(unsafe { prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0 as c_ulong, 0 as c_ulong, 0 as c_ulong) })?;
+    let zero = 0 as c_ulong;
+    cvt(unsafe { prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, zero, zero, zero) })?;
     let mut header = CapHeader { version: LINUX_CAPABILITY_VERSION_3, pid: 0 };
     let data = [CapData::default(); 2];
     // SAFETY: header is valid and data holds the two structs version 3 reads.
@@ -692,20 +715,23 @@ pub fn drop_all_capabilities() -> io::Result<()> {
 /// `PR_SET_NO_NEW_PRIVS`: no later `execve()` can gain privileges (setuid bits, file caps).
 pub fn set_no_new_privs() -> io::Result<()> {
     // SAFETY: plain prctl() with integer arguments.
-    cvt(unsafe { prctl(PR_SET_NO_NEW_PRIVS, 1 as c_ulong, 0 as c_ulong, 0 as c_ulong, 0 as c_ulong) }).map(drop)
+    let zero = 0 as c_ulong;
+    cvt(unsafe { prctl(PR_SET_NO_NEW_PRIVS, 1 as c_ulong, zero, zero, zero) }).map(drop)
 }
 
 /// `PR_GET_NO_NEW_PRIVS`.
 pub fn no_new_privs() -> io::Result<bool> {
     // SAFETY: plain prctl() with integer arguments.
-    cvt(unsafe { prctl(PR_GET_NO_NEW_PRIVS, 0 as c_ulong, 0 as c_ulong, 0 as c_ulong, 0 as c_ulong) }).map(|set| set == 1)
+    let zero = 0 as c_ulong;
+    cvt(unsafe { prctl(PR_GET_NO_NEW_PRIVS, zero, zero, zero, zero) }).map(|set| set == 1)
 }
 
 /// `PR_SET_DUMPABLE`: with `false`, no core dump and no ptrace attach by other processes of the
 /// same uid.
 pub fn set_dumpable(dumpable: bool) -> io::Result<()> {
     // SAFETY: plain prctl() with integer arguments.
-    cvt(unsafe { prctl(PR_SET_DUMPABLE, c_ulong::from(dumpable), 0 as c_ulong, 0 as c_ulong, 0 as c_ulong) }).map(drop)
+    let zero = 0 as c_ulong;
+    cvt(unsafe { prctl(PR_SET_DUMPABLE, c_ulong::from(dumpable), zero, zero, zero) }).map(drop)
 }
 
 /// Serializes the tests that flip the process-wide dumpable flag.
@@ -715,7 +741,8 @@ pub(crate) static DUMPABLE_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::n
 /// `PR_GET_DUMPABLE`.
 pub fn dumpable() -> io::Result<bool> {
     // SAFETY: plain prctl() with integer arguments.
-    cvt(unsafe { prctl(PR_GET_DUMPABLE, 0 as c_ulong, 0 as c_ulong, 0 as c_ulong, 0 as c_ulong) }).map(|value| value == 1)
+    cvt(unsafe { prctl(PR_GET_DUMPABLE, 0 as c_ulong, 0 as c_ulong, 0 as c_ulong, 0 as c_ulong) })
+        .map(|value| value == 1)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -746,7 +773,9 @@ pub fn install_termination_handlers() -> io::Result<OwnedFd> {
     WAKE_FD.store(fds[1], Ordering::Release);
     for signum in [SIGTERM, SIGINT] {
         // SAFETY: the handler only touches atomics and calls write().
-        if unsafe { signal(signum, on_termination_signal as extern "C" fn(c_int) as usize) } == SIG_ERR {
+        if unsafe { signal(signum, on_termination_signal as extern "C" fn(c_int) as usize) }
+            == SIG_ERR
+        {
             return Err(io::Error::last_os_error());
         }
     }
@@ -789,10 +818,19 @@ mod tests {
     #[test]
     fn unix_address_is_never_truncated() {
         let longest = format!("/{}", "a".repeat(MAX_SOCKET_PATH - 1));
-        assert_eq!(UnixAddr::new(std::path::Path::new(&longest)).unwrap().socklen() as usize, size_of::<sockaddr_un>());
+        assert_eq!(
+            UnixAddr::new(std::path::Path::new(&longest)).unwrap().socklen() as usize,
+            size_of::<sockaddr_un>()
+        );
         let too_long = format!("/{}", "a".repeat(MAX_SOCKET_PATH));
-        assert_eq!(UnixAddr::new(std::path::Path::new(&too_long)).err().and_then(|e| e.raw_os_error()), Some(ENAMETOOLONG));
-        assert_eq!(UnixAddr::new(std::path::Path::new("")).err().and_then(|e| e.raw_os_error()), Some(EINVAL));
+        assert_eq!(
+            UnixAddr::new(std::path::Path::new(&too_long)).err().and_then(|e| e.raw_os_error()),
+            Some(ENAMETOOLONG)
+        );
+        assert_eq!(
+            UnixAddr::new(std::path::Path::new("")).err().and_then(|e| e.raw_os_error()),
+            Some(EINVAL)
+        );
     }
 
     /// Runs in its own thread: capabilities and no_new_privs are per thread, so the other tests of

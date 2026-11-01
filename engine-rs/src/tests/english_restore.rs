@@ -19,7 +19,13 @@ fn processor() -> KeyProcessor {
     o.bracket_transform = Some(BracketTransformMode::Disabled);
     p.set_options(o);
     let mut d = Dictionary::default();
-    d.load_from_text(&std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../data/dictionaries/vietnamese.cm.dict")).unwrap());
+    d.load_from_text(
+        &std::fs::read(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../data/dictionaries/vietnamese.cm.dict"
+        ))
+        .unwrap(),
+    );
     p.set_dictionary(Some(Arc::new(RwLock::new(d))));
     p.set_rewrite_allowed(true);
     p
@@ -30,12 +36,19 @@ fn typed(keys: &str) -> String {
     let mut p = processor();
     let mut screen: Vec<char> = Vec::new();
     let mut shown = 0; // preedit chars at the end of the screen
-    let mut apply = |p: &mut KeyProcessor, screen: &mut Vec<char>, shown: &mut usize, processed: bool, key: Option<char>| {
+    let mut apply = |p: &mut KeyProcessor,
+                     screen: &mut Vec<char>,
+                     shown: &mut usize,
+                     processed: bool,
+                     key: Option<char>| {
         let commit = p.take_commit();
         let before = p.take_rewritten_before();
         if !commit.is_empty() || !before.is_empty() {
             screen.truncate(screen.len() - *shown);
-            assert!(screen.ends_with(&before), "rewrite of {before:?} not at the end of {screen:?}");
+            assert!(
+                screen.ends_with(&before),
+                "rewrite of {before:?} not at the end of {screen:?}"
+            );
             screen.truncate(screen.len() - before.len());
             screen.extend(commit);
             *shown = 0;
@@ -69,7 +82,12 @@ fn check(cases: &[(&str, &str)]) {
 #[test]
 fn word_before_enter() {
     // An English word last on a line went out as Vietnamese: Enter skipped the restore.
-    check(&[("the poller is", "the poller is"), ("status line as", "status line as"), ("Tooi ddi hocj", "Tôi đi học"), ("cos", "có")]);
+    check(&[
+        ("the poller is", "the poller is"),
+        ("status line as", "status line as"),
+        ("Tooi ddi hocj", "Tôi đi học"),
+        ("cos", "có"),
+    ]);
 }
 
 #[test]
@@ -101,14 +119,23 @@ fn ambiguous_words_inside_english_runs() {
 #[test]
 fn double_letters_and_identifiers() {
     // The Telex undo ate a letter and the leftover looked like a Vietnamese key string (dì, lít).
-    check(&[("the diff were", "the diff were"), ("feature lists", "feature lists"), ("Remove SessionEnd hook", "Remove SessionEnd hook")]);
+    check(&[
+        ("the diff were", "the diff were"),
+        ("feature lists", "feature lists"),
+        ("Remove SessionEnd hook", "Remove SessionEnd hook"),
+    ]);
     // Inflections missing from the list.
     check(&[("This reverts commit", "This reverts commit")]);
 }
 
 #[test]
 fn technical_vocabulary() {
-    check(&[("docs: fix", "docs: fix"), ("the host is", "the host is"), ("version conf trong", "version còn trong"), ("conf nuwax", "còn nữa")]);
+    check(&[
+        ("docs: fix", "docs: fix"),
+        ("the host is", "the host is"),
+        ("version conf trong", "version còn trong"),
+        ("conf nuwax", "còn nữa"),
+    ]);
 }
 
 /// Types `keys`, presses the revert key, then types `after`; returns the screen.
@@ -117,12 +144,19 @@ fn typed_with_revert(p: &mut KeyProcessor, keys: &str, after: &str) -> String {
     p.forget_context();
     let mut screen: Vec<char> = Vec::new();
     let mut shown = 0;
-    let apply = |p: &mut KeyProcessor, screen: &mut Vec<char>, shown: &mut usize, processed: bool, key: Option<char>| {
+    let apply = |p: &mut KeyProcessor,
+                 screen: &mut Vec<char>,
+                 shown: &mut usize,
+                 processed: bool,
+                 key: Option<char>| {
         let commit = p.take_commit();
         let before = p.take_rewritten_before();
         if !commit.is_empty() || !before.is_empty() {
             screen.truncate(screen.len() - *shown);
-            assert!(screen.ends_with(&before), "rewrite of {before:?} not at the end of {screen:?}");
+            assert!(
+                screen.ends_with(&before),
+                "rewrite of {before:?} not at the end of {screen:?}"
+            );
             screen.truncate(screen.len() - before.len());
             screen.extend(commit);
             *shown = 0;
@@ -195,7 +229,10 @@ fn learning_from_reverts() {
 
 /// Fuzz rounds: `base`, times VANH_FUZZ_SCALE for long local runs.
 fn rounds(base: u64) -> u64 {
-    std::env::var("VANH_FUZZ_SCALE").ok().and_then(|v| v.parse::<u64>().ok()).map_or(base, |k| base * k)
+    std::env::var("VANH_FUZZ_SCALE")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .map_or(base, |k| base * k)
 }
 
 /// xorshift64*: deterministic, no crates.
@@ -234,9 +271,17 @@ fn alone(keys: &str, auto: bool) -> String {
 /// dropped or added), and a rewrite only ever deletes text that is on screen.
 #[test]
 fn fuzz_no_key_lost() {
-    const LETTERS: &[char] = &['a', 'e', 'o', 'u', 'i', 'y', 'd', 'w', 's', 'f', 'r', 'x', 'j', 'z', 't', 'n', 'g', 'h', 'c', 'm', 'p', 'l', 'k', 'b', 'v', 'q', 'A', 'D', 'E', 'O', 'S'];
-    const SEPARATORS: &[char] = &[' ', ' ', ' ', ' ', '.', ',', '-', '_', '/', ':', '(', ')', '"', '\'', '=', '1', '2', '0'];
-    let words: &[&str] = &["the", "is", "as", "docs", "host", "max", "tooi", "dduwowcj", "vieejt", "nam", "cos", "theer", "diff", "lists", "git", "has", "car", "mono", "sets", "conf"];
+    const LETTERS: &[char] = &[
+        'a', 'e', 'o', 'u', 'i', 'y', 'd', 'w', 's', 'f', 'r', 'x', 'j', 'z', 't', 'n', 'g', 'h',
+        'c', 'm', 'p', 'l', 'k', 'b', 'v', 'q', 'A', 'D', 'E', 'O', 'S',
+    ];
+    const SEPARATORS: &[char] = &[
+        ' ', ' ', ' ', ' ', '.', ',', '-', '_', '/', ':', '(', ')', '"', '\'', '=', '1', '2', '0',
+    ];
+    let words: &[&str] = &[
+        "the", "is", "as", "docs", "host", "max", "tooi", "dduwowcj", "vieejt", "nam", "cos",
+        "theer", "diff", "lists", "git", "has", "car", "mono", "sets", "conf",
+    ];
     let mut rng = Rng(0x5eed_2026_1101);
     for round in 0..rounds(500) {
         let mut p = processor();
@@ -280,7 +325,10 @@ fn fuzz_no_key_lost() {
 #[test]
 fn fuzz_backspace_revert_enter() {
     use crate::key_processor::{KEY_BACKSPACE, KEY_TAB};
-    const KEYS: &[char] = &['a', 'e', 'o', 'd', 'w', 's', 'f', 'r', 'x', 'j', 't', 'n', 'h', ' ', ' ', '.', '_', '/', '1', 'S', 'D'];
+    const KEYS: &[char] = &[
+        'a', 'e', 'o', 'd', 'w', 's', 'f', 'r', 'x', 'j', 't', 'n', 'h', ' ', ' ', '.', '_', '/',
+        '1', 'S', 'D',
+    ];
     let mut rng = Rng(0xfeed_beef_0042);
     for round in 0..rounds(2000) {
         let mut p = processor();
@@ -311,14 +359,26 @@ fn fuzz_backspace_revert_enter() {
                 3 => (p.process_key(KEY_TAB, 0), Some('\t')),
                 _ => {
                     let c = rng.pick(KEYS);
-                    (p.process_key(c as u32, if c.is_ascii_uppercase() { key_state::SHIFT } else { 0 }), Some(c))
+                    (
+                        p.process_key(
+                            c as u32,
+                            if c.is_ascii_uppercase() { key_state::SHIFT } else { 0 },
+                        ),
+                        Some(c),
+                    )
                 }
             };
             let commit = p.take_commit();
             let before = p.take_rewritten_before();
-            if !commit.is_empty() || !before.is_empty() || (processed && p.preedit().is_empty() && shown > 0) {
+            if !commit.is_empty()
+                || !before.is_empty()
+                || (processed && p.preedit().is_empty() && shown > 0)
+            {
                 screen.truncate(screen.len() - shown);
-                assert!(screen.ends_with(&before), "round {round}: rewrite {before:?} not at the end of {screen:?}");
+                assert!(
+                    screen.ends_with(&before),
+                    "round {round}: rewrite {before:?} not at the end of {screen:?}"
+                );
                 screen.truncate(screen.len() - before.len());
                 screen.extend(commit);
                 shown = 0;

@@ -212,7 +212,14 @@ fn named_words() {
     e.reset();
     ty(&mut e, "tốif", VN);
     check(&e, EN, "tốif");
-    for (keys, full, valid) in [("nhuw", true, true), ("thuw", true, true), ("thow", true, true), ("tooi", true, true), ("arch", false, false), ("chury", true, true)] {
+    for (keys, full, valid) in [
+        ("nhuw", true, true),
+        ("thuw", true, true),
+        ("thow", true, true),
+        ("tooi", true, true),
+        ("arch", false, false),
+        ("chury", true, true),
+    ] {
         e.reset();
         ty(&mut e, keys, VN);
         assert_eq!(e.is_valid(full), valid, "{keys}");
@@ -380,9 +387,17 @@ fn golden_engine_core() {
         let expected = String::from_utf8(from_hex(&row[7])).unwrap();
         let valid = engine.is_valid(true);
         if actual != expected || valid != (row[8] == "1") {
-            mismatches.push(format!("{} step {}: [{actual}] vs [{expected}], valid {valid}", row[0], row[1]));
+            mismatches.push(format!(
+                "{} step {}: [{actual}] vs [{expected}], valid {valid}",
+                row[0], row[1]
+            ));
         }
     }
     assert!(rows.len() > 10000);
-    assert!(mismatches.is_empty(), "{} mismatches, first: {:?}", mismatches.len(), &mismatches[..mismatches.len().min(10)]);
+    assert!(
+        mismatches.is_empty(),
+        "{} mismatches, first: {:?}",
+        mismatches.len(),
+        &mismatches[..mismatches.len().min(10)]
+    );
 }

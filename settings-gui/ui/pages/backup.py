@@ -31,15 +31,19 @@ from ui.components import ScrollContent
 from ui.helpers import local_dict_path
 from ui.pages.dynamic_settings import CardWidget
 
+# Backup component -> (fcitx5 sub-config path, root key)
+SUB_CONFIGS = {
+    "macros": ("vanh-macro", "Macro"),
+    "keymaps": ("custom_keymap", "CustomKeymap"),
+    "rules": ("app_rules", "Rules"),
+}
+
 
 class BackupPage(QWidget):
     def __init__(self, dbus_handler: VanhDBusHandler, parent=None):
         super().__init__(parent)
         self.dbus = dbus_handler
         self.restore_data = None  # Stores data from opened backup for selective restore
-        self._setup_ui()
-
-    def _setup_ui(self):
         root_layout = QVBoxLayout(self)
         root_layout.setContentsMargins(0, 0, 0, 0)
 
@@ -143,17 +147,9 @@ class BackupPage(QWidget):
                 config_data = self.dbus.get_config().get("values", {})
                 backup["config"] = config_data
 
-            if selected["macros"]:
-                macros = self.dbus.get_sub_config_list("vanh-macro", "Macro")
-                backup["macros"] = macros
-
-            if selected["keymaps"]:
-                keymaps = self.dbus.get_sub_config_list("custom_keymap", "CustomKeymap")
-                backup["keymaps"] = keymaps
-
-            if selected["rules"]:
-                rules = self.dbus.get_sub_config_list("app_rules", "Rules")
-                backup["rules"] = rules
+            for key, (path_name, root_key) in SUB_CONFIGS.items():
+                if selected[key]:
+                    backup[key] = self.dbus.get_sub_config_list(path_name, root_key)
 
             if selected["dictionary"]:
                 dict_path = local_dict_path()
@@ -201,16 +197,14 @@ class BackupPage(QWidget):
                 ("dictionary", _("Custom Dictionary")),
             ]
 
-            found_any = False
             for key, label in options:
                 if key in backup:
                     cb = QCheckBox(label)
                     cb.setChecked(True)
                     self.restore_checkboxes[key] = cb
                     self.restore_group_layout.addWidget(cb)
-                    found_any = True
 
-            if not found_any:
+            if not self.restore_checkboxes:
                 raise ValueError(_("Invalid backup file: No recognizable components found."))
 
             self.restore_group.setVisible(True)
@@ -221,7 +215,7 @@ class BackupPage(QWidget):
 
     def on_restore_selected(self):
         """Applies selected components from the JSON backup."""
-        if not self.restore_data or "json_path" not in self.restore_data:
+        if not self.restore_data:
             return
 
         selected_keys = [k for k, cb in self.restore_checkboxes.items() if cb.isChecked()]
@@ -250,19 +244,16 @@ class BackupPage(QWidget):
                 if not self.dbus.set_config(backup["config"]):
                     failed_components.append(_("Main Settings"))
 
-            if "macros" in selected_keys and "macros" in backup:
-                if not self.dbus.set_sub_config_list("vanh-macro", "Macro", backup["macros"]):
-                    failed_components.append(_("Macros"))
-
-            if "keymaps" in selected_keys and "keymaps" in backup:
-                if not self.dbus.set_sub_config_list(
-                    "custom_keymap", "CustomKeymap", backup["keymaps"]
-                ):
-                    failed_components.append(_("Custom Keymaps"))
-
-            if "rules" in selected_keys and "rules" in backup:
-                if not self.dbus.set_sub_config_list("app_rules", "Rules", backup["rules"]):
-                    failed_components.append(_("Application Rules"))
+            labels = {
+                "macros": _("Macros"),
+                "keymaps": _("Custom Keymaps"),
+                "rules": _("Application Rules"),
+            }
+            for key, (path_name, root_key) in SUB_CONFIGS.items():
+                if key not in selected_keys or key not in backup:
+                    continue
+                if not self.dbus.set_sub_config_list(path_name, root_key, backup[key]):
+                    failed_components.append(labels[key])
 
             if "dictionary" in selected_keys and "dictionary" in backup:
                 try:

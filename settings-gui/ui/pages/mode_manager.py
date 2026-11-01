@@ -86,10 +86,7 @@ class ModeCard(QFrame):
         self.selected = selected
         self.setObjectName("ModeCard")
         self.setCursor(Qt.PointingHandCursor)
-        self._setup_ui()
-        self.update_style()
 
-    def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 15, 10, 15)
         layout.setSpacing(5)
@@ -102,6 +99,7 @@ class ModeCard(QFrame):
         title_label.setStyleSheet("font-weight: bold; font-size: 13px;")
 
         layout.addWidget(title_label)
+        self.update_style()
 
     def update_style(self):
         if self.selected:
@@ -146,10 +144,7 @@ class ModeManagerPage(QWidget):
         self.selected_app = None
         self.current_app_mode = MODE_DEFAULT
         self._icon_cache = {}
-        self._setup_ui()
-        self.load_data()
 
-    def _setup_ui(self):
         self.layout = QHBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
@@ -272,6 +267,7 @@ class ModeManagerPage(QWidget):
 
         self.content_widget.setWidget(self.main_container)
         self.layout.addWidget(self.content_widget)
+        self.load_data()
 
     def load_data(self):
         """Loads rules from config and global mode from DBus."""
@@ -327,7 +323,78 @@ class ModeManagerPage(QWidget):
 
     def _populate_app_list(self):
         self.app_list.clear()
-        self._scan_desktop_files()
+        search_paths = [
+            "/usr/share/applications",
+            os.path.expanduser("~/.local/share/applications"),
+            "/var/lib/flatpak/exports/share/applications",
+            os.path.expanduser("~/.local/share/flatpak/exports/share/applications"),
+            "/var/lib/snapd/desktop/applications",
+        ]
+
+        for directory in os.environ.get("XDG_DATA_DIRS", "").split(":"):
+            xdg_applications_path = os.path.join(directory, "applications")
+            if directory and xdg_applications_path not in search_paths:
+                search_paths.append(xdg_applications_path)
+
+        for p in search_paths:
+            if not os.path.isdir(p):
+                continue
+            for f in os.listdir(p):
+                if not f.endswith(".desktop"):
+                    continue
+                try:
+                    desktop_id = f[:-8]  # remove .desktop
+                    with open(os.path.join(p, f), "r", encoding="utf-8") as df:
+                        content = df.read()
+
+                    icon_match = re.search(r"^Icon=([^\n]+)", content, re.MULTILINE)
+                    if not icon_match:
+                        continue
+                    icon = icon_match.group(1).strip()
+
+                    # Map by desktop ID (e.g. discord)
+                    self._icon_cache[desktop_id.lower()] = icon
+                    if "." in desktop_id:  # handle com.discordapp.Discord
+                        self._icon_cache[desktop_id.split(".")[-1].lower()] = icon
+
+                    name_match = re.search(r"^Name=([^\n]+)", content, re.MULTILINE)
+                    if name_match:
+                        self._icon_cache[name_match.group(1).strip().lower()] = icon
+
+                    exec_match = re.search(r"^Exec=([^\n]+)", content, re.MULTILINE)
+                    if not exec_match:
+                        continue
+                    exec_line = exec_match.group(1).strip()
+                    # Robustly extract binary name (handle quotes and arguments)
+                    if exec_line.startswith('"'):
+                        binary_path = exec_line[1:].split('"')[0]
+                    else:
+                        binary_path = exec_line.split(" ")[0]
+
+                    binary_name = os.path.basename(binary_path).lower()
+                    self._icon_cache[binary_name] = icon
+
+                    if binary_name == "flatpak" and " --command=" in exec_line:
+                        cmd_match = re.search(r"--command=([^ ]+)", exec_line)
+                        if cmd_match:
+                            self._icon_cache[cmd_match.group(1).lower()] = icon
+                except (PermissionError, FileNotFoundError):
+                    continue
+                except Exception as e:
+                    # Only log truly unexpected errors
+                    if not isinstance(e, (UnicodeDecodeError, re.error)):
+                        print(f"Error parsing desktop file {f}: {e}")
+                    continue
+
+        # Manual Overrides for stubborn apps
+        manual_icons = {
+            "discord": "discord",
+            "upnote": "upnote",
+            "antigravity": "preferences-desktop-accessibility",
+        }
+        for k, v in manual_icons.items():
+            self._icon_cache.setdefault(k, v)
+
         apps_to_show = set(self.app_rules.keys())
         if self.selected_app:
             apps_to_show.add(self.selected_app)
@@ -344,86 +411,6 @@ class ModeManagerPage(QWidget):
 
             if app == self.selected_app:
                 self.app_list.setCurrentItem(item)
-
-    def _scan_desktop_files(self):
-        """Builds a robust map of app identifiers to icon names."""
-        search_paths = [
-            "/usr/share/applications",
-            os.path.expanduser("~/.local/share/applications"),
-            "/var/lib/flatpak/exports/share/applications",
-            os.path.expanduser("~/.local/share/flatpak/exports/share/applications"),
-            "/var/lib/snapd/desktop/applications",
-        ]
-
-        xdg_data_dirs = os.environ.get("XDG_DATA_DIRS", "").split(":")
-        for directory in xdg_data_dirs:
-            if directory:
-                xdg_applications_path = os.path.join(directory, "applications")
-                if xdg_applications_path not in search_paths:
-                    search_paths.append(xdg_applications_path)
-
-        # Priority 1: Direct binary names from Exec line
-        # Priority 2: Desktop filenames (e.g. com.discordapp.Discord -> Discord)
-        # Priority 3: Application Names
-
-        for p in search_paths:
-            if not os.path.isdir(p):
-                continue
-            for f in os.listdir(p):
-                if not f.endswith(".desktop"):
-                    continue
-                try:
-                    desktop_id = f[:-8]  # remove .desktop
-                    with open(os.path.join(p, f), "r", encoding="utf-8") as df:
-                        content = df.read()
-
-                        icon_match = re.search(r"^Icon=([^\n]+)", content, re.MULTILINE)
-                        if not icon_match:
-                            continue
-                        icon = icon_match.group(1).strip()
-
-                        # Map by desktop ID (e.g. discord)
-                        self._icon_cache[desktop_id.lower()] = icon
-                        if "." in desktop_id:  # handle com.discordapp.Discord
-                            self._icon_cache[desktop_id.split(".")[-1].lower()] = icon
-
-                        name_match = re.search(r"^Name=([^\n]+)", content, re.MULTILINE)
-                        if name_match:
-                            self._icon_cache[name_match.group(1).strip().lower()] = icon
-
-                        exec_match = re.search(r"^Exec=([^\n]+)", content, re.MULTILINE)
-                        if exec_match:
-                            exec_line = exec_match.group(1).strip()
-                            # Robustly extract binary name (handle quotes and arguments)
-                            if exec_line.startswith('"'):
-                                binary_path = exec_line[1:].split('"')[0]
-                            else:
-                                binary_path = exec_line.split(" ")[0]
-
-                            binary_name = os.path.basename(binary_path).lower()
-                            self._icon_cache[binary_name] = icon
-
-                            if binary_name == "flatpak" and " --command=" in exec_line:
-                                cmd_match = re.search(r"--command=([^ ]+)", exec_line)
-                                if cmd_match:
-                                    self._icon_cache[cmd_match.group(1).lower()] = icon
-                except (PermissionError, FileNotFoundError):
-                    continue
-                except Exception as e:
-                    # Only log truly unexpected errors
-                    if not isinstance(e, (UnicodeDecodeError, re.error)):
-                        print(f"Error parsing desktop file {f}: {e}")
-                    continue
-
-        # Manual Overrides for stubborn apps
-        manual_icons = {
-            "discord": "discord",
-            "upnote": "upnote",
-            "antigravity": "preferences-desktop-accessibility",
-        }
-        for k, v in manual_icons.items():
-            if k not in self._icon_cache:
-                self._icon_cache[k] = v
 
     def _resolve_icon(self, app_name):
         """Resolves icon name for a given app handle."""
@@ -460,7 +447,7 @@ class ModeManagerPage(QWidget):
         if not self.isVisible():
             return
 
-        self._notify_changed()
+        notify_parent_changed(self)
 
     def _on_app_mode_changed(self, mode):
         self.current_app_mode = mode
@@ -475,7 +462,7 @@ class ModeManagerPage(QWidget):
         self._sync_app_delay_spins()
         self._update_mode_cards()
         self._populate_app_list()
-        self._notify_changed()
+        notify_parent_changed(self)
 
     def _update_mode_cards(self):
         for m, card in self.mode_cards.items():
@@ -506,7 +493,7 @@ class ModeManagerPage(QWidget):
 
     def _on_default_delay_changed(self, key: str, value: int):
         self.modified_default_delays[key] = str(value)
-        self._notify_changed()
+        notify_parent_changed(self)
 
     def _on_app_delay_changed(self, field: str, value: int):
         if self.selected_app is None:
@@ -515,7 +502,7 @@ class ModeManagerPage(QWidget):
         if rule is None:
             return
         rule[field] = value
-        self._notify_changed()
+        notify_parent_changed(self)
 
     def _on_remove_app(self):
         if not self.selected_app:
@@ -536,9 +523,6 @@ class ModeManagerPage(QWidget):
         self.app_settings_card.setVisible(False)
         self.btn_remove_app.setEnabled(False)
         self._populate_app_list()
-        self._notify_changed()
-
-    def _notify_changed(self):
         notify_parent_changed(self)
 
     def is_modified(self):
@@ -570,17 +554,16 @@ class ModeManagerPage(QWidget):
                 if not self.dbus.save_values(updates):
                     return False
 
-            data = []
-            for app, rule in sorted(self.app_rules.items()):
-                data.append(
-                    {
-                        "App": app,
-                        "Mode": str(rule["mode"]),
-                        "CommitInterval": str(rule.get("commit", 0)),
-                        "BackspaceInterval": str(rule.get("backspace", 0)),
-                        "PostDelay": str(rule.get("post", 0)),
-                    }
-                )
+            data = [
+                {
+                    "App": app,
+                    "Mode": str(rule["mode"]),
+                    "CommitInterval": str(rule.get("commit", 0)),
+                    "BackspaceInterval": str(rule.get("backspace", 0)),
+                    "PostDelay": str(rule.get("post", 0)),
+                }
+                for app, rule in sorted(self.app_rules.items())
+            ]
 
             if not self.dbus.set_sub_config_list("app_rules", "Rules", data):
                 return False

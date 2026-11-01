@@ -35,36 +35,28 @@ struct LotusLearned;
 
 namespace lotus {
 
-    /** @brief Keysyms of the special keys the processor reacts to, 1:1 with Go's constants. */
+    /** @brief Keysym of BackSpace, 1:1 with Go's constant. */
     inline constexpr uint32_t kFcitxBackSpace = 0xFF08U;
-    inline constexpr uint32_t kFcitxSpace     = 0x020U;
-    inline constexpr uint32_t kFcitxTab       = 0xFF09U;
 
     /** @brief Options of the processor, 1:1 with Go's FcitxBambooEngineOption (bamboo-c.go). */
     struct Options {
-        bool    autoNonVnRestore    = true;             // Restore the raw key strokes of a non-Vietnamese word
-        bool    ddFreeStyle         = true;             // Allow "dd" inside a non-Vietnamese sequence
-        bool    englishRestore      = false;            // Restore an English word to its keys at a word break (Vikey lists)
+        bool    autoNonVnRestore    = true;             // Restore keys of a non-Vietnamese word
+        bool    ddFreeStyle         = true;             // Allow "dd" in a non-Vietnamese word
+        bool    englishRestore      = false;            // English word back to its keys at a break
         bool    macroEnabled        = false;            // Expand macros at a word break and on Tab
         bool    autoCapitalizeMacro = false;            // Follow the case of the trigger word
-        bool    spellCheckWithDicts = true;             // Spell check against the custom dictionary
-        bool    modernStyle         = true;             // Tone placement style (EngineFlags::StdToneStyle)
+        bool    spellCheckWithDicts = true;             // Spell check against the dictionary
+        bool    modernStyle         = true;             // Tone placement style
         bool    freeMarking         = true;             // Free tone marking style
         Charset outputCharset       = Charset::Unicode; // Charset of the committed text
-        // Empty optional = follow the engine flags, the mode a fresh engine starts in. The addon always
-        // fills them from the configuration, so it only ever sees the three public enumerators.
+        // Empty optional = follow the engine flags, the mode a fresh engine starts in. The addon
+        // always fills them from the configuration, so it only sees the three enumerators.
         std::optional<W2uMode>              w2u              = std::nullopt; // "w" to "ư" mode
-        std::optional<BracketTransformMode> bracketTransform = std::nullopt; // "[ -> ơ, ] -> ư" mode
-        std::string                         timeFormat       = "%H:%M";      // Format of the $TIME macro
-        std::string                         dateFormat       = "%d/%m/%Y";   // Format of the $DATE macro
+        std::optional<BracketTransformMode> bracketTransform = std::nullopt; // "[" -> "ơ" mode
+        std::string                         timeFormat       = "%H:%M";      // $TIME macro format
+        std::string                         dateFormat       = "%d/%m/%Y";   // $DATE macro format
     };
 
-    /**
-     * @brief Key event wrapper driving an engine, like Go's FcitxBambooEngine.
-     *
-     * The processor shares the macro table and the dictionary with the other input contexts; it is
-     * movable but not copyable.
-     */
     /**
      * @brief Preferences learned from reverts (opt-in, local): per typed keys, keep the keys or
      *        the Vietnamese reading. Shared by every input context; the addon persists it.
@@ -75,8 +67,8 @@ namespace lotus {
         /** @brief Replaces the table with a saved one ("keys<TAB>score" lines). */
         void loadFromText(std::string_view text);
         /** @brief The table in the saved form. */
-        [[nodiscard]] std::string toText() const;
-        [[nodiscard]] std::size_t size() const;
+        [[nodiscard]] std::string         toText() const;
+        [[nodiscard]] std::size_t         size() const;
         [[nodiscard]] const LotusLearned* handle() const {
             return handle_.get();
         }
@@ -85,17 +77,23 @@ namespace lotus {
         std::unique_ptr<LotusLearned, void (*)(LotusLearned*)> handle_;
     };
 
+    /**
+     * @brief Key event wrapper driving an engine, like Go's FcitxBambooEngine.
+     *
+     * The processor shares the macro table and the dictionary with the other input contexts; it is
+     * movable but not copyable.
+     */
     class KeyProcessor {
       public:
         /**
          * @brief Builds a processor, like Go's NewEngine / NewCustomEngine.
-         * @param inputMethod Input method of the underlying engine (the processor keeps its own copy).
+         * @param inputMethod Input method of the underlying engine (the processor keeps a copy).
          * @param spellCheckWithDictsDefault Initial value of Options::spellCheckWithDicts (Go's
          *                                   NewEngine passes true, NewCustomEngine passes false).
          */
         KeyProcessor(const InputMethod& inputMethod, bool spellCheckWithDictsDefault);
 
-        /** @brief Applies a whole option set, like Go's EngineSetOption (recomputes the engine flags). */
+        /** @brief Applies a whole option set, like Go's EngineSetOption (recomputes the flags). */
         void setOptions(const Options& options);
 
         /** @brief Enables or disables macro expansion, like Go's EngineSetMacroEnabled. */
@@ -115,16 +113,22 @@ namespace lotus {
 
         /**
          * @brief Processes one key event, like Go's preeditProcessKeyEvent.
-         * @param keyVal Keysym of the key (kFcitxBackSpace / kFcitxSpace / kFcitxTab / a code point).
+         * @param keyVal Keysym of the key (kFcitxBackSpace, space, tab or a code point).
          * @param states Modifier states of the event.
-         * @return True when the processor handled the key, false when the addon must let it through.
+         * @return True when the processor handled the key, false when the addon lets it through.
          */
         bool processKey(uint32_t keyVal, KeyStates states);
 
-        /** @brief True for space, backspace, a word break symbol, a macro Tab or an engine key (Go's canProcessKey). */
+        /**
+         * @brief True for space, backspace, a word break symbol, a macro Tab or an engine key
+         *        (Go's canProcessKey).
+         */
         [[nodiscard]] bool canProcessKey(uint32_t keyVal) const;
 
-        /** @brief False when control, alt, super, hyper, meta or the forward modifier is held (Go's isValidState). */
+        /**
+         * @brief False when control, alt, super, hyper, meta or the forward modifier is held
+         *        (Go's isValidState).
+         */
         [[nodiscard]] static bool isValidState(KeyStates states) {
             return !states.intersects(kInvalidStates);
         }
@@ -132,7 +136,7 @@ namespace lotus {
         /** @brief Charset encoded preedit text to display, like Go's preeditText. */
         [[nodiscard]] std::u32string preedit() const;
 
-        /** @brief Takes the charset encoded text to commit and clears it, like Go's EnginePullCommit. */
+        /** @brief Takes the encoded text to commit and clears it (Go's EnginePullCommit). */
         std::u32string takeCommit();
 
         /** @brief Commits the current preedit text, like Go's EngineCommitPreedit. */
@@ -145,8 +149,9 @@ namespace lotus {
         void rebuildFromText(std::u32string_view text);
 
         /**
-         * @brief Allows English restore to rewrite the words before the current one ("thí makes" ->
-         *        "this makes"). Only for modes that can delete committed text (uinput, surrounding).
+         * @brief Allows English restore to rewrite the words before the current one ("thí makes"
+         *        -> "this makes"). Only for modes that can delete committed text (uinput,
+         *        surrounding).
          */
         void setRewriteAllowed(bool allowed);
 
@@ -189,9 +194,10 @@ namespace lotus {
 
       private:
         std::unique_ptr<LotusKeyProcessor, void (*)(LotusKeyProcessor*)> handle_;
-        std::shared_ptr<const MacroTable>                                macroTable_; ///< Keeps the C++ owner alive
-        std::shared_ptr<const Dictionary>                                dictionary_; ///< Keeps the C++ owner alive
-        std::shared_ptr<Learned>                                         learned_;    ///< Keeps the C++ owner alive
+        // The shared pointers keep the C++ owners of the shared tables alive.
+        std::shared_ptr<const MacroTable> macroTable_;
+        std::shared_ptr<const Dictionary> dictionary_;
+        std::shared_ptr<Learned>          learned_;
     };
 
 } // namespace lotus

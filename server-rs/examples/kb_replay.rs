@@ -5,12 +5,11 @@
 //! Test helper of the C++/Rust wire test (test/server-wire-compat.cpp), not installed.
 //!
 //! `kb_replay <messages>` opens the server's two sockets for the current user (honouring
-//! VANH_SOCKET_DIR and VANH_SOCKET_NAMESPACE) with the server's own socket directory, stale socket,
-//! authorization, decoding and planning code, prints `ready`, answers each authorized mouse
-//! client with one `C` byte,
-//! replays `<messages>` keyboard requests into a recorder (physical Shift released, paced keys
-//! drained before the next non-Cancel request) and prints the key transcript. No uinput, no libinput. Exit 0 on success,
-//! 2 on timeout or error.
+//! VANH_SOCKET_DIR and VANH_SOCKET_NAMESPACE) with the server's own socket directory, stale
+//! socket, authorization, decoding and planning code, prints `ready`, answers each authorized
+//! mouse client with one `C` byte, replays `<messages>` keyboard requests into a recorder
+//! (physical Shift released, paced keys drained before the next non-Cancel request) and prints
+//! the key transcript. No uinput, no libinput. Exit 0 on success, 2 on timeout or error.
 
 use lotus_server::auth::authorize_peer;
 use lotus_server::planner::{Planner, Recorder};
@@ -42,7 +41,8 @@ fn main() {
 
 fn replay(wanted: usize) -> Option<String> {
     let namespace = socket_namespace(&current_username());
-    let server_sockets = sockets::open_server_sockets(&sockets::base_dir(), &namespace, sys::effective_uid())?;
+    let base = sockets::base_dir();
+    let server_sockets = sockets::open_server_sockets(&base, &namespace, sys::effective_uid())?;
     let (kb_server, mouse_server) = (&server_sockets.kb.fd, &server_sockets.mouse.fd);
     println!("ready");
     std::io::stdout().flush().ok()?;
@@ -61,10 +61,11 @@ fn replay(wanted: usize) -> Option<String> {
             eprintln!("kb_replay: timed out after {received} of {wanted} messages");
             return None;
         }
+        let slot = |fd: i32| PollFd { fd, events: POLLIN, revents: 0 };
         let mut fds = [
-            PollFd { fd: kb_server.as_raw_fd(), events: POLLIN, revents: 0 },
-            PollFd { fd: mouse_server.as_raw_fd(), events: POLLIN, revents: 0 },
-            PollFd { fd: kb_client.as_ref().map_or(-1, |fd| fd.as_raw_fd()), events: POLLIN, revents: 0 },
+            slot(kb_server.as_raw_fd()),
+            slot(mouse_server.as_raw_fd()),
+            slot(kb_client.as_ref().map_or(-1, |fd| fd.as_raw_fd())),
         ];
         sys::poll_fds(&mut fds, i32::try_from(left.as_millis()).unwrap_or(i32::MAX)).ok()?;
         if fds[0].revents & POLLIN != 0 {

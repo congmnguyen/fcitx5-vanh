@@ -27,11 +27,6 @@
 #include "common-socket-name.h"
 #include "lotus-mode.h"
 
-/**
- * @brief Maximum length of Unix socket paths.
-*/
-#define UNIX_PATH_MAX sizeof(((struct sockaddr_un*)0)->sun_path)
-
 // Forward declaration: the header only passes InputContext pointers around.
 namespace fcitx {
     class InputContext;
@@ -39,12 +34,12 @@ namespace fcitx {
 
 // Global state variables for input processing
 // LOTUS_EXPORT: read by the headless tests through lotus_test_core.
-extern LOTUS_EXPORT std::atomic<fcitx::LotusMode> g_realMode;        ///< Current active input mode
-extern std::atomic<bool>                          g_mouseClicked;    ///< Mouse click detection flag
-extern std::atomic<bool>                          g_isDeleting;      ///< Deletion in progress flag
-extern std::atomic<bool>                          g_stopFlagMonitor; ///< Signal to stop monitor threads
-extern std::atomic<unsigned int>                  g_realTextLen;     ///< Current text length
-extern std::atomic<int>                           g_mouseSocketFd;   ///< Mouse socket file descriptor
+extern LOTUS_EXPORT std::atomic<fcitx::LotusMode> g_realMode;     ///< Current active input mode
+extern std::atomic<bool>                          g_mouseClicked; ///< Mouse click detection flag
+extern std::atomic<bool>                          g_isDeleting;   ///< Deletion in progress flag
+extern std::atomic<bool>         g_stopFlagMonitor;               ///< Stop flag of monitor threads
+extern std::atomic<unsigned int> g_realTextLen;                   ///< Current text length
+extern std::atomic<int>          g_mouseSocketFd;                 ///< Mouse socket file descriptor
 
 /**
  * @brief Current input mode, read with acquire ordering.
@@ -107,7 +102,7 @@ std::optional<uid_t> LOTUS_EXPORT expectedServerUid();
 bool LOTUS_EXPORT verifyServerPeer(int fd, std::string_view label);
 
 /**
- * @brief Connects a SOCK_SEQPACKET socket to a uinput server socket and authenticates the server.
+ * @brief Connects a SOCK_SEQPACKET socket to a uinput server socket and authenticates it.
  *
  * Logs the reason of a failure.
  * @param path Socket path from buildSocketPath().
@@ -115,7 +110,8 @@ bool LOTUS_EXPORT verifyServerPeer(int fd, std::string_view label);
  * @param label Socket name for the log.
  * @return Connected close-on-exec descriptor owned by the caller, or -1.
  */
-int LOTUS_EXPORT connectServerSocket(const std::string& path, bool nonBlocking, std::string_view label);
+int LOTUS_EXPORT connectServerSocket(
+    const std::string& path, bool nonBlocking, std::string_view label);
 
 /**
  * @brief Returns the fcitx5 configuration directory of the current user.
@@ -139,8 +135,8 @@ bool isBackspace(uint32_t sym);
 /**
  * @brief Key value handed to the engine for a key symbol.
  *
- * The Go engine took key symbols (BackSpace, Space and Tab are symbols, not code points), so a symbol
- * with a Unicode mapping is passed as its code point and every other symbol as-is.
+ * The Go engine took key symbols (BackSpace, Space and Tab are symbols, not code points), so a
+ * symbol with a Unicode mapping is passed as its code point and every other symbol as-is.
  * @param sym Key symbol of the event.
  * @return Key value for lotus::KeyProcessor::processKey.
  */

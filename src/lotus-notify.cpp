@@ -20,10 +20,8 @@
 
 namespace {
     constexpr int64_t kNotifyCooldownMs = 60000;
-
-    constexpr int     kNotifyTimeoutMs = 20000;
-
-    int64_t           lastNotifyMs = 0;
+    constexpr int     kNotifyTimeoutMs  = 20000;
+    int64_t           lastNotifyMs      = 0;
 
     struct GErrorDeleter {
         void operator()(GError* const error) const noexcept {
@@ -80,20 +78,21 @@ void notifyMissingUinputServer() {
     }
     lastNotifyMs = now;
     // Set by ctest for every test: a test run must never pop a notification on the desktop.
-    if (const char* disabled = std::getenv("VANH_DISABLE_NOTIFICATIONS"); disabled != nullptr && *disabled != '\0' && std::string_view(disabled) != "0") {
-        LOTUS_INFO("Uinput server not running (notification disabled by VANH_DISABLE_NOTIFICATIONS)");
+    const char* disabled = std::getenv("VANH_DISABLE_NOTIFICATIONS");
+    if (disabled != nullptr && *disabled != '\0' && std::string_view(disabled) != "0") {
+        LOTUS_INFO("Uinput server not running (notifications disabled by env)");
         return;
     }
     if (!notifyLibraryReady()) {
         LOTUS_WARN("Cannot initialise libnotify");
         return;
     }
-    constexpr std::string_view kLotusDocsUrl = "https://github.com/congmnguyen/fcitx5-vanh#readme";
-    std::string                body          = _("Uinput modes need the Vanh uinput server. Enable the server service for your distribution and init system.");
-    body += '\n';
-    body += kLotusDocsUrl;
+    std::string body = _("Uinput modes need the Vanh uinput server. Enable the server service for "
+                         "your distribution and init system.");
+    body += "\nhttps://github.com/congmnguyen/fcitx5-vanh#readme";
 
-    NotificationPtr notification{notify_notification_new(_("Vanh: the uinput server is not running"), body.c_str(), "fcitx-vanh")};
+    NotificationPtr notification{notify_notification_new(
+        _("Vanh: the uinput server is not running"), body.c_str(), "fcitx-vanh")};
     if (notification == nullptr) {
         LOTUS_WARN("Cannot create the uinput server notification");
         return;
@@ -104,6 +103,7 @@ void notifyMissingUinputServer() {
     const bool      shown = notify_notification_show(notification.get(), &error) != FALSE;
     const GErrorPtr failure{error};
     if (!shown) {
-        LOTUS_WARN(std::string("Cannot show the uinput server notification: ") + (failure != nullptr ? failure->message : "unknown error"));
+        LOTUS_WARN("Cannot show the uinput server notification: "
+            << (failure != nullptr ? failure->message : "unknown error"));
     }
 }

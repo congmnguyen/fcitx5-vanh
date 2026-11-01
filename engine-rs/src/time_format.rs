@@ -37,7 +37,7 @@ const REPLACEMENTS: [(&str, &str); 18] = [
     ("%R", "15:04"),
 ];
 
-/// Go reference layout tokens, longest first so that "2006" wins over "06" and "January" over "Jan".
+/// Go reference layout tokens, longest first so "2006" wins over "06" and "January" over "Jan".
 const TOKENS: [(&str, &str); 14] = [
     ("2006", "%Y"),
     ("January", "%B"),
@@ -73,20 +73,13 @@ fn replace_tokens(input: &[u8], table: &[(&str, &str)]) -> Vec<u8> {
     out
 }
 
-pub fn go_time_layout(format: &[u8]) -> Vec<u8> {
-    replace_tokens(format, &REPLACEMENTS)
-}
-
 pub fn strftime_pattern(layout: &[u8]) -> Vec<u8> {
     replace_tokens(layout, &TOKENS)
 }
 
 /// The pattern handed to strftime for a configured format, None when nothing is rendered.
 pub fn pattern_for(format: &[u8]) -> Option<Vec<u8>> {
-    if format.is_empty() {
-        return None;
-    }
-    let layout = go_time_layout(format);
+    let layout = replace_tokens(format, &REPLACEMENTS);
     if layout.is_empty() {
         return None;
     }
@@ -112,13 +105,15 @@ pub fn format_time(format: &[u8]) -> Vec<u8> {
     // Room for any libc's struct tm, kept opaque.
     let mut tm = [0u64; 16];
     let mut buffer = [0u8; 256];
-    // SAFETY: plain libc calls with valid pointers; tm is larger than struct tm and aligned for it.
+    // SAFETY: plain libc calls with valid pointers; tm is larger than struct tm and aligned for
+    // it.
     unsafe {
         let now = time(std::ptr::null_mut());
         if localtime_r(&now, tm.as_mut_ptr().cast()).is_null() {
             return Vec::new();
         }
-        let written = strftime(buffer.as_mut_ptr().cast(), buffer.len(), pattern.as_ptr().cast(), tm.as_ptr().cast());
+        let out = buffer.as_mut_ptr().cast();
+        let written = strftime(out, buffer.len(), pattern.as_ptr().cast(), tm.as_ptr().cast());
         buffer[..written].to_vec()
     }
 }

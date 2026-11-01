@@ -35,20 +35,6 @@ namespace vanh::migration {
     inline constexpr std::string_view kNewId = "vanh";
 
     /**
-     * @brief One user file to carry over, relative to the fcitx5 user config directory.
-     */
-    struct FileRename {
-        std::string_view from; ///< old path, e.g. "conf/lotus.conf"
-        std::string_view to;   ///< new path, e.g. "conf/vanh.conf"
-    };
-
-    /**
-     * @brief The user configuration files the addon writes, old name -> new name.
-     * @return Paths relative to the fcitx5 user config directory (~/.config/fcitx5).
-     */
-    LOTUS_EXPORT const std::vector<FileRename>& configFileRenames();
-
-    /**
      * @brief Rewrites the content of the old main configuration (conf/lotus.conf) for the new name.
      *
      * Only the option key that carried the old name changes (UseLotusIcons -> UseVanhIcons);
@@ -93,21 +79,24 @@ namespace vanh::migration {
     /**
      * @brief Copies the old user configuration files and the old user data directory.
      *
-     * For each entry of configFileRenames() under @p fcitxConfigDir, and for every file under
-     * `<fcitxDataDir>/lotus/` (the user dictionary), the old file is copied to the new name when the
-     * new one does not exist. Old files are never modified or removed.
+     * For each of conf/lotus{,-macro-table,-custom-keymap,-app-rules,-emoji-history}.conf under
+     * @p fcitxConfigDir (renamed to vanh...), and for every file under
+     * `<fcitxDataDir>/lotus/` (the user dictionary), the old file is copied to the new name when
+     * the new one does not exist. Old files are never modified or removed.
      * @param fcitxConfigDir fcitx5 user config directory (~/.config/fcitx5).
      * @param fcitxDataDir fcitx5 user data directory (~/.local/share/fcitx5).
      * @return One human-readable line per migrated file or failure, empty when nothing was done.
      */
-    LOTUS_EXPORT std::vector<std::string> migrateUserFiles(const std::filesystem::path& fcitxConfigDir, const std::filesystem::path& fcitxDataDir);
+    LOTUS_EXPORT std::vector<std::string> migrateUserFiles(
+        const std::filesystem::path& fcitxConfigDir, const std::filesystem::path& fcitxDataDir);
 
     /**
      * @brief Applies migrateProfileText() to the profile file, atomically.
      * @param profilePath Path of the fcitx5 profile.
-     * @return A human-readable line when the profile was rewritten or could not be, empty otherwise.
+     * @return A human-readable line when the profile was rewritten or could not be, else empty.
      */
-    LOTUS_EXPORT std::vector<std::string> migrateProfileFile(const std::filesystem::path& profilePath);
+    LOTUS_EXPORT std::vector<std::string> migrateProfileFile(
+        const std::filesystem::path& profilePath);
 
     /**
      * @brief Reports whether the profile file still lists the old input method in a way that

@@ -28,7 +28,8 @@ namespace lotus::fcitx_text {
         return out;
     }
 
-    void commit(fcitx::InputContext* ic, std::u32string_view text, std::chrono::steady_clock::time_point& lastCommitTime) {
+    void commit(fcitx::InputContext* ic, std::u32string_view text,
+        std::chrono::steady_clock::time_point& lastCommitTime) {
         if (ic == nullptr || text.empty()) {
             return;
         }
@@ -43,8 +44,7 @@ namespace lotus::fcitx_text {
         if (codePoint == 0U) {
             return {};
         }
-        const std::u32string text(1, static_cast<char32_t>(codePoint));
-        return text;
+        return std::u32string(1, static_cast<char32_t>(codePoint));
     }
 
 } // namespace lotus::fcitx_text

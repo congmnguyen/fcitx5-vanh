@@ -43,22 +43,17 @@ void setRealMode(fcitx::LotusMode mode) {
     g_realMode.store(mode, std::memory_order_release);
 }
 
-namespace {
-    std::string currentUserName() {
-        struct passwd  pwd{};
-        struct passwd* result  = nullptr;
-        long           bufSize = sysconf(_SC_GETPW_R_SIZE_MAX);
-        if (bufSize == -1) {
-            bufSize = 16384;
-        }
-        std::vector<char> buf(bufSize);
-        const int         res = getpwuid_r(getuid(), &pwd, buf.data(), bufSize, &result);
-        return res == 0 && result != nullptr ? std::string(result->pw_name) : std::string("unknown");
-    }
-} // namespace
-
 std::string buildSocketPath(std::string_view fileName) {
-    const std::string ns = lotusSocketNamespace(currentUserName());
+    struct passwd  pwd{};
+    struct passwd* result  = nullptr;
+    long           bufSize = sysconf(_SC_GETPW_R_SIZE_MAX);
+    if (bufSize == -1) {
+        bufSize = 16384;
+    }
+    std::vector<char> buf(bufSize);
+    const int         res  = getpwuid_r(getuid(), &pwd, buf.data(), bufSize, &result);
+    const std::string user = res == 0 && result != nullptr ? result->pw_name : "unknown";
+    const std::string ns   = lotusSocketNamespace(user);
     if (!lotusIsValidSocketNamespace(ns)) {
         return {};
     }
@@ -67,7 +62,7 @@ std::string buildSocketPath(std::string_view fileName) {
     path += ns;
     path += '/';
     path += fileName;
-    if (path.size() >= UNIX_PATH_MAX) {
+    if (path.size() >= sizeof(sockaddr_un::sun_path)) {
         return {};
     }
     return path;
@@ -85,7 +80,8 @@ std::optional<uid_t> lookupUserUid(const char* name) {
     }
     std::vector<char> buf(bufSize);
     int               res = 0;
-    while ((res = getpwnam_r(name, &pwd, buf.data(), buf.size(), &result)) == ERANGE && buf.size() < (1U << 20)) {
+    while ((res = getpwnam_r(name, &pwd, buf.data(), buf.size(), &result)) == ERANGE &&
+        buf.size() < (1U << 20)) {
         buf.resize(buf.size() * 2);
     }
     if (res != 0 || result == nullptr) {
@@ -112,17 +108,21 @@ bool verifyServerPeer(int fd, std::string_view label) {
     struct ucred cred{};
     socklen_t    credLen = sizeof(cred);
     if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &cred, &credLen) != 0) {
-        LOTUS_ERROR("Failed to get the peer credentials of the " + std::string(label) + ": " + std::string(std::strerror(errno)));
+        LOTUS_ERROR(
+            "Failed to get the peer credentials of the " << label << ": " << std::strerror(errno));
         return false;
     }
     const auto expected = expectedServerUid();
     if (!expected) {
-        LOTUS_ERROR("Refusing the " + std::string(label) + ": the uinput server user " LOTUS_UINPUT_PROXY_USER " does not exist");
+        LOTUS_ERROR("Refusing the " << label << ": the uinput server user " LOTUS_UINPUT_PROXY_USER
+                                    << " does not exist");
         return false;
     }
     if (cred.uid != *expected) {
-        LOTUS_ERROR("Refusing the " + std::string(label) + ": its owner has UID " + std::to_string(cred.uid) + " (PID " + std::to_string(cred.pid) +
-                    "), not the uinput server user " LOTUS_UINPUT_PROXY_USER " (UID " + std::to_string(*expected) + ")");
+        LOTUS_ERROR("Refusing the "
+            << label << ": its owner has UID " << cred.uid << " (PID " << cred.pid
+            << "), not the uinput server user " LOTUS_UINPUT_PROXY_USER " (UID " << *expected
+            << ")");
         return false;
     }
     return true;
@@ -131,20 +131,22 @@ bool verifyServerPeer(int fd, std::string_view label) {
 int connectServerSocket(const std::string& path, bool nonBlocking, std::string_view label) {
     sockaddr_un address{};
     if (path.empty() || path.size() >= sizeof(address.sun_path)) {
-        LOTUS_ERROR("Invalid path of the " + std::string(label) + ": " + path);
+        LOTUS_ERROR("Invalid path of the " << label << ": " << path);
         return -1;
     }
     address.sun_family = AF_UNIX;
     std::memcpy(address.sun_path, path.data(), path.size());
     const auto length = static_cast<socklen_t>(offsetof(sockaddr_un, sun_path) + path.size() + 1);
 
-    FdGuard    sock(socket(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC | (nonBlocking ? SOCK_NONBLOCK : 0), 0));
+    const int  type = SOCK_SEQPACKET | SOCK_CLOEXEC | (nonBlocking ? SOCK_NONBLOCK : 0);
+    FdGuard    sock(socket(AF_UNIX, type, 0));
     if (!sock.isValid()) {
-        LOTUS_ERROR("Failed to create the " + std::string(label) + ": " + std::string(std::strerror(errno)));
+        LOTUS_ERROR("Failed to create the " << label << ": " << std::strerror(errno));
         return -1;
     }
     if (connect(sock.get(), reinterpret_cast<const sockaddr*>(&address), length) != 0) {
-        LOTUS_ERROR("Failed to connect to the " + std::string(label) + " " + path + ": " + std::string(std::strerror(errno)));
+        LOTUS_ERROR(
+            "Failed to connect to the " << label << " " << path << ": " << std::strerror(errno));
         return -1;
     }
     if (!verifyServerPeer(sock.get(), label)) {
@@ -155,14 +157,19 @@ int connectServerSocket(const std::string& path, bool nonBlocking, std::string_v
 
 std::string lotusConfigDir() {
 #if LOTUS_USE_MODERN_FCITX_API
-    return (fcitx::StandardPaths::global().userDirectory(fcitx::StandardPathsType::Config) / "fcitx5" / "conf").string();
+    const auto config =
+        fcitx::StandardPaths::global().userDirectory(fcitx::StandardPathsType::Config);
+    return (config / "fcitx5" / "conf").string();
 #else
-    return fcitx::StandardPath::global().userDirectory(fcitx::StandardPath::Type::Config) + "/fcitx5/conf";
+    const auto config =
+        fcitx::StandardPath::global().userDirectory(fcitx::StandardPath::Type::Config);
+    return config + "/fcitx5/conf";
 #endif
 }
 
 int64_t nowMs() {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    const auto now = std::chrono::steady_clock::now().time_since_epoch();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
 }
 
 bool isBackspace(uint32_t sym) {
@@ -199,7 +206,9 @@ bool isChromiumProgram(std::string_view program) {
         "slimjet",
         "yandex",
     });
-    return std::ranges::any_of(names, [program](std::string_view name) { return program.find(name) != std::string_view::npos; });
+    return std::ranges::any_of(names, [program](std::string_view name) {
+        return program.find(name) != std::string_view::npos;
+    });
 }
 
 DiffPart compareAndSplitU32(std::u32string_view oldText, std::u32string_view newText) {
@@ -209,13 +218,10 @@ DiffPart compareAndSplitU32(std::u32string_view oldText, std::u32string_view new
 }
 
 std::string getFrontendName(fcitx::InputContext* ic) {
-    if (ic == nullptr) {
-        return "unknown";
-    }
-    return ic->frontend();
+    return ic == nullptr ? "unknown" : ic->frontend();
 }
 
 std::string getEnv(const std::string& name) {
     const char* value = std::getenv(name.c_str());
-    return ((value != nullptr) && ((*value) != 0)) ? value : "";
+    return value != nullptr ? value : "";
 }

@@ -22,7 +22,9 @@ SKIP_DIRS = {
     "node_modules", ".git", ".venv", "venv", "site-packages", "target", "build", "dist", "cache",
     "results", "artifacts", ".cache", ".cargo", ".rustup", ".local", ".config", "vendor", "snap",
 }
-AI_MARKERS = re.compile(r"co-authored-by:\s*claude|generated with \[?claude|🤖 generated|noreply@anthropic\.com", re.I)
+AI_MARKERS = re.compile(
+    r"co-authored-by:\s*claude|generated with \[?claude|🤖 generated|noreply@anthropic\.com", re.I
+)
 TRAILER = re.compile(r"^(co-authored-by|signed-off-by|change-id|reviewed-by):", re.I)
 
 
@@ -54,7 +56,11 @@ def commits(repo, emails):
         if email.lower() not in emails:
             continue
         ai = bool(AI_MARKERS.search(body))
-        lines = [l for l in body.splitlines() if not TRAILER.match(l.strip()) and not AI_MARKERS.search(l)]
+        lines = [
+            l
+            for l in body.splitlines()
+            if not TRAILER.match(l.strip()) and not AI_MARKERS.search(l)
+        ]
         text = "\n".join(lines).strip()
         if text:
             yield {"source": "commit", "id": f"{repo.name}@{sha[:10]}", "ai": ai, "text": text}
@@ -62,7 +68,8 @@ def commits(repo, emails):
 
 def gh_items(user):
     for kind in ("prs", "issues"):
-        out = run(["gh", "search", kind, "--author", user, "--limit", "1000", "--json", "repository,number,title,body"])
+        search = ["gh", "search", kind, "--author", user, "--limit", "1000"]
+        out = run(search + ["--json", "repository,number,title,body"])
         if not out:
             continue
         for it in json.loads(out):
@@ -70,7 +77,13 @@ def gh_items(user):
             ai = bool(AI_MARKERS.search(body))
             body = "\n".join(l for l in body.splitlines() if not AI_MARKERS.search(l))
             text = (it["title"] + "\n" + body).strip()
-            yield {"source": "pr" if kind == "prs" else "issue", "id": f"{it['repository']['nameWithOwner']}#{it['number']}", "ai": ai, "text": text}
+            repo = it["repository"]["nameWithOwner"]
+            yield {
+                "source": "pr" if kind == "prs" else "issue",
+                "id": f"{repo}#{it['number']}",
+                "ai": ai,
+                "text": text,
+            }
 
 
 def bash_history():
@@ -98,8 +111,8 @@ def authored_by_user(path, emails):
 
 
 def markdown(emails):
-    roots = [HOME / "code", HOME / "Documents", HOME / "Desktop", HOME / "aitc-prep", HOME / "ubuntu-setup"]
-    for root in roots:
+    for folder in ("code", "Documents", "Desktop", "aitc-prep", "ubuntu-setup"):
+        root = HOME / folder
         if not root.is_dir():
             continue
         for dirpath, dirnames, filenames in os.walk(root):
@@ -113,13 +126,20 @@ def markdown(emails):
                 mine, ai = authored_by_user(p, emails)
                 if not mine:
                     continue
-                yield {"source": "markdown", "id": str(p.relative_to(HOME)), "ai": ai, "text": p.read_text(errors="replace")}
+                yield {
+                    "source": "markdown",
+                    "id": str(p.relative_to(HOME)),
+                    "ai": ai,
+                    "text": p.read_text(errors="replace"),
+                }
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("out")
-    ap.add_argument("--emails", default="congminhnguyen@proton.me,facker.ncf@gmail.com,kv8haiquan@gmail.com")
+    ap.add_argument(
+        "--emails", default="congminhnguyen@proton.me,facker.ncf@gmail.com,kv8haiquan@gmail.com"
+    )
     ap.add_argument("--gh-user", default="congmnguyen")
     a = ap.parse_args()
     emails = {e.strip().lower() for e in a.emails.split(",")}
@@ -128,7 +148,13 @@ def main():
     os.chmod(out, 0o700)
     n = 0
     with open(out / "raw.jsonl", "w") as f:
-        for gen in ([c for r in git_repos() for c in commits(r, emails)], gh_items(a.gh_user), bash_history(), markdown(emails)):
+        sources = (
+            [c for r in git_repos() for c in commits(r, emails)],
+            gh_items(a.gh_user),
+            bash_history(),
+            markdown(emails),
+        )
+        for gen in sources:
             for rec in gen:
                 f.write(json.dumps(rec, ensure_ascii=False) + "\n")
                 n += 1

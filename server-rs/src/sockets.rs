@@ -44,7 +44,10 @@ pub fn base_dir() -> PathBuf {
 
 /// A namespace usable as one path component: non-empty, no `/` or NUL, not `.` or `..`.
 pub fn is_valid_namespace(namespace: &[u8]) -> bool {
-    !namespace.is_empty() && namespace != b"." && namespace != b".." && !namespace.iter().any(|&byte| byte == b'/' || byte == 0)
+    !namespace.is_empty()
+        && namespace != b"."
+        && namespace != b".."
+        && !namespace.iter().any(|&byte| byte == b'/' || byte == 0)
 }
 
 /// `<base>/<namespace>`, or `None` for an invalid namespace.
@@ -69,7 +72,11 @@ pub fn prepare_socket_dir(dir: &Path, owner: u32) -> io::Result<()> {
         return Err(refused(format!("{} is not a directory", dir.display())));
     }
     if meta.uid() != owner {
-        return Err(refused(format!("{} belongs to UID {}, not {owner}", dir.display(), meta.uid())));
+        return Err(refused(format!(
+            "{} belongs to UID {}, not {owner}",
+            dir.display(),
+            meta.uid()
+        )));
     }
     if meta.mode() & 0o7777 != SOCKET_DIR_MODE {
         std::fs::set_permissions(dir, std::fs::Permissions::from_mode(SOCKET_DIR_MODE))?;
@@ -89,7 +96,11 @@ pub fn remove_stale_socket(path: &Path, owner: u32) -> io::Result<()> {
         return Err(refused(format!("{} exists and is not a socket", path.display())));
     }
     if meta.uid() != owner {
-        return Err(refused(format!("socket {} belongs to UID {}, not {owner}", path.display(), meta.uid())));
+        return Err(refused(format!(
+            "socket {} belongs to UID {}, not {owner}",
+            path.display(),
+            meta.uid()
+        )));
     }
     std::fs::remove_file(path)
 }
@@ -130,7 +141,11 @@ pub fn listen(path: &Path, owner: u32, label: &str) -> Option<Listener> {
     match listen_at(path, owner) {
         Ok(listener) => Some(listener),
         Err(error) => {
-            log::error(&format!("Failed to bind {label} at {}: {}", path.display(), sys::error_text(&error)));
+            log::error(&format!(
+                "Failed to bind {label} at {}: {}",
+                path.display(),
+                sys::error_text(&error)
+            ));
             None
         }
     }
@@ -149,7 +164,11 @@ pub fn open_server_sockets(base: &Path, namespace: &[u8], owner: u32) -> Option<
         return None;
     };
     if let Err(error) = prepare_socket_dir(&dir, owner) {
-        log::error(&format!("Failed to prepare the socket directory {}: {}", dir.display(), sys::error_text(&error)));
+        log::error(&format!(
+            "Failed to prepare the socket directory {}: {}",
+            dir.display(),
+            sys::error_text(&error)
+        ));
         return None;
     }
     let kb = listen(&dir.join(names::KB_SOCKET_FILE), owner, "keyboard socket")?;
@@ -169,7 +188,11 @@ mod tests {
     impl TempDir {
         fn new() -> Self {
             static NEXT: AtomicUsize = AtomicUsize::new(0);
-            let path = std::env::temp_dir().join(format!("vanh-srv-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
+            let path = std::env::temp_dir().join(format!(
+                "vanh-srv-{}-{}",
+                std::process::id(),
+                NEXT.fetch_add(1, Ordering::Relaxed)
+            ));
             let _ = std::fs::remove_dir_all(&path);
             std::fs::DirBuilder::new().mode(0o700).create(&path).unwrap();
             TempDir(path)
@@ -197,7 +220,10 @@ mod tests {
         for bad in [&b""[..], b".", b"..", b"a/b", b"/", b"nul\0"] {
             assert!(!is_valid_namespace(bad), "{bad:?}");
         }
-        assert_eq!(socket_dir(Path::new("/run/vanh"), b"alice"), Some(PathBuf::from("/run/vanh/alice")));
+        assert_eq!(
+            socket_dir(Path::new("/run/vanh"), b"alice"),
+            Some(PathBuf::from("/run/vanh/alice"))
+        );
         assert_eq!(socket_dir(Path::new("/run/vanh"), b"../etc"), None);
     }
 
@@ -228,7 +254,10 @@ mod tests {
         let file = tmp.0.join("carol");
         std::fs::write(&file, b"x").unwrap();
         assert!(prepare_socket_dir(&file, me()).is_err());
-        assert!(prepare_socket_dir(&tmp.0.join("missing/parent"), me()).is_err(), "the parent is never created");
+        assert!(
+            prepare_socket_dir(&tmp.0.join("missing/parent"), me()).is_err(),
+            "the parent is never created"
+        );
     }
 
     #[test]

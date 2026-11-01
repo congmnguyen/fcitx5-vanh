@@ -44,52 +44,10 @@ namespace {
     /// Delay of the second look at the profile (the --replace race), in microseconds.
     constexpr uint64_t kRecheckDelayUs = 5ULL * 1000 * 1000;
 
-    void logAll(const std::vector<std::string>& lines) {
+    void               logAll(const std::vector<std::string>& lines) {
         for (const auto& line : lines) {
             VANH_MIGRATE_INFO() << line;
         }
-    }
-
-    /**
-     * @brief Puts the new input method back into the groups of the running instance.
-     *
-     * The in-memory groups already lost the unknown "lotus" item; the migrated profile text says
-     * which groups had it, at which position and which one was the default.
-     * @return True when a group changed.
-     */
-    bool migrateLoadedGroups(fcitx::InputMethodManager& imManager, const std::string& profileText) {
-        const auto migrated = vanh::migration::migrateProfileText(profileText);
-        if (!migrated) {
-            return false;
-        }
-        const std::string newId(vanh::migration::kNewId);
-        bool              changed = false;
-        for (const auto& wanted : vanh::migration::parseProfileGroups(*migrated)) {
-            const auto hasNew = [&newId](const auto& item) { return item.name == newId; };
-            if (!std::ranges::any_of(wanted.items, hasNew)) {
-                continue;
-            }
-            const auto* current = imManager.group(wanted.name);
-            if (current == nullptr ||
-                std::ranges::any_of(current->inputMethodList(), [&newId](const fcitx::InputMethodGroupItem& item) { return item.name() == newId; })) {
-                continue;
-            }
-            fcitx::InputMethodGroup group = *current;
-            auto&                   list  = group.inputMethodList();
-            list.clear();
-            for (const auto& item : wanted.items) {
-                if (imManager.entry(item.name) != nullptr) {
-                    list.emplace_back(item.name);
-                    list.back().setLayout(item.layout);
-                }
-            }
-            if (!wanted.defaultIM.empty() && imManager.entry(wanted.defaultIM) != nullptr) {
-                group.setDefaultInputMethod(wanted.defaultIM);
-            }
-            imManager.setGroup(std::move(group));
-            changed = true;
-        }
-        return changed;
     }
 
     class VanhMigrate : public fcitx::AddonInstance {
@@ -97,15 +55,18 @@ namespace {
         explicit VanhMigrate(fcitx::Instance* instance) : instance_(instance) {
             const auto configDir = vanh::migration::userConfigDir();
             logAll(vanh::migration::migrateUserFiles(configDir, vanh::migration::userDataDir()));
-            hadOldProfile_ = vanh::migration::profileNeedsMigration(configDir / "profile");
+            const bool hadOldProfile =
+                vanh::migration::profileNeedsMigration(configDir / "profile");
             logAll(vanh::migration::migrateProfileFile(configDir / "profile"));
-            if (hadOldProfile_) {
-                recheck_ = instance_->eventLoop().addTimeEvent(CLOCK_MONOTONIC, fcitx::now(CLOCK_MONOTONIC) + kRecheckDelayUs, 0,
-                                                               [this](fcitx::EventSourceTime*, uint64_t) {
-                                                                   recheckProfile();
-                                                                   return true;
-                                                               });
+            if (!hadOldProfile) {
+                return;
             }
+            recheck_ = instance_->eventLoop().addTimeEvent(CLOCK_MONOTONIC,
+                fcitx::now(CLOCK_MONOTONIC) + kRecheckDelayUs, 0,
+                [this](fcitx::EventSourceTime*, uint64_t) {
+                    recheckProfile();
+                    return true;
+                });
         }
 
       private:
@@ -114,12 +75,47 @@ namespace {
             if (!vanh::migration::profileNeedsMigration(profile)) {
                 return;
             }
-            // The replaced instance wrote the old profile back. Fix what this instance loaded, then
-            // save, which rewrites the file with the groups held in memory.
+            // The replaced instance wrote the old profile back. Fix what this instance loaded,
+            // then save, which rewrites the file with the groups held in memory.
             std::ifstream     file(profile);
-            const std::string text{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
-            auto&             imManager = instance_->inputMethodManager();
-            if (migrateLoadedGroups(imManager, text)) {
+            const std::string text{
+                std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+            auto& imManager = instance_->inputMethodManager();
+
+            // Put the new input method back into the groups of the running instance. The
+            // in-memory groups already lost the unknown "lotus" item; the migrated profile text
+            // says which groups had it, at which position and which one was the default.
+            const auto        migrated = vanh::migration::migrateProfileText(text);
+            const std::string newId(vanh::migration::kNewId);
+            bool              changed = false;
+            for (const auto& wanted : vanh::migration::parseProfileGroups(migrated.value_or(""))) {
+                const auto hasNew = [&newId](const auto& item) {
+                    return item.name == newId;
+                };
+                const auto* current = imManager.group(wanted.name);
+                if (!std::ranges::any_of(wanted.items, hasNew) || current == nullptr ||
+                    std::ranges::any_of(current->inputMethodList(),
+                        [&newId](const fcitx::InputMethodGroupItem& item) {
+                            return item.name() == newId;
+                        })) {
+                    continue;
+                }
+                fcitx::InputMethodGroup group = *current;
+                auto&                   list  = group.inputMethodList();
+                list.clear();
+                for (const auto& item : wanted.items) {
+                    if (imManager.entry(item.name) != nullptr) {
+                        list.emplace_back(item.name);
+                        list.back().setLayout(item.layout);
+                    }
+                }
+                if (!wanted.defaultIM.empty() && imManager.entry(wanted.defaultIM) != nullptr) {
+                    group.setDefaultInputMethod(wanted.defaultIM);
+                }
+                imManager.setGroup(std::move(group));
+                changed = true;
+            }
+            if (changed) {
                 VANH_MIGRATE_INFO() << "Re-added input method \"vanh\" to the running groups";
             }
             imManager.save();
@@ -127,7 +123,6 @@ namespace {
         }
 
         fcitx::Instance*                        instance_;
-        bool                                    hadOldProfile_ = false;
         std::unique_ptr<fcitx::EventSourceTime> recheck_;
     };
 

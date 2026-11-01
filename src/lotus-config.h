@@ -28,8 +28,9 @@
 
 namespace fcitx {
 
-    FCITX_CONFIG_ENUM_NAME_WITH_I18N(LotusMode, N_("OFF"), N_("Uinput (Smooth)"), N_("Uinput (Super Smooth)"), N_("Surrounding Text"), N_("Preedit"), N_("Emoji Picker"),
-                                     N_("Uinput (Select)"));
+    FCITX_CONFIG_ENUM_NAME_WITH_I18N(LotusMode, N_("OFF"), N_("Uinput (Smooth)"),
+        N_("Uinput (Super Smooth)"), N_("Surrounding Text"), N_("Preedit"), N_("Emoji Picker"),
+        N_("Uinput (Select)"));
 
     /**
      * @brief W2U mode for w to ư conversion, shared with the engine (lotus::W2uMode).
@@ -42,7 +43,8 @@ namespace fcitx {
      *        (lotus::BracketTransformMode).
      */
     using lotus::BracketTransformMode;
-    FCITX_CONFIG_ENUM_NAME_WITH_I18N(BracketTransformMode, N_("Disabled"), N_("Non-Start"), N_("Everywhere"));
+    FCITX_CONFIG_ENUM_NAME_WITH_I18N(
+        BracketTransformMode, N_("Disabled"), N_("Non-Start"), N_("Everywhere"));
 
     /**
      * @brief Modifier that toggles macro skip for the next word.
@@ -54,7 +56,8 @@ namespace fcitx {
         Alt      = 3,
     };
 
-    FCITX_CONFIG_ENUM_NAME_WITH_I18N(MacroSkipTriggerModifier, N_("Disabled"), N_("Shift"), N_("Ctrl"), N_("Alt"));
+    FCITX_CONFIG_ENUM_NAME_WITH_I18N(
+        MacroSkipTriggerModifier, N_("Disabled"), N_("Shift"), N_("Ctrl"), N_("Alt"));
 
     /**
      * @brief Icon theme options.
@@ -71,14 +74,17 @@ namespace fcitx {
      * @brief Output charsets, shared with the engine (lotus::data::Charset).
      */
     using lotus::Charset;
-    FCITX_CONFIG_ENUM_NAME(Charset, "Unicode", "BKHCM 1", "BKHCM 2", "NCR Decimal", "NCR Hex", "TCVN3 (ABC)", "UTF-8", "Unicode C string Decimal", "Unicode C string Hex",
-                           "Unicode tổ hợp", "VIQR", "VISCII", "VNI Windows", "VPS", "Vietware Full", "Vietware X", "Windows 1258 codepage");
+    FCITX_CONFIG_ENUM_NAME(Charset, "Unicode", "BKHCM 1", "BKHCM 2", "NCR Decimal", "NCR Hex",
+        "TCVN3 (ABC)", "UTF-8", "Unicode C string Decimal", "Unicode C string Hex",
+        "Unicode tổ hợp", "VIQR", "VISCII", "VNI Windows", "VPS", "Vietware Full", "Vietware X",
+        "Windows 1258 codepage");
 
     /**
      * @brief Input methods, shared with the engine (lotus::data::InputMethodId).
      */
     using lotus::InputMethodId;
-    FCITX_CONFIG_ENUM_NAME(InputMethodId, "Telex", "VNI", "Telex + VNI", "Telex + VNI + VIQR", "VIQR", "Microsoft layout", "VNI Bàn phím tiếng Pháp", "Custom");
+    FCITX_CONFIG_ENUM_NAME(InputMethodId, "Telex", "VNI", "Telex + VNI", "Telex + VNI + VIQR",
+        "VIQR", "Microsoft layout", "VNI Bàn phím tiếng Pháp", "Custom");
 
     /**
      * @brief Annotation for string list options in configuration UI.
@@ -117,7 +123,7 @@ namespace fcitx {
     };
 
     /**
-     * @brief Annotation for the input method option: plain enum names plus the custom keymap sub-config.
+     * @brief Annotation for the input method option: enum names plus the custom keymap sub-config.
      */
     struct InputMethodAnnotation : public EnumAnnotation {
         /**
@@ -148,85 +154,128 @@ namespace fcitx {
         }
     };
 
-    FCITX_CONFIGURATION(lotusKeymap, Option<std::string> key{this, "Key", _("Key"), ""}; Option<std::string> value{this, "Value", _("Value"), ""};);
+    FCITX_CONFIGURATION(lotusKeymap, Option<std::string> key{this, "Key", _("Key"), ""};
+        Option<std::string> value{this, "Value", _("Value"), ""};);
 
     FCITX_CONFIGURATION(lotusMacroTable,
-                        OptionWithAnnotation<std::vector<lotusKeymap>, ListDisplayOptionAnnotation> macros{
-                            this, "Macro", _("Macro"), {}, {}, {}, ListDisplayOptionAnnotation("Key")};);
+        OptionWithAnnotation<std::vector<lotusKeymap>, ListDisplayOptionAnnotation> macros{
+            this, "Macro", _("Macro"), {}, {}, {}, ListDisplayOptionAnnotation("Key")};);
 
     FCITX_CONFIGURATION(lotusCustomKeymap,
-                        OptionWithAnnotation<std::vector<lotusKeymap>, ListDisplayOptionAnnotation> customKeymap{
-                            this, "CustomKeymap", _("Custom Keymap"), {}, {}, {}, ListDisplayOptionAnnotation("Key")};);
+        OptionWithAnnotation<std::vector<lotusKeymap>, ListDisplayOptionAnnotation> customKeymap{
+            this, "CustomKeymap", _("Custom Keymap"), {}, {}, {},
+            ListDisplayOptionAnnotation("Key")};);
 
-    FCITX_CONFIGURATION(lotusAppRule, Option<std::string> app{this, "App", _("App"), ""}; Option<int> mode{this, "Mode", _("Mode"), 0};
-                        Option<int> commitInterval{this, "CommitInterval", std::string(_("Commit Interval")) + " " + _("(ms, 0 = default)"), 0};
-                        Option<int> backspaceInterval{this, "BackspaceInterval", std::string(_("Backspace Interval")) + " " + _("(ms, 0 = default)"), 0};
-                        Option<int> postDelay{this, "PostDelay", std::string(_("Post Delay")) + " " + _("(ms, 0 = default)"), 0};);
+    FCITX_CONFIGURATION(lotusAppRule, Option<std::string> app{this, "App", _("App"), ""};
+        Option<int> mode{this, "Mode", _("Mode"), 0}; Option<int> commitInterval{this,
+            "CommitInterval", std::string(_("Commit Interval")) + " " + _("(ms, 0 = default)"), 0};
+        Option<int> backspaceInterval{this, "BackspaceInterval",
+            std::string(_("Backspace Interval")) + " " + _("(ms, 0 = default)"), 0};
+        Option<int> postDelay{
+            this, "PostDelay", std::string(_("Post Delay")) + " " + _("(ms, 0 = default)"), 0};);
+
     FCITX_CONFIGURATION(lotusAppRules,
-                        OptionWithAnnotation<std::vector<lotusAppRule>, ListDisplayOptionAnnotation> rules{
-                            this, "Rules", _("Rules"), {}, {}, {}, ListDisplayOptionAnnotation("App")};);
+        OptionWithAnnotation<std::vector<lotusAppRule>, ListDisplayOptionAnnotation> rules{
+            this, "Rules", _("Rules"), {}, {}, {}, ListDisplayOptionAnnotation("App")};);
 
     /**
      * @brief Main configuration structure for Lotus input method.
      */
-    FCITX_CONFIGURATION(
-        lotusConfig,
-
-        OptionWithAnnotation<LotusMode, LotusModeI18NAnnotation>   mode{this, "Mode", _("Mode"), LotusMode::Preedit};
-        OptionWithAnnotation<InputMethodId, InputMethodAnnotation> inputMethod{this, "InputMethod", _("Input Method"), InputMethodId::Telex};
-        OptionWithAnnotation<Charset, EnumAnnotation> outputCharset{this, "OutputCharset", _("Output Charset"), Charset::Unicode}; KeyListOption modeMenuKey{
-            this, "ModeMenuKey", _("Mode Menu Hotkey"), {Key("grave")}, KeyListConstrain({KeyConstrainFlag::AllowModifierLess, KeyConstrainFlag::AllowModifierOnly})};
-        KeyListOption cycleModeKey{this, "CycleModeKey", _("Cycle Mode Hotkey"), {}, KeyListConstrain({KeyConstrainFlag::AllowModifierLess, KeyConstrainFlag::AllowModifierOnly})};
-        SubConfigOption                                                                appRules{this, "AppRules", _("App Rules"), "fcitx://config/addon/vanh/app_rules"};
-        OptionWithAnnotation<W2uMode, W2uModeI18NAnnotation>                           w2u{this, "W2U", _("Type w to Produce ư"), W2uMode::NonStart};
-        OptionWithAnnotation<BracketTransformMode, BracketTransformModeI18NAnnotation> bracketTransform{this, "BracketTransform", _("Type [ -> ơ, ] -> ư, { -> Ơ, } -> Ư"),
-                                                                                                        BracketTransformMode::Disabled};
-
-        Option<bool> spellCheck{this, "SpellCheck", _("Enable Spell Check Using Dictionary"), true}; Option<bool> enableMacro{this, "EnableMacro", _("Enable Macro"), true};
-        Option<bool>                                                                           capitalizeMacro{this, "CapitalizeMacro", _("Capitalize Macro"), true};
-        OptionWithAnnotation<MacroSkipTriggerModifier, MacroSkipTriggerModifierI18NAnnotation> macroSkipTriggerModifier{
-            this, "MacroSkipTriggerModifier", _("Modifier to Skip Macro for Next Word"), MacroSkipTriggerModifier::Disabled};
-        Option<bool>        autoCapitalizeAfterPunctuation{this, "AutoCapitalizeAfterPunctuation", _("Auto capitalize after sentence-ending punctuation (. ! ? Enter)"), false};
-        Option<bool>        doubleSpaceToPeriod{this, "DoubleSpaceToPeriod", _("Double Space to Period"), false};
-        Option<bool>        doubleHyphenToEmDash{this, "DoubleHyphenToEmDash", _("Double Hyphen to Em-Dash (--)"), false};
-        Option<bool>        englishRestore{this, "EnglishRestore", _("Restore English words to the keys typed (Vikey word lists)"), true};
-        KeyListOption       revertKey{this, "RevertKey", _("Revert the last word to its other reading (English <-> Vietnamese)"), {Key("Shift+BackSpace")}, KeyListConstrain()};
-        Option<bool>        learnFromReverts{this, "LearnFromReverts", _("Learn from reverts (kept in a local file, never sent anywhere)"), false};
-        Option<bool>        autoSurroundingText{this, "AutoSurroundingText", _("Uinput modes: use Surrounding Text in apps that report it"), true};
-        Option<bool>        autoNonVnRestore{this, "AutoNonVnRestore", _("Auto Restore Invalid Words"), true};
-        Option<bool>        modernStyle{this, "ModernStyle", _("Use oà, uý (Instead Of òa, úy)"), true};
-        Option<bool>        freeMarking{this, "FreeMarking", _("Allow Type With More Freedom"), true};
-        Option<bool>        ddFreeStyle{this, "DdFreeStyle", _("Allow dd To Produce đ When Auto Restore Invalid Words Is On"), true};
-        Option<bool>        useLotusIcons{this, "UseVanhIcons", _("Use Vanh Status Icons"), false};
-
-        Option<bool>        enableDictionary{this, "EnableDictionary", _("Custom Dictionary"), false};
-        Option<bool>        enableCustomKeymap{this, "EnableCustomKeymap", _("Custom Keymap"), false};
-
-        Option<bool>        showModeSmooth{this, "ShowModeSmooth", _("Show Uinput (Smooth)"), true};
-        Option<std::string> shortcutSmooth{this, "ShortcutSmooth", _("Shortcut for Uinput (Smooth)"), "1"};
-        Option<bool>        showModeSuperSmooth{this, "ShowModeSuperSmooth", _("Show Uinput (Super Smooth)"), true};
-        Option<std::string> shortcutSuperSmooth{this, "ShortcutSuperSmooth", _("Shortcut for Uinput (Super Smooth)"), "a"};
+    FCITX_CONFIGURATION(lotusConfig,
+        OptionWithAnnotation<LotusMode, LotusModeI18NAnnotation> mode{
+            this, "Mode", _("Mode"), LotusMode::Preedit};
+        OptionWithAnnotation<InputMethodId, InputMethodAnnotation> inputMethod{this, "InputMethod",
+            _("Input Method"), InputMethodId::Telex};
+        OptionWithAnnotation<Charset, EnumAnnotation>              outputCharset{
+            this, "OutputCharset", _("Output Charset"), Charset::Unicode};
+        KeyListOption   modeMenuKey{this, "ModeMenuKey", _("Mode Menu Hotkey"), {Key("grave")},
+            KeyListConstrain(
+                {KeyConstrainFlag::AllowModifierLess, KeyConstrainFlag::AllowModifierOnly})};
+        KeyListOption   cycleModeKey{this, "CycleModeKey", _("Cycle Mode Hotkey"), {},
+            KeyListConstrain(
+                {KeyConstrainFlag::AllowModifierLess, KeyConstrainFlag::AllowModifierOnly})};
+        SubConfigOption appRules{
+            this, "AppRules", _("App Rules"), "fcitx://config/addon/vanh/app_rules"};
+        OptionWithAnnotation<W2uMode, W2uModeI18NAnnotation> w2u{
+            this, "W2U", _("Type w to Produce ư"), W2uMode::NonStart};
+        OptionWithAnnotation<BracketTransformMode, BracketTransformModeI18NAnnotation>
+            bracketTransform{this, "BracketTransform", _("Type [ -> ơ, ] -> ư, { -> Ơ, } -> Ư"),
+                BracketTransformMode::Disabled};
+        Option<bool> spellCheck{this, "SpellCheck", _("Enable Spell Check Using Dictionary"), true};
+        Option<bool> enableMacro{this, "EnableMacro", _("Enable Macro"), true};
+        Option<bool> capitalizeMacro{this, "CapitalizeMacro", _("Capitalize Macro"), true};
+        OptionWithAnnotation<MacroSkipTriggerModifier, MacroSkipTriggerModifierI18NAnnotation>
+                     macroSkipTriggerModifier{this, "MacroSkipTriggerModifier",
+                _("Modifier to Skip Macro for Next Word"), MacroSkipTriggerModifier::Disabled};
+        Option<bool> autoCapitalizeAfterPunctuation{this, "AutoCapitalizeAfterPunctuation",
+            _("Auto capitalize after sentence-ending punctuation (. ! ? Enter)"), false};
+        Option<bool> doubleSpaceToPeriod{
+            this, "DoubleSpaceToPeriod", _("Double Space to Period"), false};
+        Option<bool> doubleHyphenToEmDash{
+            this, "DoubleHyphenToEmDash", _("Double Hyphen to Em-Dash (--)"), false};
+        Option<bool>  englishRestore{this, "EnglishRestore",
+            _("Restore English words to the keys typed (Vikey word lists)"), true};
+        KeyListOption revertKey{this, "RevertKey",
+            _("Revert the last word to its other reading (English <-> Vietnamese)"),
+            {Key("Shift+BackSpace")}, KeyListConstrain()};
+        Option<bool>  learnFromReverts{this, "LearnFromReverts",
+            _("Learn from reverts (kept in a local file, never sent anywhere)"), false};
+        Option<bool>  autoSurroundingText{this, "AutoSurroundingText",
+            _("Uinput modes: use Surrounding Text in apps that report it"), true};
+        Option<bool>  autoNonVnRestore{
+            this, "AutoNonVnRestore", _("Auto Restore Invalid Words"), true};
+        Option<bool> modernStyle{this, "ModernStyle", _("Use oà, uý (Instead Of òa, úy)"), true};
+        Option<bool> freeMarking{this, "FreeMarking", _("Allow Type With More Freedom"), true};
+        Option<bool> ddFreeStyle{this, "DdFreeStyle",
+            _("Allow dd To Produce đ When Auto Restore Invalid Words Is On"), true};
+        Option<bool> useLotusIcons{this, "UseVanhIcons", _("Use Vanh Status Icons"), false};
+        Option<bool> enableDictionary{this, "EnableDictionary", _("Custom Dictionary"), false};
+        Option<bool> enableCustomKeymap{this, "EnableCustomKeymap", _("Custom Keymap"), false};
+        Option<bool> showModeSmooth{this, "ShowModeSmooth", _("Show Uinput (Smooth)"), true};
+        Option<std::string> shortcutSmooth{
+            this, "ShortcutSmooth", _("Shortcut for Uinput (Smooth)"), "1"};
+        Option<bool> showModeSuperSmooth{
+            this, "ShowModeSuperSmooth", _("Show Uinput (Super Smooth)"), true};
+        Option<std::string> shortcutSuperSmooth{
+            this, "ShortcutSuperSmooth", _("Shortcut for Uinput (Super Smooth)"), "a"};
         Option<bool>        showModeSelect{this, "ShowModeSelect", _("Show Uinput (Select)"), true};
-        Option<std::string> shortcutSelect{this, "ShortcutSelect", _("Shortcut for Uinput (Select)"), "2"};
-        Option<bool>        showModeSurroundingText{this, "ShowModeSurroundingText", _("Show Surrounding Text"), true};
-        Option<std::string> shortcutSurroundingText{this, "ShortcutSurroundingText", _("Shortcut for Surrounding Text"), "4"};
+        Option<std::string> shortcutSelect{
+            this, "ShortcutSelect", _("Shortcut for Uinput (Select)"), "2"};
+        Option<bool> showModeSurroundingText{
+            this, "ShowModeSurroundingText", _("Show Surrounding Text"), true};
+        Option<std::string> shortcutSurroundingText{
+            this, "ShortcutSurroundingText", _("Shortcut for Surrounding Text"), "4"};
         Option<bool>        showModePreedit{this, "ShowModePreedit", _("Show Preedit"), true};
-        Option<std::string> shortcutPreedit{this, "ShortcutPreedit", _("Shortcut for Preedit"), "q"};
+        Option<std::string> shortcutPreedit{
+            this, "ShortcutPreedit", _("Shortcut for Preedit"), "q"};
         Option<bool>        showModeEmoji{this, "ShowModeEmoji", _("Show Emoji Picker"), true};
-        Option<std::string> shortcutEmoji{this, "ShortcutEmoji", _("Shortcut for Emoji Picker"), "w"}; Option<bool> showModeOff{this, "ShowModeOff", _("Show OFF"), true};
-        Option<std::string> shortcutOff{this, "ShortcutOff", _("Shortcut for OFF"), "e"}; Option<bool> showModeDefault{this, "ShowModeDefault", _("Show Default Typing"), true};
-        Option<std::string> shortcutDefault{this, "ShortcutDefault", _("Shortcut for Default Typing"), "r"};
-        Option<bool>        enableMacroInOffMode{this, "EnableMacroInOffMode", _("Allow Macro in Off Mode"), false};
-        Option<int>         defaultCommitInterval{this, "DefaultCommitInterval", std::string(_("Default Commit Interval")) + " (ms)", 20};
-        Option<int>         defaultBackspaceInterval{this, "DefaultBackspaceInterval", std::string(_("Default Backspace Interval")) + " (ms)", 5};
-        Option<int>         defaultPostDelay{this, "DefaultPostDelay", std::string(_("Default Post Delay")) + " (ms)", 10};
-        Option<std::string> modeOrder{this, "ModeOrder", _("Mode Order"), "Smooth,Select,SurroundingText,Preedit,Emoji,Off,SuperSmooth,Default"};
-        OptionWithAnnotation<std::string, TimeFormatAnnotation>  timeFormat{this, "TimeFormat", _("Time Format ($TIME in macro)"), "%H:%M", {}, {}, TimeFormatAnnotation()};
-        OptionWithAnnotation<std::string, DateFormatAnnotation>  dateFormat{this, "DateFormat", _("Date Format ($DATE in macro)"), "%d/%m/%Y", {}, {}, DateFormatAnnotation()};
-
-        SubConfigOption                                          macroEditor{this, "MacroEditor", _("Macro"), "fcitx://config/addon/vanh/vanh-macro"};
-        SubConfigOption                                          customKeymap{this, "CustomKeymap", _("Custom Keymap"), "fcitx://config/addon/vanh/custom_keymap"};
-        OptionWithAnnotation<IconTheme, IconThemeI18NAnnotation> iconTheme{this, "IconTheme", _("Icon Color"), IconTheme::Auto};);
+        Option<std::string> shortcutEmoji{
+            this, "ShortcutEmoji", _("Shortcut for Emoji Picker"), "w"};
+        Option<bool>        showModeOff{this, "ShowModeOff", _("Show OFF"), true};
+        Option<std::string> shortcutOff{this, "ShortcutOff", _("Shortcut for OFF"), "e"};
+        Option<bool> showModeDefault{this, "ShowModeDefault", _("Show Default Typing"), true};
+        Option<std::string> shortcutDefault{
+            this, "ShortcutDefault", _("Shortcut for Default Typing"), "r"};
+        Option<bool> enableMacroInOffMode{
+            this, "EnableMacroInOffMode", _("Allow Macro in Off Mode"), false};
+        Option<int> defaultCommitInterval{
+            this, "DefaultCommitInterval", std::string(_("Default Commit Interval")) + " (ms)", 20};
+        Option<int> defaultBackspaceInterval{this, "DefaultBackspaceInterval",
+            std::string(_("Default Backspace Interval")) + " (ms)", 5};
+        Option<int> defaultPostDelay{
+            this, "DefaultPostDelay", std::string(_("Default Post Delay")) + " (ms)", 10};
+        Option<std::string> modeOrder{this, "ModeOrder", _("Mode Order"),
+            "Smooth,Select,SurroundingText,Preedit,Emoji,Off,SuperSmooth,Default"};
+        OptionWithAnnotation<std::string, TimeFormatAnnotation> timeFormat{this, "TimeFormat",
+            _("Time Format ($TIME in macro)"), "%H:%M", {}, {}, TimeFormatAnnotation()};
+        OptionWithAnnotation<std::string, DateFormatAnnotation> dateFormat{this, "DateFormat",
+            _("Date Format ($DATE in macro)"), "%d/%m/%Y", {}, {}, DateFormatAnnotation()};
+        SubConfigOption                                         macroEditor{
+            this, "MacroEditor", _("Macro"), "fcitx://config/addon/vanh/vanh-macro"};
+        SubConfigOption customKeymap{
+            this, "CustomKeymap", _("Custom Keymap"), "fcitx://config/addon/vanh/custom_keymap"};
+        OptionWithAnnotation<IconTheme, IconThemeI18NAnnotation> iconTheme{
+            this, "IconTheme", _("Icon Color"), IconTheme::Auto};);
 
 } // namespace fcitx
 

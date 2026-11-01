@@ -27,18 +27,12 @@ bool KbSender::connected() const {
 
 bool KbSender::ensureConnected() {
     std::scoped_lock lock(mutex_);
-    if (fd_.isValid()) {
-        return true;
-    }
-    return connectLocked();
+    return fd_.isValid() || connectLocked();
 }
 
 bool KbSender::send(const KbMsg& msg) {
     std::scoped_lock lock(mutex_);
-    if (!fd_.isValid()) {
-        connectLocked();
-    }
-    if (!fd_.isValid()) {
+    if (!fd_.isValid() && !connectLocked()) {
         LOTUS_ERROR("Cannot send key request since cannot connect to uinput server");
         return false;
     }
@@ -46,7 +40,7 @@ bool KbSender::send(const KbMsg& msg) {
     if (std::cmp_equal(written, sizeof(msg))) {
         return true;
     }
-    LOTUS_WARN("Failed to send key request: " + std::string(std::strerror(errno)));
+    LOTUS_WARN("Failed to send key request: " << std::strerror(errno));
     fd_.reset();
     if (!connectLocked()) {
         return false;
@@ -56,7 +50,7 @@ bool KbSender::send(const KbMsg& msg) {
         LOTUS_INFO("Reconnected to uinput server successfully");
         return true;
     }
-    LOTUS_WARN("Failed to send key request after reconnect: " + std::string(std::strerror(errno)));
+    LOTUS_WARN("Failed to send key request after reconnect: " << std::strerror(errno));
     return false;
 }
 

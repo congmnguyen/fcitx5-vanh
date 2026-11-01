@@ -11,49 +11,39 @@ fn is_continuation(byte: u8) -> bool {
     byte & 0xC0 == 0x80
 }
 
-/// Decodes one code point at `*index`, advancing the index.
-pub fn decode_one(input: &[u8], index: &mut usize) -> char {
-    let i = *index;
-    let b0 = input[i] as u32;
-    let available = input.len() - i;
-    let trail = |offset: usize| (input[i + offset] & 0x3F) as u32;
-    if b0 < 0x80 {
-        *index += 1;
-        return b0 as u8 as char;
-    }
-    if (0xC2..=0xDF).contains(&b0) && available >= 2 && is_continuation(input[i + 1]) {
-        *index += 2;
-        return char::from_u32(((b0 & 0x1F) << 6) | trail(1)).unwrap_or(REPLACEMENT);
-    }
-    if (0xE0..=0xEF).contains(&b0) && available >= 3 && is_continuation(input[i + 1]) && is_continuation(input[i + 2]) {
-        let code_point = ((b0 & 0x0F) << 12) | (trail(1) << 6) | trail(2);
-        if code_point >= 0x800 && !(0xD800..=0xDFFF).contains(&code_point) {
-            *index += 3;
-            return char::from_u32(code_point).unwrap_or(REPLACEMENT);
-        }
-    }
-    if (0xF0..=0xF4).contains(&b0)
-        && available >= 4
-        && is_continuation(input[i + 1])
-        && is_continuation(input[i + 2])
-        && is_continuation(input[i + 3])
-    {
-        let code_point = ((b0 & 0x07) << 18) | (trail(1) << 12) | (trail(2) << 6) | trail(3);
-        if (0x10000..=0x10FFFF).contains(&code_point) {
-            *index += 4;
-            return char::from_u32(code_point).unwrap_or(REPLACEMENT);
-        }
-    }
-    *index += 1;
-    REPLACEMENT
-}
-
 /// Decodes a whole byte string.
 pub fn decode(input: &[u8]) -> Vec<char> {
     let mut out = Vec::with_capacity(input.len());
-    let mut index = 0;
-    while index < input.len() {
-        out.push(decode_one(input, &mut index));
+    let mut i = 0;
+    while i < input.len() {
+        let b0 = input[i] as u32;
+        // `n` continuation bytes follow.
+        let cont = |n: usize| {
+            input.len() - i > n && input[i + 1..=i + n].iter().all(|&b| is_continuation(b))
+        };
+        let trail = |offset: usize| (input[i + offset] & 0x3F) as u32;
+        let mut c = REPLACEMENT;
+        let mut len = 1;
+        if b0 < 0x80 {
+            c = b0 as u8 as char;
+        } else if (0xC2..=0xDF).contains(&b0) && cont(1) {
+            c = char::from_u32(((b0 & 0x1F) << 6) | trail(1)).unwrap_or(REPLACEMENT);
+            len = 2;
+        } else if (0xE0..=0xEF).contains(&b0) && cont(2) {
+            let code_point = ((b0 & 0x0F) << 12) | (trail(1) << 6) | trail(2);
+            if code_point >= 0x800 && !(0xD800..=0xDFFF).contains(&code_point) {
+                c = char::from_u32(code_point).unwrap_or(REPLACEMENT);
+                len = 3;
+            }
+        } else if (0xF0..=0xF4).contains(&b0) && cont(3) {
+            let code_point = ((b0 & 0x07) << 18) | (trail(1) << 12) | (trail(2) << 6) | trail(3);
+            if (0x10000..=0x10FFFF).contains(&code_point) {
+                c = char::from_u32(code_point).unwrap_or(REPLACEMENT);
+                len = 4;
+            }
+        }
+        out.push(c);
+        i += len;
     }
     out
 }

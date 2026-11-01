@@ -5,6 +5,6 @@
 //! Tests ported from the former C++ unit tests (test/lotus-*-test.cpp).
 
 mod engine;
+mod english_restore;
 mod internals;
 mod key_processor;
-mod english_restore;

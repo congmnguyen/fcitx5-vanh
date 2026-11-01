@@ -29,23 +29,10 @@ namespace lotus {
 
         constexpr FlagSet() = default;
 
-        constexpr FlagSet(Flag flag) : bits(static_cast<uint32_t>(flag)) {} // NOLINT(google-explicit-constructor, cppcoreguidelines-explicit-constructor)
+        // NOLINTNEXTLINE(google-explicit-constructor, cppcoreguidelines-explicit-constructor)
+        constexpr FlagSet(Flag flag) : bits(static_cast<uint32_t>(flag)) {}
 
         explicit constexpr FlagSet(uint32_t mask) : bits(mask) {}
-
-        [[nodiscard]] constexpr bool has(Flag flag) const {
-            return (bits & static_cast<uint32_t>(flag)) != 0U;
-        }
-
-        constexpr FlagSet& add(Flag flag) {
-            bits |= static_cast<uint32_t>(flag);
-            return *this;
-        }
-
-        constexpr FlagSet& remove(Flag flag) {
-            bits &= ~static_cast<uint32_t>(flag);
-            return *this;
-        }
 
         [[nodiscard]] constexpr bool intersects(FlagSet other) const {
             return (bits & other.bits) != 0U;
@@ -78,7 +65,8 @@ namespace lotus {
     using KeyStates = FlagSet<KeyState>;
 
     /** @brief Modifier bits that make the processor reject a key event, like Go's isValidState. */
-    inline constexpr KeyStates kInvalidStates = KeyState::Ctrl | KeyState::Mod1 | KeyState::Ignored | KeyState::Super | KeyState::Hyper | KeyState::Meta;
+    inline constexpr KeyStates kInvalidStates = KeyState::Ctrl | KeyState::Mod1 |
+        KeyState::Ignored | KeyState::Super | KeyState::Hyper | KeyState::Meta;
 
     /**
      * @brief Key states of a raw modifier mask.
@@ -96,7 +84,7 @@ namespace lotus {
         Everywhere = 2,
     };
 
-    /** @brief Bracket transform mode ("[" -> "ơ", "]" -> "ư"), shared with the addon configuration. */
+    /** @brief Bracket transform mode ("[" -> "ơ", "]" -> "ư"), shared with the addon config. */
     enum class BracketTransformMode : uint8_t {
         Disabled   = 0,
         NonStart   = 1,
@@ -126,7 +114,7 @@ namespace lotus {
 
     inline constexpr std::size_t kCharsetCount = 17U;
 
-    /** @brief Built-in input methods, in the order of the configuration (and of the Rust tables). */
+    /** @brief Built-in input methods, in the order of the configuration (and the Rust tables). */
     enum class InputMethodId : std::uint8_t {
         Telex,           ///< "Telex"
         Vni,             ///< "VNI"

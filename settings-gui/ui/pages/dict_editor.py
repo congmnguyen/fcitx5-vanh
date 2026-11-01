@@ -51,21 +51,6 @@ class DictEditorPage(BaseEditorPage):
         self.initial_state = {}
         self._is_loaded = False
         self._load_failed = False
-        self._setup_ui()
-
-    def _get_global_dict_path(self) -> str:
-        # Common locations for fcitx5 pkgdata
-        paths = [
-            DICTIONARY_PATH,
-            "/usr/share/fcitx5/vanh/vietnamese.cm.dict",
-            "/usr/local/share/fcitx5/vanh/vietnamese.cm.dict",
-        ]
-        for p in paths:
-            if os.path.exists(p):
-                return p
-        return paths[0]
-
-    def _setup_ui(self):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(30, 20, 30, 20)
         main_layout.setSpacing(15)
@@ -168,7 +153,19 @@ class DictEditorPage(BaseEditorPage):
 
             self.words = []
             local_path = local_dict_path()
-            global_path = self._get_global_dict_path()
+            # Common locations for fcitx5 pkgdata
+            global_path = next(
+                (
+                    p
+                    for p in (
+                        DICTIONARY_PATH,
+                        "/usr/share/fcitx5/vanh/vietnamese.cm.dict",
+                        "/usr/local/share/fcitx5/vanh/vietnamese.cm.dict",
+                    )
+                    if os.path.exists(p)
+                ),
+                DICTIONARY_PATH,
+            )
             path_to_read = local_path if os.path.exists(local_path) else global_path
 
             if os.path.exists(path_to_read):
@@ -209,7 +206,18 @@ class DictEditorPage(BaseEditorPage):
             col = i % num_cols
             item = QTableWidgetItem(word)
             self.table.setItem(row, col, item)
-            self._apply_cell_highlight(item, word)
+            # Red background and warning icon for words containing spaces
+            bg_color = Qt.transparent
+            tooltip = ""
+            icon = QIcon()
+            if " " in word:
+                bg_color = QColor(Qt.red)
+                bg_color.setAlpha(60)
+                icon = QIcon.fromTheme("dialog-warning")
+                tooltip = _("Warning: Dictionary words should not contain spaces.")
+            item.setBackground(bg_color)
+            item.setToolTip(tooltip)
+            item.setIcon(icon)
 
         # Clear remaining cells in the last row
         for i in range(len(display_words), num_rows * num_cols):
@@ -298,37 +306,13 @@ class DictEditorPage(BaseEditorPage):
         self.on_search_changed()
         self._on_item_changed()
 
-    def _is_invalid_word(self, word: str) -> bool:
-        """Checks if word contains spaces."""
-        if not word:
-            return False
-        return " " in word
-
-    def _apply_cell_highlight(self, item: QTableWidgetItem, word: str):
-        """Applies red background and warning icon to items with invalid words."""
-        is_invalid = self._is_invalid_word(word)
-        bg_color = Qt.transparent
-        tooltip = ""
-        icon = QIcon()
-        if is_invalid:
-            bg_color = QColor(Qt.red)
-            bg_color.setAlpha(60)
-            icon = QIcon.fromTheme("dialog-warning")
-            tooltip = _("Warning: Dictionary words should not contain spaces.")
-
-        item.setBackground(bg_color)
-        item.setToolTip(tooltip)
-        item.setIcon(icon)
-
     def on_search_changed(self):
         """Filters the words and rebuilds the table."""
         search_text = self.search_input.text().lower().strip()
         if not search_text:
             self._rebuild_table()
             return
-
-        filtered = [w for w in self.words if search_text in w.lower()]
-        self._rebuild_table(filtered)
+        self._rebuild_table([w for w in self.words if search_text in w.lower()])
 
     def on_add(self):
         word = self.input_word.text().strip()
@@ -342,7 +326,7 @@ class DictEditorPage(BaseEditorPage):
     def _update_add_button_icon(self):
         """Handles validation and Add button state."""
         word = self.input_word.text().strip()
-        is_invalid = self._is_invalid_word(word)
+        is_invalid = " " in word
 
         if is_invalid:
             self.input_word.setStyleSheet("color: red;")

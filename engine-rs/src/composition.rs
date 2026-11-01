@@ -36,12 +36,16 @@ pub fn slice(source: &[TransRef], begin: usize, end: usize) -> Composition {
     source[begin..end.min(source.len())].to_vec()
 }
 
+fn is_appending(trans: &&TransRef) -> bool {
+    trans.borrow().rule.effect_type == EffectType::Appending
+}
+
 pub fn find_last_appending_trans(composition: &[TransRef]) -> Option<TransRef> {
-    composition.iter().rev().find(|t| t.borrow().rule.effect_type == EffectType::Appending).cloned()
+    composition.iter().rev().find(is_appending).cloned()
 }
 
 pub fn filter_appending_composition(composition: &[TransRef]) -> Composition {
-    composition.iter().filter(|t| t.borrow().rule.effect_type == EffectType::Appending).cloned().collect()
+    composition.iter().filter(is_appending).cloned().collect()
 }
 
 pub fn find_root_target(target: &TransRef) -> TransRef {
@@ -101,16 +105,6 @@ pub fn generate_appending_trans(rules: &[Rule], lower_key: char, is_upper_case: 
     make_appending_trans(lower_key, is_upper_case)
 }
 
-fn is_plain_vowel(trans: &TransRef) -> bool {
-    let t = trans.borrow();
-    t.target.is_none() && utils::is_vowel(t.rule.result)
-}
-
-fn is_plain_consonant(trans: &TransRef) -> bool {
-    let t = trans.borrow();
-    t.target.is_none() && !utils::is_vowel(t.rule.result)
-}
-
 fn result_of(trans: &TransRef) -> char {
     trans.borrow().rule.result
 }
@@ -120,26 +114,31 @@ pub fn extract_cvc_appending_trans(composition: &[TransRef]) -> CvcParts {
     if n == 0 {
         return CvcParts::default();
     }
+    let is_plain = |trans: &TransRef, vowel: bool| {
+        let t = trans.borrow();
+        t.target.is_none() && utils::is_vowel(t.rule.result) == vowel
+    };
     let mut lc_start = n;
-    while lc_start > 0 && !is_plain_vowel(&composition[lc_start - 1]) {
+    while lc_start > 0 && !is_plain(&composition[lc_start - 1], true) {
         lc_start -= 1;
     }
     let mut vo_start = lc_start;
-    while vo_start > 0 && !is_plain_consonant(&composition[vo_start - 1]) {
+    while vo_start > 0 && !is_plain(&composition[vo_start - 1], false) {
         vo_start -= 1;
     }
     let mut first_consonant = slice(composition, 0, vo_start);
     let mut vowel = slice(composition, vo_start, lc_start);
     let mut last_consonant = slice(composition, lc_start, n);
-
     if !last_consonant.is_empty() && vowel.is_empty() && first_consonant.is_empty() {
         first_consonant = std::mem::take(&mut last_consonant);
     }
-
     if first_consonant.len() == 1 && !vowel.is_empty() {
         let fc = result_of(&first_consonant[0]);
         let v0 = result_of(&vowel[0]);
-        let gi = fc == 'g' && v0 == 'i' && vowel.len() > 1 && (result_of(&vowel[1]) != 'e' || last_consonant.is_empty());
+        let gi = fc == 'g'
+            && v0 == 'i'
+            && vowel.len() > 1
+            && (result_of(&vowel[1]) != 'e' || last_consonant.is_empty());
         let qu = fc == 'q' && v0 == 'u';
         if gi || qu {
             first_consonant = slice(composition, 0, vo_start + 1);
@@ -154,7 +153,8 @@ pub fn extract_cvc_trans(composition: &[TransRef]) -> CvcParts {
     if n == 0 {
         return CvcParts::default();
     }
-    let appending_list: Composition = composition.iter().filter(|t| t.borrow().target.is_none()).cloned().collect();
+    let appending_list: Composition =
+        composition.iter().filter(|t| t.borrow().target.is_none()).cloned().collect();
     let parts = extract_cvc_appending_trans(&appending_list);
     if appending_list.len() == n {
         return parts;
@@ -163,9 +163,8 @@ pub fn extract_cvc_trans(composition: &[TransRef]) -> CvcParts {
     let mut vo = parts.vowel.clone();
     let mut lc = parts.last_consonant.clone();
     for trans in composition {
-        let target = match &trans.borrow().target {
-            Some(target) => target.clone(),
-            None => continue,
+        let Some(target) = trans.borrow().target.clone() else {
+            continue;
         };
         if is_in(&target, &parts.vowel) {
             vo.push(trans.clone());
@@ -178,41 +177,45 @@ pub fn extract_cvc_trans(composition: &[TransRef]) -> CvcParts {
     CvcParts { first_consonant: fc, vowel: vo, last_consonant: lc }
 }
 
-pub fn extract_last_word(composition: &[TransRef], effect_keys: &[char]) -> WordSplit {
+/// Splits after the last rendered character that `is_boundary` accepts.
+fn split_after_boundary(
+    composition: &[TransRef],
+    mode: Mode,
+    is_boundary: impl Fn(char) -> bool,
+) -> WordSplit {
     let n = composition.len();
     let mut nodes = Vec::new();
-    let text = render(composition, Mode::VIETNAMESE | Mode::LOWER_CASE | Mode::TONE_LESS | Mode::MARK_LESS, Some(&mut nodes));
-    for k in (0..nodes.len()).rev() {
-        let i = nodes[k];
-        let c = text[k];
-        if !utils::is_alpha(c) && !utils::in_key_list(effect_keys, c) {
-            if i == n - 1 {
-                return WordSplit { previous: composition.to_vec(), last: Vec::new() };
-            }
-            return WordSplit { previous: slice(composition, 0, i + 1), last: slice(composition, i + 1, n) };
+    let text = render(composition, mode, Some(&mut nodes));
+    for (&i, &c) in nodes.iter().zip(&text).rev() {
+        if !is_boundary(c) {
+            continue;
         }
+        if i == n - 1 {
+            return WordSplit { previous: composition.to_vec(), last: Vec::new() };
+        }
+        return WordSplit {
+            previous: slice(composition, 0, i + 1),
+            last: slice(composition, i + 1, n),
+        };
     }
     WordSplit { previous: Vec::new(), last: composition.to_vec() }
+}
+
+pub fn extract_last_word(composition: &[TransRef], effect_keys: &[char]) -> WordSplit {
+    let mode = Mode::VIETNAMESE | Mode::LOWER_CASE | Mode::TONE_LESS | Mode::MARK_LESS;
+    split_after_boundary(composition, mode, |c| !utils::is_alpha(c) && !effect_keys.contains(&c))
 }
 
 pub fn extract_last_word_with_punctuation_marks(composition: &[TransRef]) -> WordSplit {
-    let n = composition.len();
-    let mut nodes = Vec::new();
-    let text = render(composition, Mode::ENGLISH, Some(&mut nodes));
-    for k in (0..nodes.len()).rev() {
-        let i = nodes[k];
-        if utils::is_space(text[k]) {
-            if i == n - 1 {
-                return WordSplit { previous: composition.to_vec(), last: Vec::new() };
-            }
-            return WordSplit { previous: slice(composition, 0, i + 1), last: slice(composition, i + 1, n) };
-        }
-    }
-    WordSplit { previous: Vec::new(), last: composition.to_vec() }
+    split_after_boundary(composition, Mode::ENGLISH, |c| c == ' ')
 }
 
 /// Renders a composition; `nodes` receives the composition index of every rendered character.
-pub fn render(composition: &[TransRef], mode: Mode, mut nodes: Option<&mut Vec<usize>>) -> Vec<char> {
+pub fn render(
+    composition: &[TransRef],
+    mode: Mode,
+    mut nodes: Option<&mut Vec<usize>>,
+) -> Vec<char> {
     let is_english = mode.has(Mode::ENGLISH);
     let mut effects: Vec<std::cell::Ref<'_, Transformation>> = Vec::new();
     let mut appending: Vec<(usize, &TransRef)> = Vec::with_capacity(composition.len());
@@ -248,7 +251,9 @@ pub fn render(composition: &[TransRef], mode: Mode, mut nodes: Option<&mut Vec<u
                             c = utils::add_mark_to_char(c, effect.rule.mark());
                         }
                     }
-                    EffectType::ToneTransformation => c = utils::add_tone_to_char(c, effect.rule.tone()),
+                    EffectType::ToneTransformation => {
+                        c = utils::add_tone_to_char(c, effect.rule.tone());
+                    }
                     _ => {}
                 }
             }

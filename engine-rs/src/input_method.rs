@@ -13,6 +13,8 @@ use std::sync::OnceLock;
 /// The parsed built-in input method (Custom is empty).
 pub fn cached_input_method(id: InputMethodId) -> &'static InputMethod {
     static CACHE: OnceLock<Vec<InputMethod>> = OnceLock::new();
-    let cache = CACHE.get_or_init(|| (0..INPUT_METHOD_COUNT).map(|i| parse_input_method(INPUT_METHOD_DEFINITIONS[i])).collect());
+    let cache = CACHE.get_or_init(|| {
+        (0..INPUT_METHOD_COUNT).map(|i| parse_input_method(INPUT_METHOD_DEFINITIONS[i])).collect()
+    });
     &cache[id as usize]
 }

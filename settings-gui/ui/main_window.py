@@ -22,8 +22,6 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-# Lazy loading pages on demand
-
 
 class VanhSettingsWindow(QMainWindow):
     """Main entry window for Vanh Configuration GUI."""
@@ -35,25 +33,12 @@ class VanhSettingsWindow(QMainWindow):
         self.dbus_handler = VanhDBusHandler()
 
         self._setup_ui()
-        self._setup_window_size()
-        self._apply_global_styles()
-        self.update_reset_button_state()
-
-    def update_reset_button_state(self):
-        any_modified_from_default = any(
-            (
-                hasattr(self.content_stack.widget(i), "is_modified_from_default")
-                and self.content_stack.widget(i).is_modified_from_default()
-            )
-            or (
-                hasattr(self.content_stack.widget(i), "is_modified")
-                and self.content_stack.widget(i).is_modified()
-            )
-            for i in range(self.content_stack.count())
-        )
-        self.btn_reset.setEnabled(any_modified_from_default)
-
-    def _apply_global_styles(self):
+        screen = QApplication.primaryScreen().availableGeometry()
+        w = int(screen.width() * 0.45)
+        h = int(screen.height() * 0.60)
+        self.setMinimumSize(750, 500)
+        self.resize(w, h)
+        self.move((screen.width() - w) // 2, (screen.height() - h) // 2)
         self.setStyleSheet("""
             QLabel#CategoryTitle {
                 font-size: 22px;
@@ -76,6 +61,17 @@ class VanhSettingsWindow(QMainWindow):
                 font-size: 12px;
             }
         """)
+        self.update_reset_button_state()
+
+    def update_reset_button_state(self):
+        pages = [self.content_stack.widget(i) for i in range(self.content_stack.count())]
+        self.btn_reset.setEnabled(
+            any(
+                (hasattr(page, "is_modified_from_default") and page.is_modified_from_default())
+                or (hasattr(page, "is_modified") and page.is_modified())
+                for page in pages
+            )
+        )
 
     def _setup_ui(self):
         central_widget = QWidget()
@@ -121,16 +117,6 @@ class VanhSettingsWindow(QMainWindow):
 
         main_v_layout.addLayout(main_h_layout, 1)
 
-        # Bottom Bar
-        self._setup_bottom_bar(main_v_layout)
-
-        # Pages Mapping
-        self._setup_pages()
-
-        self.sidebar.currentRowChanged.connect(self._on_sidebar_changed)
-        self.sidebar.setCurrentRow(0)
-
-    def _setup_bottom_bar(self, layout):
         container = QFrame()
         container.setObjectName("BottomBar")
         bar_layout = QHBoxLayout(container)
@@ -160,18 +146,17 @@ class VanhSettingsWindow(QMainWindow):
         self.btn_ok.clicked.connect(self.on_ok)
         bar_layout.addWidget(self.btn_ok)
 
-        layout.addWidget(container)
+        main_v_layout.addWidget(container)
 
-    def _setup_pages(self):
-        def create_general():
-            from ui.pages.dynamic_settings import DynamicSettingsPage, SettingsCategory
+        def dynamic(category):
+            def create():
+                from ui.pages.dynamic_settings import DynamicSettingsPage, SettingsCategory
 
-            return DynamicSettingsPage(self.dbus_handler, category=SettingsCategory.GENERAL)
+                return DynamicSettingsPage(
+                    self.dbus_handler, category=getattr(SettingsCategory, category)
+                )
 
-        def create_typing():
-            from ui.pages.dynamic_settings import DynamicSettingsPage, SettingsCategory
-
-            return DynamicSettingsPage(self.dbus_handler, category=SettingsCategory.TYPING)
+            return create
 
         def create_applications():
             from ui.pages.mode_manager import ModeManagerPage
@@ -193,16 +178,6 @@ class VanhSettingsWindow(QMainWindow):
 
             return KeymapEditorPage(self.dbus_handler)
 
-        def create_shortcuts():
-            from ui.pages.dynamic_settings import DynamicSettingsPage, SettingsCategory
-
-            return DynamicSettingsPage(self.dbus_handler, category=SettingsCategory.SHORTCUTS)
-
-        def create_appearance():
-            from ui.pages.dynamic_settings import DynamicSettingsPage, SettingsCategory
-
-            return DynamicSettingsPage(self.dbus_handler, category=SettingsCategory.APPEARANCE)
-
         def create_backup():
             from ui.pages.backup import BackupPage
 
@@ -213,14 +188,16 @@ class VanhSettingsWindow(QMainWindow):
 
             return AboutPage()
 
-        self._add_page(_("General"), "preferences-system", create_general)
-        self._add_page(_("Typing"), "input-keyboard", create_typing)
+        self._add_page(_("General"), "preferences-system", dynamic("GENERAL"))
+        self._add_page(_("Typing"), "input-keyboard", dynamic("TYPING"))
         self._add_page(_("Applications"), "applications-other", create_applications)
         self._add_page(_("Macros"), "accessories-text-editor", create_macros)
         self._add_page(_("Dictionary"), "edit-copy", create_dict)
         self._add_page(_("Keymap"), "preferences-desktop-keyboard", create_keymap)
-        self._add_page(_("Shortcuts"), "preferences-desktop-keyboard-shortcuts", create_shortcuts)
-        self._add_page(_("Appearance"), "preferences-desktop-theme", create_appearance)
+        self._add_page(
+            _("Shortcuts"), "preferences-desktop-keyboard-shortcuts", dynamic("SHORTCUTS")
+        )
+        self._add_page(_("Appearance"), "preferences-desktop-theme", dynamic("APPEARANCE"))
         self._add_page(_("Backup"), "document-save-as", create_backup)
 
         spacer = QListWidgetItem()
@@ -228,6 +205,9 @@ class VanhSettingsWindow(QMainWindow):
         spacer.setSizeHint(QSize(0, 20))
         self.sidebar.addItem(spacer)
         self._add_page(_("About"), "help-about", create_about)
+
+        self.sidebar.currentRowChanged.connect(self._on_sidebar_changed)
+        self.sidebar.setCurrentRow(0)
 
     def on_restore_defaults(self):
         """Resets all settings to their default values."""
@@ -331,29 +311,24 @@ class VanhSettingsWindow(QMainWindow):
             return
 
         role = item.data(Qt.UserRole)
-        if role == "page":
-            widget = item.data(Qt.UserRole + 2)
-            if widget is None:
-                factory = item.data(Qt.UserRole + 1)
-                if factory:
-                    widget = factory()
-                    self.content_stack.addWidget(widget)
-                    item.setData(Qt.UserRole + 2, widget)
-            if widget:
-                self.content_stack.setCurrentWidget(widget)
-            self.update_reset_button_state()
-        elif role == "header":
+        if role == "header":
             # Don't allow selecting headers, move to next item
             if index + 1 < self.sidebar.count():
                 self.sidebar.setCurrentRow(index + 1)
+            return
+        if role != "page":
+            return
 
-    def _setup_window_size(self):
-        screen = QApplication.primaryScreen().availableGeometry()
-        w = int(screen.width() * 0.45)
-        h = int(screen.height() * 0.60)
-        self.setMinimumSize(750, 500)
-        self.resize(w, h)
-        self.move((screen.width() - w) // 2, (screen.height() - h) // 2)
+        widget = item.data(Qt.UserRole + 2)
+        if widget is None:
+            factory = item.data(Qt.UserRole + 1)
+            if factory:
+                widget = factory()
+                self.content_stack.addWidget(widget)
+                item.setData(Qt.UserRole + 2, widget)
+        if widget:
+            self.content_stack.setCurrentWidget(widget)
+        self.update_reset_button_state()
 
     def _add_page(self, title: str, icon_name: str, page_factory):
         item = QListWidgetItem(QIcon.fromTheme(icon_name), title)

@@ -6,7 +6,8 @@
  */
 /**
  * @file dictionary.h
- * @brief Custom word list of the spell check (engine-rs/src/dictionary.rs), from bamboo/dictionary.go.
+ * @brief Custom word list of the spell check (engine-rs/src/dictionary.rs), from
+ *        bamboo/dictionary.go.
  *
  * Like the macro table, a key processor keeps its own reference to the dictionary data, so a
  * dictionary shared through a std::shared_ptr is seen by every processor that uses it.
@@ -31,7 +32,8 @@ namespace lotus {
         Dictionary();
 
         /**
-         * @brief Replaces the words, like Go's NewDictionaryFromWords: lowercased, empty ones dropped.
+         * @brief Replaces the words, like Go's NewDictionaryFromWords: lowercased, empty ones
+         *        dropped.
          * @param words Words, UTF-8.
          */
         void loadFromWords(const std::vector<std::string>& words);
@@ -48,7 +50,7 @@ namespace lotus {
         /** @brief True when the word is stored; an empty word never matches. */
         [[nodiscard]] bool hasWord(std::u32string_view word) const;
 
-        /** @brief True when a stored word equals the word or begins with it; an empty word never matches. */
+        /** @brief True when a stored word equals or begins with the word; empty never matches. */
         [[nodiscard]] bool hasWordOrPrefix(std::u32string_view word) const;
 
         /** @brief Number of stored words. */

@@ -25,15 +25,15 @@ enum class KbOp : int8_t {
 /**
  * @brief Message on the keyboard socket from the fcitx5 addon to uinput server.
  *
- * Native layout and byte order; the Rust server decodes it in server-rs/src/protocol.rs (keep both in
- * sync, test/server-wire-compat.cpp checks them against each other).
+ * Native layout and byte order; the Rust server decodes it in server-rs/src/protocol.rs (keep both
+ * in sync, test/server-wire-compat.cpp checks them against each other).
  */
 struct KbMsg {
     KbOp     op;        ///< requested operation
     size_t   count;     ///< characters to delete/select (autofill included)
-    uint32_t preDelay;  ///< ms to wait BEFORE sending any key (commit_interval: cooldown between commits)
+    uint32_t preDelay;  ///< ms to wait BEFORE any key (commit_interval: cooldown between commits)
     uint32_t interval;  ///< ms between consecutive injected keys (backspace_interval)
-    uint32_t postDelay; ///< ms to wait BEFORE sending the final trigger key (to let DOM expand selection)
+    uint32_t postDelay; ///< ms to wait BEFORE the final trigger key (lets the DOM expand selection)
 };
 
 #endif // _COMMON_PROTOCOL_H_

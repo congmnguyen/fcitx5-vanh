@@ -14,44 +14,82 @@
 
 #include <algorithm>
 #include <array>
+#include <optional>
+#include <string_view>
 #include <fcitx-utils/i18n.h>
 #include <fcitx-utils/key.h>
 #include <fcitx-utils/stringutils.h>
 
 namespace fcitx {
+    namespace {
+        /// One mode name accepted in Mode Order.
+        struct ModeNameEntry {
+            std::string_view         name; ///< Name used in Mode Order.
+            std::optional<LotusMode> mode; ///< Mode of the name; nothing for the Default entry.
+        };
 
-    KeySym shortcutKey(const std::string& shortcut) {
-        return Key(shortcut).sym();
-    }
+        /// Mode Order names, in the fallback order used when a name is not listed.
+        constexpr auto kModeNames = std::to_array<ModeNameEntry>({
+            {.name = "Smooth", .mode = LotusMode::Smooth},
+            {.name = "Select", .mode = LotusMode::Select},
+            {.name = "SurroundingText", .mode = LotusMode::SurroundingText},
+            {.name = "Preedit", .mode = LotusMode::Preedit},
+            {.name = "Emoji", .mode = LotusMode::Emoji},
+            {.name = "Off", .mode = LotusMode::Off},
+            {.name = "SuperSmooth", .mode = LotusMode::SuperSmooth},
+            {.name = "Default", .mode = std::nullopt},
+        });
 
-    bool modeVisible(const lotusConfig& config, LotusMode mode) {
-        switch (mode) {
-            case LotusMode::Smooth: return *config.showModeSmooth;
-            case LotusMode::SuperSmooth: return *config.showModeSuperSmooth;
-            case LotusMode::Select: return *config.showModeSelect;
-            case LotusMode::SurroundingText: return *config.showModeSurroundingText;
-            case LotusMode::Preedit: return *config.showModePreedit;
-            case LotusMode::Emoji: return *config.showModeEmoji;
-            case LotusMode::Off: return *config.showModeOff;
+        KeySym         shortcutKey(const std::string& shortcut) {
+            return Key(shortcut).sym();
         }
-        return false;
-    }
 
-    KeySym modeShortcut(const lotusConfig& config, LotusMode mode) {
-        switch (mode) {
-            case LotusMode::Smooth: return shortcutKey(*config.shortcutSmooth);
-            case LotusMode::SuperSmooth: return shortcutKey(*config.shortcutSuperSmooth);
-            case LotusMode::Select: return shortcutKey(*config.shortcutSelect);
-            case LotusMode::SurroundingText: return shortcutKey(*config.shortcutSurroundingText);
-            case LotusMode::Preedit: return shortcutKey(*config.shortcutPreedit);
-            case LotusMode::Emoji: return shortcutKey(*config.shortcutEmoji);
-            case LotusMode::Off: return shortcutKey(*config.shortcutOff);
+        bool modeVisible(const lotusConfig& config, LotusMode mode) {
+            switch (mode) {
+                case LotusMode::Smooth:
+                    return *config.showModeSmooth;
+                case LotusMode::SuperSmooth:
+                    return *config.showModeSuperSmooth;
+                case LotusMode::Select:
+                    return *config.showModeSelect;
+                case LotusMode::SurroundingText:
+                    return *config.showModeSurroundingText;
+                case LotusMode::Preedit:
+                    return *config.showModePreedit;
+                case LotusMode::Emoji:
+                    return *config.showModeEmoji;
+                case LotusMode::Off:
+                    return *config.showModeOff;
+            }
+            return false;
         }
-        return FcitxKey_None;
-    }
+
+        KeySym modeShortcut(const lotusConfig& config, LotusMode mode) {
+            switch (mode) {
+                case LotusMode::Smooth:
+                    return shortcutKey(*config.shortcutSmooth);
+                case LotusMode::SuperSmooth:
+                    return shortcutKey(*config.shortcutSuperSmooth);
+                case LotusMode::Select:
+                    return shortcutKey(*config.shortcutSelect);
+                case LotusMode::SurroundingText:
+                    return shortcutKey(*config.shortcutSurroundingText);
+                case LotusMode::Preedit:
+                    return shortcutKey(*config.shortcutPreedit);
+                case LotusMode::Emoji:
+                    return shortcutKey(*config.shortcutEmoji);
+                case LotusMode::Off:
+                    return shortcutKey(*config.shortcutOff);
+            }
+            return FcitxKey_None;
+        }
+    } // namespace
 
     std::string modeLabel(const ModeOrderEntry& entry) {
-        return entry.isDefault ? _("Default Typing") : LotusModeI18NAnnotation::toString(entry.mode);
+        if (entry.isDefault) {
+            return _("Default Typing");
+        }
+        return LotusModeI18NAnnotation::toString(entry.mode);
     }
 
     std::vector<ModeOrderEntry> modeOrderEntries(const lotusConfig& config) {
@@ -59,39 +97,43 @@ namespace fcitx {
 
         auto       resolve = [&config](const ModeNameEntry& nameEntry) {
             if (nameEntry.mode.has_value()) {
-                return ModeOrderEntry{.mode = *nameEntry.mode, .key = modeShortcut(config, *nameEntry.mode), .visible = modeVisible(config, *nameEntry.mode), .isDefault = false};
+                const LotusMode mode = *nameEntry.mode;
+                return ModeOrderEntry{
+                          .mode      = mode,
+                          .key       = modeShortcut(config, mode),
+                          .visible   = modeVisible(config, mode),
+                          .isDefault = false,
+                };
             }
-            return ModeOrderEntry{.mode = config.mode.value(), .key = shortcutKey(*config.shortcutDefault), .visible = *config.showModeDefault, .isDefault = true};
+            return ModeOrderEntry{
+                      .mode      = config.mode.value(),
+                      .key       = shortcutKey(*config.shortcutDefault),
+                      .visible   = *config.showModeDefault,
+                      .isDefault = true,
+            };
         };
 
         std::vector<ModeOrderEntry> entries;
         for (const auto& name : order) {
-            const auto* const it = std::ranges::find_if(kModeNames, [&name](const ModeNameEntry& entry) { return entry.name == name; });
+            const auto* const it =
+                std::ranges::find_if(kModeNames, [&name](const ModeNameEntry& entry) {
+                    return entry.name == name;
+                });
             if (it != kModeNames.end()) {
                 entries.push_back(resolve(*it));
             }
         }
         for (const auto& nameEntry : kModeNames) {
-            const bool listed = std::ranges::any_of(order, [&nameEntry](const std::string& name) { return nameEntry.name == name; });
-            if (!listed) {
+            if (std::ranges::find(order, nameEntry.name) == order.end()) {
                 entries.push_back(resolve(nameEntry));
             }
         }
         return entries;
     }
 
-    bool isAppModeMenuReservedKey(KeySym sym, const lotusConfig& config) {
-        std::array<KeySym, kModeNames.size()> modeShortcuts{};
-        std::ranges::transform(kModeNames, modeShortcuts.begin(), [&config](const ModeNameEntry& nameEntry) {
-            if (nameEntry.mode.has_value()) {
-                return modeShortcut(config, *nameEntry.mode);
-            }
-            return shortcutKey(*config.shortcutDefault);
-        });
-        if (std::ranges::find(modeShortcuts, sym) != modeShortcuts.end()) {
-            return true;
-        }
-
+    KeySym typeKeyForModeMenuHotkey(KeySym hotkeySym, const lotusConfig& config) {
+        // The mode shortcuts (every mode is in Mode Order, listed or not) and the menu
+        // navigation keys cannot be typed through the menu.
         static const auto reservedMenuKeys = std::to_array<KeySym>({
             FcitxKey_Escape,
             FcitxKey_Tab,
@@ -101,11 +143,13 @@ namespace fcitx {
             FcitxKey_Up,
             FcitxKey_Down,
         });
-        return std::ranges::find(reservedMenuKeys, sym) != reservedMenuKeys.end();
-    }
-
-    KeySym typeKeyForModeMenuHotkey(KeySym hotkeySym, const lotusConfig& config) {
-        return isAppModeMenuReservedKey(hotkeySym, config) ? FcitxKey_f : hotkeySym;
+        const auto        entries          = modeOrderEntries(config);
+        const bool        reserved =
+            std::ranges::find(reservedMenuKeys, hotkeySym) != reservedMenuKeys.end() ||
+            std::ranges::any_of(entries, [hotkeySym](const auto& e) {
+                return e.key == hotkeySym;
+            });
+        return reserved ? FcitxKey_f : hotkeySym;
     }
 
 } // namespace fcitx

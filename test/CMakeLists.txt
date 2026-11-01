@@ -179,6 +179,7 @@ add_lotus_headless_test(TARGET auto_capitalize_shortcut SOURCES auto-capitalize-
 add_lotus_headless_test(TARGET dbus_deferred_commit SOURCES dbus-deferred-commit.cpp LABELS "integration;dbus")
 add_lotus_headless_test(TARGET modifier_key_bypasses_surrounding_text SOURCES modifier-key-bypasses-surrounding-text.cpp LABELS "integration;surrounding")
 add_lotus_headless_test(TARGET surrounding_text_typing SOURCES surrounding-text-typing.cpp LABELS "integration;surrounding")
+target_link_libraries(surrounding_text_typing PRIVATE systemd)
 add_lotus_headless_test(TARGET runtime_safety SOURCES runtime-safety.cpp LABELS "integration;raii")
 add_lotus_headless_test(TARGET emoji_history_page_navigation SOURCES emoji-history-page-navigation.cpp LABELS "integration;emoji")
 add_lotus_headless_test(TARGET emoji_search_history SOURCES emoji-search-history.cpp LABELS "unit;emoji")

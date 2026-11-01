@@ -99,11 +99,17 @@ namespace fcitx {
         std::u32string                       oldPreBuffer_;
         /// Word before the cursor as we last wrote it (surrounding path)
         std::u32string surrWord_;
-        bool           surrKnown_             = false;
-        int64_t        surrSoftResetAt_       = 0;
-        bool           hasHistory_            = false;
-        size_t         expectedBackspaces_    = 0;
-        size_t         currentBackspaceCount_ = 0;
+        bool           surrKnown_       = false;
+        int64_t        surrSoftResetAt_ = 0;
+        /// Surrounding edit held back for GNOME Shell, see replaceSurrounding()
+        bool                             held_        = false;
+        size_t                           heldDeleted_ = 0;
+        std::u32string                   heldAdded_;
+        int64_t                          lastSurroundingEditMs_ = 0;
+        std::unique_ptr<EventSourceTime> heldTimer_;
+        bool                             hasHistory_            = false;
+        size_t                           expectedBackspaces_    = 0;
+        size_t                           currentBackspaceCount_ = 0;
         /// when real shift +left is send
         bool realSelect_ = false;
         /// kind of the most recent burst, for replay
@@ -187,6 +193,9 @@ namespace fcitx {
          * @param added Text to commit.
          */
         void replaceSurrounding(size_t deleted, std::u32string_view added);
+
+        /** @brief Sends the surrounding edit held back by replaceSurrounding(), if any. */
+        void sendHeldEdit();
 
         /**
          * @brief Sends a keyboard request to the uinput server (reconnect on failure).

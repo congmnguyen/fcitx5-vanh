@@ -2,6 +2,7 @@
 #pragma once
 
 #include <array>
+#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <string>
@@ -110,12 +111,14 @@ class TestInputContext final : public fcitx::InputContext {
     void commitStringImpl(const std::string& text) override {
         commits_.push_back(text);
         order_.push_back('c');
+        edits_.push_back({.kind = 'c', .text = text});
     }
 
     // Called when the engine requests surrounding text deletion (e.g. backspacing
     // prior characters during composition or word replacement).
     void deleteSurroundingTextImpl(int offset, unsigned int size) override {
         deletes_.emplace_back(offset, size);
+        edits_.push_back({.kind = 'd', .size = size});
     }
 
     // Called when a key event is not consumed by the engine and forwarded
@@ -123,6 +126,24 @@ class TestInputContext final : public fcitx::InputContext {
     void forwardKeyImpl(const fcitx::ForwardKeyEvent& event) override {
         forwarded_.push_back(event);
         order_.push_back('f');
+        if (!event.isRelease()) {
+            edits_.push_back({.kind = 'f', .text = event.rawKey().toString()});
+        }
+    }
+
+    /** @brief What reached the client, in order: commit, delete (before the cursor), forwarded or
+     *  passed-through key ('p', recorded by the test), each with the time it was sent. */
+    struct Edit {
+        char                                  kind = 'c';
+        std::string                           text;
+        unsigned int                          size = 0;
+        std::chrono::steady_clock::time_point at   = std::chrono::steady_clock::now();
+    };
+    void recordPassed(std::string key) {
+        edits_.push_back({.kind = 'p', .text = std::move(key)});
+    }
+    [[nodiscard]] const std::vector<Edit>& edits() const {
+        return edits_;
     }
 
     // Called when inline preedit text or server candidate window changes.
@@ -157,6 +178,7 @@ class TestInputContext final : public fcitx::InputContext {
     std::vector<std::pair<int, unsigned int>> deletes_;
     std::vector<fcitx::ForwardKeyEvent>       forwarded_;
     std::string                               order_;
+    std::vector<Edit>                         edits_;
     unsigned int                              preeditUpdates_ = 0;
 };
 

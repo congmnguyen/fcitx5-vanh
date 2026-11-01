@@ -28,13 +28,16 @@
 
 #include <algorithm>
 #include <string>
+#include <thread>
 
 namespace fcitx {
     namespace {
         constexpr int     kMaxScanLength         = 15;
         constexpr int64_t kReplacementAckSlackMs = 200;
-        constexpr int     kMinDelayMs            = 1;
-        constexpr int     kMaxDelayMs            = 1000;
+        /// Least time between two surrounding edits (GNOME Shell merges closer ones)
+        constexpr int64_t kSurroundingPaceMs = 30;
+        constexpr int     kMinDelayMs        = 1;
+        constexpr int     kMaxDelayMs        = 1000;
 
         /// Delay of a uinput burst: the app rule when set, else the configured default.
         uint32_t ruleDelay(int rule, int fallback) {
@@ -171,10 +174,63 @@ namespace fcitx {
     }
 
     void LotusState::replaceSurrounding(size_t deleted, std::u32string_view added) {
-        if (deleted > 0) {
-            ic_.deleteSurroundingText(-static_cast<int>(deleted), static_cast<int>(deleted));
+        // GNOME Shell relays text-input-v3 apps (native Wayland Brave, GTK4) and merges the edits
+        // that reach it together, keeping one deletion: "được" typed fast became "đươcợc". An
+        // edit waits until kSurroundingPaceMs after the previous one; the edits made meanwhile
+        // join it, so the app gets them as one exact edit.
+        const int64_t nowAt = nowMs();
+        if (!held_ &&
+            (nowAt - lastSurroundingEditMs_ >= kSurroundingPaceMs ||
+                ic_.program() != "gnome-shell")) {
+            if (deleted > 0) {
+                ic_.deleteSurroundingText(-static_cast<int>(deleted), static_cast<int>(deleted));
+            }
+            lotus::fcitx_text::commit(&ic_, added, lastCommitTime_);
+            lastSurroundingEditMs_ = nowAt;
+            return;
         }
-        lotus::fcitx_text::commit(&ic_, added, lastCommitTime_);
+        const size_t eaten = std::min(deleted, heldAdded_.size());
+        heldAdded_.resize(heldAdded_.size() - eaten);
+        heldDeleted_ += deleted - eaten;
+        heldAdded_ += added;
+        if (held_) {
+            return;
+        }
+        held_             = true;
+        const uint64_t at = now(CLOCK_MONOTONIC) +
+            static_cast<uint64_t>(lastSurroundingEditMs_ + kSurroundingPaceMs - nowAt) * 1000;
+        if (heldTimer_) {
+            heldTimer_->setTime(at);
+            heldTimer_->setOneShot();
+            return;
+        }
+        heldTimer_ = engine_.instance()->eventLoop().addTimeEvent(
+            CLOCK_MONOTONIC, at, 1000, [this](EventSourceTime*, uint64_t) {
+                sendHeldEdit();
+                return true;
+            });
+    }
+
+    void LotusState::sendHeldEdit() {
+        if (!held_) {
+            return;
+        }
+        held_ = false;
+        // Sent early for a key that reaches the app another way (forwarded keys do not reach
+        // apps through GNOME Shell, so the key cannot wait instead): block for the rest of the
+        // pace, at most kSurroundingPaceMs.
+        const int64_t wait = lastSurroundingEditMs_ + kSurroundingPaceMs - nowMs();
+        if (wait > 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(wait));
+        }
+        if (heldDeleted_ > 0) {
+            ic_.deleteSurroundingText(
+                -static_cast<int>(heldDeleted_), static_cast<int>(heldDeleted_));
+        }
+        lotus::fcitx_text::commit(&ic_, heldAdded_, lastCommitTime_);
+        heldDeleted_ = 0;
+        heldAdded_.clear();
+        lastSurroundingEditMs_ = nowMs();
     }
 
     void LotusState::sendKbMsg(
@@ -829,7 +885,7 @@ namespace fcitx {
 
         std::u32string oldWord;
         bool           keepEngine = false;
-        if (surrKnown_ && surrSoftResetAt_ == 0) {
+        if (surrKnown_ && (surrSoftResetAt_ == 0 || held_)) {
             // No reset since our last key: our own record of the word is authoritative. The app's
             // surrounding text lags behind when typing fast, and rebuilding from it then deletes
             // or keeps the wrong characters.
@@ -889,7 +945,7 @@ namespace fcitx {
             lotusEngine_->reset();
             lotusEngine_->forgetContext();
             invalidateSurroundingWord(true);
-            keyEvent.forward();
+            sendHeldEdit(); // the restore, before the Enter
             return;
         }
         const bool processed = lotusEngine_->processKey(engineKeyValue(currentSym),
@@ -910,8 +966,7 @@ namespace fcitx {
                 keyEvent.forward();
                 return;
             }
-            lotus::fcitx_text::commit(
-                &ic_, std::u32string(1, static_cast<char32_t>(cp)), lastCommitTime_);
+            replaceSurrounding(0, std::u32string(1, static_cast<char32_t>(cp)));
             keyEvent.filterAndAccept();
             return;
         }
@@ -1059,6 +1114,19 @@ namespace fcitx {
         }
         if (keyEvent.isRelease()) {
             return;
+        }
+        if (held_) {
+            // A printable key joins the held edit; any other key would reach the app before it.
+            const uint32_t cp           = Key::keySymToUnicode(rawSym);
+            const bool     surroundPath = currentMode() == LotusMode::SurroundingText ||
+                (isUinputMode(currentMode()) && shouldUseSurroundingText());
+            // Enter joins its restore to it first, see handleSurroundingText().
+            const bool enter = rawSym == FcitxKey_Return && surroundPath;
+            if ((cp < 0x20 && !enter) || cp == 0x7F || !surroundPath ||
+                keyEvent.rawKey().states().testAny(KeyStates{KeyState::Ctrl, KeyState::Alt,
+                    KeyState::Super, KeyState::Hyper, KeyState::Meta})) {
+                sendHeldEdit();
+            }
         }
 
         if (!engine_.kbSender().connected()) {
@@ -1362,6 +1430,9 @@ namespace fcitx {
     }
 
     void LotusState::reset(bool isFocusOut) {
+        if (isFocusOut) {
+            sendHeldEdit();
+        }
         if (isFocusOut && isUinputMode(currentMode())) {
             deferredFocusOut_ = true;
             deliverPendingCommits();

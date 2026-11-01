@@ -8,9 +8,13 @@
 #include "lotus-engine.h"
 #include "test-input-context.h"
 
+#include <fcitx-utils/event.h>
 #include <fcitx-utils/utf8.h>
+#include <systemd/sd-event.h>
 
 #include <array>
+#include <chrono>
+#include <thread>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -195,6 +199,59 @@ int main() {
             std::cerr << "Glued typing without auto restore '" << test.keys << "': expected '" << test.want << "', got '" << got << "'\n";
             ++failures;
         }
+    }
+
+    // GNOME Shell relays native Wayland apps and merges edits that reach it less than a frame
+    // apart ("được" -> "đươcợc"). Keys typed at once, Enter included: no edit may follow another
+    // closer than 30 ms, and the app still ends up with the right text and Enter.
+    auto shell = std::make_unique<TestInputContext>(&testInstance.instance, "gnome-shell");
+    shell->setCapabilityFlags(fcitx::CapabilityFlag::SurroundingText);
+    shell->focusIn();
+    fcitx::InputContextEvent shellFocus(shell.get(), fcitx::EventType::InputContextFocusIn);
+    engine.activate(entry, shellFocus);
+    shell->surroundingText().setText("", 0, 0);
+    shell->updateSurroundingText();
+    for (const char ch : std::string_view("dduwowcj nguwowif vieetj\n")) {
+        const fcitx::Key key = ch == '\n' ? fcitx::Key(FcitxKey_Return) : fcitx::Key(static_cast<fcitx::KeySym>(ch));
+        fcitx::KeyEvent  event(shell.get(), key, false);
+        engine.keyEvent(entry, event);
+        if (!event.accepted()) {
+            shell->recordPassed(key.toString());
+        }
+    }
+    auto* loop = static_cast<sd_event*>(testInstance.instance.eventLoop().nativeHandle());
+    for (int i = 0; i < 200; ++i) {
+        while (sd_event_run(loop, 0) > 0) {}
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    // An edit is a deletion and the commit after it, or a commit alone.
+    std::string                           shown;
+    std::chrono::steady_clock::time_point last{};
+    char                                  previous = 0;
+    for (const auto& edit : shell->edits()) {
+        const bool starts = edit.kind == 'd' || (edit.kind == 'c' && previous != 'd');
+        if (starts && last != std::chrono::steady_clock::time_point{} && edit.at - last < std::chrono::milliseconds(29)) {
+            std::cerr << "GNOME Shell: an edit " << std::chrono::duration_cast<std::chrono::milliseconds>(edit.at - last).count() << " ms after the previous one\n";
+            ++failures;
+        }
+        if (starts) {
+            last = edit.at;
+        }
+        previous = edit.kind;
+        if (edit.kind == 'd') {
+            for (unsigned int n = 0; n < edit.size; ++n) {
+                const auto start = fcitx_utf8_get_nth_char(shown.c_str(), fcitx_utf8_strlen(shown.c_str()) - 1);
+                shown.erase(static_cast<size_t>(start - shown.c_str()));
+            }
+        } else if (edit.kind == 'c') {
+            shown += edit.text;
+        } else {
+            shown += edit.text == "Return" ? "\n" : edit.text;
+        }
+    }
+    if (shown != "được người việt\n") {
+        std::cerr << "GNOME Shell typing: expected 'được người việt\\n', got '" << shown << "'\n";
+        ++failures;
     }
     return failures == 0 ? 0 : 1;
 }

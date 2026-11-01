@@ -345,6 +345,7 @@ PAGE = """<!doctype html><meta charset=utf-8><title>vanh e2e</title>
 <style>body{font:16px sans-serif} input,textarea,div{display:block;width:900px;margin:12px}</style>
 <input id=input><input id=search type=search><textarea id=textarea rows=4></textarea>
 <div id=editable contenteditable style="border:1px solid #888;min-height:60px"></div>
+<script>window.enters = 0; addEventListener("keydown", e => { if (e.key === "Enter") enters++; }, true);</script>
 """
 
 
@@ -412,13 +413,15 @@ def brave_cases(s, mode, cases, delay, results):
         multiline = field in ("textarea", "editable")
         for name, keys, want in cases:
             cdp.eval(f"(e=>{{e.focus(); if(e.value!==undefined) e.value=''; else e.textContent='';}})(document.getElementById('{field}'))")
+            cdp.eval("enters = 0")
             time.sleep(0.3)
             s.kb.type(keys, delay)
             # Enter in a multi-line field; a single-line field ends the word with a space.
             s.kb.type("\n" if multiline else " ", 0)
             time.sleep(0.8)
-            w = want if multiline else expected(keys + " ", CONFIG)
-            results.append(("Brave", mode, field, name, delay, w, field_text(field)))
+            w = want + "⏎" if multiline else expected(keys + " ", CONFIG)
+            got = field_text(field) + "⏎" * (cdp.eval("enters") or 0)
+            results.append(("Brave", mode, field, name, delay, w, got))
     # Focus change mid-sentence: half in one field, Tab away and back, then the rest.
     name, keys, want = cases[0]
     half = keys.index(" ", len(keys) // 2)
@@ -493,6 +496,7 @@ def main():
     ap.add_argument("--modes", default="smooth,surrounding")
     ap.add_argument("--delays", default="0.03,0.005")
     ap.add_argument("--config", default="user", help="engine options: user (your vanh.conf) or default")
+    ap.add_argument("--text", help="sentences to type, separated by |, instead of SENTENCES")
     ap.add_argument("--out", default=str(RUN.parent / "ve2e-results.json"))
     a = ap.parse_args()
     if "DBUS_SESSION_BUS_ADDRESS" not in os.environ or "dbus-run-session" not in open(f"/proc/{os.getppid()}/cmdline").read():
@@ -500,14 +504,15 @@ def main():
     global CONFIG
     CONFIG = a.config
     user_conf = (Path.home() / ".config/fcitx5/conf/vanh.conf").read_text() if a.config == "user" else ""
-    keys = telex_keys(SENTENCES)
+    sentences = a.text.split("|") if a.text else SENTENCES
+    keys = telex_keys(sentences)
     s = Session(a)
     results = []
     try:
         s.start_shell()
         for mode in a.modes.split(","):
             s.start_fcitx(mode, user_conf)
-            cases = [(t, k, expected(k, a.config)) for t, k in zip(SENTENCES, keys)]
+            cases = [(t, k, expected(k, a.config)) for t, k in zip(sentences, keys)]
             for t, k, w in cases:
                 assert expected("# " + k, a.config) == "# " + w, (t, w)  # the comment prefix changes nothing
             for delay in (float(d) for d in a.delays.split(",")):

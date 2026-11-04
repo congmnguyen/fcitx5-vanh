@@ -2,14 +2,15 @@
 
 # Vanh
 
-**Vanh** (Việt + Anh, "Vietnamese + English") is a Vietnamese input method for fcitx5 on Linux. It lets you mix Vietnamese and English in the same text without switching modes. Vanh is a fork of [fcitx5-lotus](https://github.com/LotusInputMethod/fcitx5-lotus).
+**Vanh** (Việt + Anh, "Vietnamese + English") is a Vietnamese input method for fcitx5 on Linux. It lets you mix Vietnamese and English in the same text without switching modes, types without underline, and does not drop or double letters when you type fast. Vanh is a fork of [fcitx5-lotus](https://github.com/LotusInputMethod/fcitx5-lotus).
 
 ## Features
 
 - **Automatic English/Vietnamese switching.** At the end of a word, if the keys you typed are an English word, Vanh puts them back as typed: `test` stays "test" instead of "tét", and `error` stays "error" instead of "eror". Vietnamese words are kept: `cos` → "có".
 - **Context.** For a word that reads both ways, the word next to it decides (`cho con bus` → "cho con bú", while `the bus` stays). An earlier word is fixed when the next one makes it clear: `thí makes` → "this makes".
-- **Automatic surrounding text** in Uinput mode when the app supports it (Brave, Facebook, the address bar), so fast typing no longer drops or doubles letters. Terminals keep using uinput.
-- Everything else from lotus: Telex/VNI and other input methods, typing without underline, macros, dictionary, charsets, emoji.
+- **Typing without underline.** Letters go straight into the field, as on Windows, with no underlined text waiting to be confirmed.
+- **No dropped or doubled letters when typing fast** in Chrome/Brave (the address bar too), Facebook and GNOME apps: Vanh uses surrounding text when the app supports it, waits for the app to catch up before fixing a word, and switches to uinput when the app drops deletions (Messenger, Apple Notes on the web). Terminals keep using uinput.
+- Everything else from lotus: Telex/VNI and other input methods, macros, dictionary, charsets, emoji.
 
 The package, addon, input method, server and config files are named `vanh` (`fcitx5-vanh`, `fcitx5-vanh-server@<user>.service`, `~/.config/fcitx5/conf/vanh.conf`). The `fcitx5-vanh` package replaces `fcitx5-lotus`; on the first start Vanh copies an existing lotus configuration (config, macros, keymap, app rules, emoji history, user dictionary) to the new names and puts Vanh in place of lotus in the input method list. The old files are kept.
 

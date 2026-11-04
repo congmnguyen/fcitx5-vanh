@@ -2,14 +2,15 @@
 
 # Vanh
 
-**Vanh** (Việt + Anh) là bộ gõ tiếng Việt cho fcitx5 trên Linux, gõ được tiếng Việt và tiếng Anh xen kẽ mà không cần chuyển chế độ. Vanh là bản fork của [fcitx5-lotus](https://github.com/LotusInputMethod/fcitx5-lotus).
+**Vanh** (Việt + Anh) là bộ gõ tiếng Việt cho fcitx5 trên Linux, gõ được tiếng Việt và tiếng Anh xen kẽ mà không cần chuyển chế độ, gõ không gạch chân và không mất hay lặp chữ khi gõ nhanh. Vanh là bản fork của [fcitx5-lotus](https://github.com/LotusInputMethod/fcitx5-lotus).
 
 ## Tính năng
 
 - **Tự chuyển Anh/Việt.** Đến cuối từ, nếu phím vừa gõ là một từ tiếng Anh thì trả lại đúng phím đã gõ: `test` không thành "tét", `error` không thành "eror". Từ tiếng Việt vẫn giữ nguyên: `cos` → "có".
 - **Nhìn ngữ cảnh.** Một từ đọc được cả hai cách thì dựa vào từ đứng cạnh để quyết định (`cho con bus` → "cho con bú", `the bus` → giữ nguyên). Từ trước cũng được sửa lại khi cần: `thí makes` → "this makes".
-- **Surrounding text tự động** trong Uinput mode khi app hỗ trợ (Brave, Facebook, thanh địa chỉ): không còn mất chữ hay lặp chữ khi gõ nhanh. Terminal vẫn dùng uinput.
-- Mọi tính năng còn lại của lotus: Telex/VNI và các kiểu gõ khác, gõ không gạch chân, macro, từ điển, đổi bảng mã, emoji.
+- **Gõ không gạch chân.** Chữ hiện thẳng vào ô nhập như gõ trên Windows, không có đoạn gạch chân chờ xác nhận.
+- **Không mất hay lặp chữ khi gõ nhanh** trên Chrome/Brave (cả thanh địa chỉ), Facebook và các app GNOME: Vanh tự dùng surrounding text khi app hỗ trợ, chờ app cập nhật xong mới sửa chữ, và chuyển sang uinput khi app bỏ lệnh xoá (Messenger, Apple Notes trên web). Terminal vẫn dùng uinput.
+- Mọi tính năng còn lại của lotus: Telex/VNI và các kiểu gõ khác, macro, từ điển, đổi bảng mã, emoji.
 
 Gói, addon, bộ gõ, server và file cấu hình đều tên `vanh` (`fcitx5-vanh`, `fcitx5-vanh-server@<user>.service`, `~/.config/fcitx5/conf/vanh.conf`). Gói `fcitx5-vanh` thay thế `fcitx5-lotus`; lần đầu chạy, Vanh tự chép cấu hình lotus cũ (cấu hình, macro, keymap, luật theo app, lịch sử emoji, từ điển người dùng) sang tên mới và đặt Vanh vào chỗ của lotus trong danh sách bộ gõ. File cũ được giữ nguyên.
 

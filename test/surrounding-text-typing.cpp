@@ -253,5 +253,69 @@ int main() {
         std::cerr << "GNOME Shell typing: expected 'được người việt\\n', got '" << shown << "'\n";
         ++failures;
     }
+
+    // Mutter turns a deletion into bytes with the text the app last reported, and the app reports
+    // its text a while after each edit. A deletion sent before that report deletes the wrong bytes
+    // and the app drops it ("ơ" then "ở" became "ơở"). Keys 35 ms apart, reports 50 ms late.
+    auto lagging = std::make_unique<TestInputContext>(&testInstance.instance, "gnome-shell");
+    lagging->setCapabilityFlags(fcitx::CapabilityFlag::SurroundingText);
+    lagging->focusIn();
+    fcitx::InputContextEvent laggingFocus(lagging.get(), fcitx::EventType::InputContextFocusIn);
+    engine.activate(entry, laggingFocus);
+    lagging->surroundingText().setText("", 0, 0);
+    lagging->updateSurroundingText();
+    std::string appText;
+    std::string reported;
+    size_t      applied = 0;
+    auto        reportAt = std::chrono::steady_clock::time_point::max();
+    auto        pumpFor  = [&](int ms) {
+        const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
+        while (std::chrono::steady_clock::now() < until) {
+            while (sd_event_run(loop, 0) > 0) {}
+            for (; applied < lagging->edits().size(); ++applied) {
+                const auto& edit = lagging->edits()[applied];
+                if (edit.kind == 'd') {
+                    const size_t chars = fcitx_utf8_strlen(reported.c_str());
+                    const size_t from  = static_cast<size_t>(
+                        fcitx_utf8_get_nth_char(reported.c_str(), chars - std::min<size_t>(edit.size, chars)) - reported.c_str());
+                    const size_t bytes = reported.size() - from;
+                    const size_t cut   = appText.size() - std::min(bytes, appText.size());
+                    // a cut inside a character is invalid: the app drops the deletion
+                    if (cut == appText.size() || (static_cast<unsigned char>(appText[cut]) & 0xC0U) != 0x80) {
+                        appText.erase(cut);
+                    }
+                } else {
+                    appText += edit.text;
+                }
+                if (reportAt == std::chrono::steady_clock::time_point::max()) {
+                    reportAt = std::chrono::steady_clock::now() + std::chrono::milliseconds(50);
+                }
+            }
+            if (std::chrono::steady_clock::now() >= reportAt) {
+                reported              = appText;
+                reportAt              = std::chrono::steady_clock::time_point::max();
+                const size_t cursor   = fcitx_utf8_strlen(reported.c_str());
+                lagging->surroundingText().setText(reported, cursor, cursor);
+                lagging->updateSurroundingText();
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+    };
+    for (const char ch : std::string_view("dduwowcj nguwowif vieetj owr nawmf ")) {
+        fcitx::KeyEvent event(lagging.get(), fcitx::Key(static_cast<fcitx::KeySym>(ch)), false);
+        engine.keyEvent(entry, event);
+        if (!event.accepted()) {
+            appText += ch;
+            if (reportAt == std::chrono::steady_clock::time_point::max()) {
+                reportAt = std::chrono::steady_clock::now() + std::chrono::milliseconds(50);
+            }
+        }
+        pumpFor(35);
+    }
+    pumpFor(400);
+    if (appText != "được người việt ở nằm ") {
+        std::cerr << "GNOME Shell, late reports: expected 'được người việt ở nằm ', got '" << appText << "'\n";
+        ++failures;
+    }
     return failures == 0 ? 0 : 1;
 }

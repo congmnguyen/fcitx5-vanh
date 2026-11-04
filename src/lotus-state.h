@@ -103,7 +103,8 @@ namespace fcitx {
         int64_t        surrSoftResetAt_ = 0;
         /// Surrounding edit held back for GNOME Shell, see replaceSurrounding()
         bool                             held_        = false;
-        size_t                           heldDeleted_ = 0;
+        int64_t                          heldSinceMs_ = 0;
+        std::u32string                   heldDeleted_;
         std::u32string                   heldAdded_;
         int64_t                          lastSurroundingEditMs_ = 0;
         std::unique_ptr<EventSourceTime> heldTimer_;
@@ -146,6 +147,9 @@ namespace fcitx {
         bool trackingModifierTap_ = false;
         /// Live Shift press state tracked from key events
         bool shiftHeld_ = false;
+        /// A revert waiting for its modifiers to go up: backspaces sent under a held Shift are
+        /// Shift+BackSpace, which some editors (Messenger) ignore.
+        std::optional<std::pair<std::u32string, std::u32string>> pendingRevert_; // before, after
         /// Macro disabled for the current word
         bool macroSkip_     = false;
         bool isLibreoffice_ = false;
@@ -191,10 +195,19 @@ namespace fcitx {
 
         /**
          * @brief Deletes text before the cursor through the input method protocol, then commits.
-         * @param deleted Number of code points to delete before the cursor.
+         * @param deleted Text to delete before the cursor.
          * @param added Text to commit.
          */
-        void replaceSurrounding(size_t deleted, std::u32string_view added);
+        void replaceSurrounding(std::u32string_view deleted, std::u32string_view added);
+
+        /**
+         * @brief Sends this field through the uinput server until a click or a focus change.
+         * @param shown The word the app shows before the cursor.
+         */
+        void switchToUinput(std::u32string_view shown);
+
+        /** @brief True when the app reports @p deleted right before the cursor (or it is empty). */
+        [[nodiscard]] bool appShows(std::u32string_view deleted) const;
 
         /** @brief Sends the surrounding edit held back by replaceSurrounding(), if any. */
         void sendHeldEdit();

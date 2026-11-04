@@ -1109,6 +1109,17 @@ namespace fcitx {
                 g_mouseClicked.store(true, std::memory_order_release);
                 instance_.inputContextManager().foreachFocused([this](InputContext* ic) {
                     auto* state = ic->propertyFor(&factory_);
+                    // The click may move the cursor, so a held surrounding edit cannot wait for
+                    // the app nor fall back to uinput backspaces, which would delete at the new
+                    // cursor. It goes now if the app shows what it deletes; else GNOME Shell
+                    // would drop the deletion ("nao" became "naoào "), so the edit is dropped.
+                    if (!state->appShows(state->heldDeleted_)) {
+                        LOTUS_INFO("Click: drop the held surrounding edit");
+                        state->held_ = false;
+                        state->heldDeleted_.clear();
+                        state->heldAdded_.clear();
+                    }
+                    state->sendHeldEdit();
                     if (currentMode() == LotusMode::Preedit &&
                         !ic->capabilityFlags().test(CapabilityFlag::ClientSideInputPanel)) {
                         state->commitBuffer();

@@ -36,8 +36,14 @@ namespace fcitx {
         constexpr int64_t kReplacementAckSlackMs = 200;
         /// Least time between two surrounding edits (GNOME Shell merges closer ones)
         constexpr int64_t kSurroundingPaceMs = 30;
+        /// Longest wait for the app to show the text an edit deletes, and how often to look
+        constexpr int64_t kSurroundingSyncMs = 200;
+        constexpr int64_t kSurroundingPollMs = 5;
         constexpr int     kMinDelayMs        = 1;
         constexpr int     kMaxDelayMs        = 1000;
+        /// Modifiers a revert key is matched on
+        const KeyStates kRevertMods{
+            KeyState::Ctrl, KeyState::Alt, KeyState::Shift, KeyState::Super};
 
         /// Delay of a uinput burst: the app rule when set, else the configured default.
         uint32_t ruleDelay(int rule, int fallback) {
@@ -173,42 +179,72 @@ namespace fcitx {
         g_isDeleting.store(false, std::memory_order_release);
     }
 
-    void LotusState::replaceSurrounding(size_t deleted, std::u32string_view added) {
-        // GNOME Shell relays text-input-v3 apps (native Wayland Brave, GTK4) and merges the edits
-        // that reach it together, keeping one deletion: "được" typed fast became "đươcợc". An
-        // edit waits until kSurroundingPaceMs after the previous one; the edits made meanwhile
-        // join it, so the app gets them as one exact edit.
+    void LotusState::replaceSurrounding(std::u32string_view deleted, std::u32string_view added) {
+        // GNOME Shell relays text-input-v3 apps (native Wayland Brave, GTK4) and turns the
+        // deletion into bytes with the text the app last reported. Sent before the app reports
+        // the previous edit, it deletes the wrong bytes and the app drops it: "ở" after "ơ"
+        // became "ơở", "được" became "đươcợc". An edit waits until kSurroundingPaceMs after the
+        // previous one and until the app shows the text it deletes, at most kSurroundingSyncMs;
+        // the edits made meanwhile join it, so the app gets them as one exact edit.
         const int64_t nowAt = nowMs();
         if (!held_ &&
-            (nowAt - lastSurroundingEditMs_ >= kSurroundingPaceMs ||
-                ic_.program() != "gnome-shell")) {
-            if (deleted > 0) {
-                ic_.deleteSurroundingText(-static_cast<int>(deleted), static_cast<int>(deleted));
+            (ic_.program() != "gnome-shell" ||
+                (nowAt - lastSurroundingEditMs_ >= kSurroundingPaceMs && appShows(deleted)))) {
+            if (!deleted.empty()) {
+                const int n = static_cast<int>(deleted.size());
+                ic_.deleteSurroundingText(-n, n);
             }
             lotus::fcitx_text::commit(&ic_, added, lastCommitTime_);
             lastSurroundingEditMs_ = nowAt;
             return;
         }
-        const size_t eaten = std::min(deleted, heldAdded_.size());
+        const size_t eaten = std::min(deleted.size(), heldAdded_.size());
         heldAdded_.resize(heldAdded_.size() - eaten);
-        heldDeleted_ += deleted - eaten;
+        heldDeleted_.insert(0, deleted.substr(0, deleted.size() - eaten));
         heldAdded_ += added;
         if (held_) {
             return;
         }
         held_             = true;
+        heldSinceMs_      = nowAt;
         const uint64_t at = now(CLOCK_MONOTONIC) +
-            static_cast<uint64_t>(lastSurroundingEditMs_ + kSurroundingPaceMs - nowAt) * 1000;
+            static_cast<uint64_t>(
+                std::max<int64_t>(lastSurroundingEditMs_ + kSurroundingPaceMs - nowAt, 0)) *
+                1000;
         if (heldTimer_) {
             heldTimer_->setTime(at);
             heldTimer_->setOneShot();
             return;
         }
         heldTimer_ = engine_.instance()->eventLoop().addTimeEvent(
-            CLOCK_MONOTONIC, at, 1000, [this](EventSourceTime*, uint64_t) {
-                sendHeldEdit();
+            CLOCK_MONOTONIC, at, 1000, [this](EventSourceTime* source, uint64_t) {
+                const bool shown = !held_ || appShows(heldDeleted_);
+                if (!shown && nowMs() - heldSinceMs_ < kSurroundingSyncMs) {
+                    source->setTime(now(CLOCK_MONOTONIC) + kSurroundingPollMs * 1000);
+                    source->setOneShot();
+                } else if (shown || !isUinputMode(currentMode()) ||
+                    !engine_.kbSender().connected()) {
+                    sendHeldEdit();
+                } else {
+                    // The app does not show what the edit deletes (Messenger on facebook.com
+                    // keeps reporting an empty field): GNOME Shell would drop the deletion. The
+                    // field goes through the uinput server, starting with this edit.
+                    LOTUS_INFO("Surrounding: the app does not show its text, use uinput");
+                    held_                        = false;
+                    const std::u32string deleted = std::exchange(heldDeleted_, {});
+                    const std::u32string added   = std::exchange(heldAdded_, {});
+                    switchToUinput(surrWord_);
+                    performReplacement({.deletedPart = deleted, .addedPart = added});
+                }
                 return true;
             });
+    }
+
+    bool LotusState::appShows(std::u32string_view deleted) const {
+        const auto& st = ic_.surroundingText();
+        return deleted.empty() ||
+            (st.isValid() && st.anchor() == st.cursor() &&
+                lotus::utf8::decode(st.text()).substr(0, st.cursor()).ends_with(deleted));
     }
 
     void LotusState::sendHeldEdit() {
@@ -223,12 +259,12 @@ namespace fcitx {
         if (wait > 0) {
             std::this_thread::sleep_for(std::chrono::milliseconds(wait));
         }
-        if (heldDeleted_ > 0) {
-            ic_.deleteSurroundingText(
-                -static_cast<int>(heldDeleted_), static_cast<int>(heldDeleted_));
+        if (!heldDeleted_.empty()) {
+            const int n = static_cast<int>(heldDeleted_.size());
+            ic_.deleteSurroundingText(-n, n);
         }
         lotus::fcitx_text::commit(&ic_, heldAdded_, lastCommitTime_);
-        heldDeleted_ = 0;
+        heldDeleted_.clear();
         heldAdded_.clear();
         lastSurroundingEditMs_ = nowMs();
     }
@@ -541,7 +577,7 @@ namespace fcitx {
         // WA for libreoffice (issue #162)
         // force use deleteSurroundingText func
         if (isLibreoffice_) {
-            replaceSurrounding(diffPart.deletedPart.size(), diffPart.addedPart);
+            replaceSurrounding(diffPart.deletedPart, diffPart.addedPart);
             return;
         }
         const uint32_t commitMs =
@@ -680,7 +716,7 @@ namespace fcitx {
                         const auto& st     = ic_.surroundingText();
                         const auto  before = lotus::utf8::decode(st.text()).substr(0, st.cursor());
                         if (before.ends_with(diffPart.deletedPart)) {
-                            replaceSurrounding(diffPart.deletedPart.size(), diffPart.addedPart);
+                            replaceSurrounding(diffPart.deletedPart, diffPart.addedPart);
                         }
                         keyEvent.forward();
                     } else if (!engine_.kbSender().connected()) {
@@ -809,10 +845,9 @@ namespace fcitx {
 
     bool LotusState::handleRevertKey(KeyEvent& keyEvent) {
         // Matched on the raw key: Key::normalize() drops Shift from Shift+BackSpace.
-        const KeyStates mods{KeyState::Ctrl, KeyState::Alt, KeyState::Shift, KeyState::Super};
-        const auto      matches = [&](const Key& k) {
+        const auto matches = [&](const Key& k) {
             return k.sym() == keyEvent.rawKey().sym() &&
-                (keyEvent.rawKey().states() & mods) == (k.states() & mods);
+                (keyEvent.rawKey().states() & kRevertMods) == (k.states() & kRevertMods);
         };
         if (std::ranges::none_of(*engine_.config().revertKey, matches) ||
             g_isDeleting.load(std::memory_order_acquire)) {
@@ -833,9 +868,13 @@ namespace fcitx {
             if (!engine_.kbSender().connected()) {
                 return false;
             }
-            performReplacement(diffPart);
+            if (keyEvent.rawKey().states() & kRevertMods) {
+                pendingRevert_.emplace(before, after);
+            } else {
+                performReplacement(diffPart);
+            }
         } else {
-            replaceSurrounding(diffPart.deletedPart.size(), diffPart.addedPart);
+            replaceSurrounding(diffPart.deletedPart, diffPart.addedPart);
             invalidateSurroundingWord(true);
         }
         engine_.saveLearned();
@@ -854,6 +893,17 @@ namespace fcitx {
         // Soft: a reset/focus bounce. Chromium bounces focus on every key in some editors,
         // so keep the tracked word if typing resumes right away.
         surrSoftResetAt_ = nowMs();
+    }
+
+    void LotusState::switchToUinput(std::u32string_view shown) {
+        surroundingBroken_ = true;
+        if (lotusEngine_->preedit() != surrWord_) {
+            lotusEngine_->reset();
+            lotusEngine_->rebuildFromText(surrWord_);
+        }
+        oldPreBuffer_ = shown; // before the invalidation clears surrWord_
+        invalidateSurroundingWord(true);
+        hasHistory_ = true;
     }
 
     void LotusState::handleSurroundingText(KeyEvent& keyEvent, KeySym currentSym) {
@@ -927,14 +977,7 @@ namespace fcitx {
             if (surrKnown_ && isUinputMode(currentMode()) && !surrWord_.empty() &&
                 oldWord.size() > surrWord_.size() && oldWord.ends_with(surrWord_)) {
                 LOTUS_INFO("Surrounding: the app drops deletions, use uinput");
-                surroundingBroken_ = true;
-                if (lotusEngine_->preedit() != surrWord_) {
-                    lotusEngine_->reset();
-                    lotusEngine_->rebuildFromText(surrWord_);
-                }
-                invalidateSurroundingWord(true);
-                oldPreBuffer_ = oldWord;
-                hasHistory_   = true;
+                switchToUinput(oldWord);
                 handleUinputMode(keyEvent, currentSym);
                 return;
             }
@@ -948,6 +991,13 @@ namespace fcitx {
             }
         }
 
+        // Through GNOME Shell a key that only adds itself reaches the app as the key: some fields
+        // drop the text committed to them. The deletions wait for the app to show it, see
+        // replaceSurrounding(); right after an edit the key joins it so they arrive in order.
+        const bool passKey = ic_.program() == "gnome-shell" && !held_ &&
+            nowMs() - lastSurroundingEditMs_ >= kSurroundingPaceMs &&
+            currentSym == keyEvent.rawKey().sym();
+        const std::u32string keyText(1, static_cast<char32_t>(Key::keySymToUnicode(currentSym)));
         lotusEngine_->setRewriteAllowed(true);
         if (currentSym == FcitxKey_Return) {
             // Enter after a word: restore it like a word break would ("... is" + Enter, not "í"),
@@ -957,7 +1007,7 @@ namespace fcitx {
                 // outlives the views of diffPart
                 const std::u32string shown    = lotusEngine_->takeRewrittenBefore() + oldWord;
                 const DiffPart       diffPart = compareAndSplitU32(shown, committed);
-                replaceSurrounding(diffPart.deletedPart.size(), diffPart.addedPart);
+                replaceSurrounding(diffPart.deletedPart, diffPart.addedPart);
             }
             lotusEngine_->reset();
             lotusEngine_->forgetContext();
@@ -973,9 +1023,9 @@ namespace fcitx {
             lotusEngine_->reset();
             surrKnown_ = true;
             surrWord_.clear();
-            // Printable keys go through the same channel as replacements (commit), so a forwarded
-            // key and a following deleteSurroundingText can never arrive at the app out of order.
-            const uint32_t cp = Key::keySymToUnicode(currentSym);
+            // Elsewhere printable keys go through the same channel as replacements (commit), so a
+            // passed key and a following deleteSurroundingText never reach the app out of order.
+            const uint32_t cp = keyText[0];
             if (keyEvent.rawKey().states().testAny(KeyStates{KeyState::Ctrl, KeyState::Alt,
                     KeyState::Super, KeyState::Hyper, KeyState::Meta}) ||
                 cp < 0x20 || cp == 0x7F) {
@@ -983,7 +1033,11 @@ namespace fcitx {
                 keyEvent.forward();
                 return;
             }
-            replaceSurrounding(0, std::u32string(1, static_cast<char32_t>(cp)));
+            if (passKey) {
+                keyEvent.forward();
+                return;
+            }
+            replaceSurrounding({}, keyText);
             keyEvent.filterAndAccept();
             return;
         }
@@ -998,7 +1052,11 @@ namespace fcitx {
         oldWord = lotusEngine_->takeRewrittenBefore() + oldWord;
 
         const DiffPart diffPart = compareAndSplitU32(oldWord, newWord);
-        replaceSurrounding(diffPart.deletedPart.size(), diffPart.addedPart);
+        const bool     passed =
+            passKey && diffPart.deletedPart.empty() && diffPart.addedPart == keyText;
+        if (!passed) {
+            replaceSurrounding(diffPart.deletedPart, diffPart.addedPart);
+        }
         LOTUS_DEBUG("Surrounding: '" + lotus::utf8::encode(oldWord) + "' -> '" +
             lotus::utf8::encode(newWord) + "' del=" + std::to_string(diffPart.deletedPart.size()));
 
@@ -1014,7 +1072,9 @@ namespace fcitx {
             }
         }
         surrKnown_ = true;
-        keyEvent.filterAndAccept();
+        if (!passed) {
+            keyEvent.filterAndAccept();
+        }
     }
 
     void LotusState::handleOffModeMacro(KeyEvent& keyEvent, KeySym currentSym) {
@@ -1060,7 +1120,7 @@ namespace fcitx {
                     const bool canDelete =
                         ic_.capabilityFlags().test(CapabilityFlag::SurroundingText) &&
                         ic_.surroundingText().isValid();
-                    replaceSurrounding(canDelete ? oldPreBuffer_.size() : 0, commitStr);
+                    replaceSurrounding(canDelete ? oldPreBuffer_ : U"", commitStr);
                 }
                 keyEvent.filterAndAccept();
             } else {
@@ -1093,6 +1153,15 @@ namespace fcitx {
         // single boolean tracks both Shift keys; releasing either clears it.
         if (rawSym == FcitxKey_Shift_L || rawSym == FcitxKey_Shift_R) {
             shiftHeld_ = !keyEvent.isRelease();
+        }
+        // The revert waits for the last modifier to go up (a release carries the state before
+        // it), or goes first before another key.
+        const bool revertNow = keyEvent.isRelease() ?
+            !(keyEvent.rawKey().states() & kRevertMods & ~Key::keySymToStates(rawSym)) :
+            !keyEvent.rawKey().isModifier();
+        if (pendingRevert_ && revertNow) {
+            const auto [before, after] = *std::exchange(pendingRevert_, std::nullopt);
+            performReplacement(compareAndSplitU32(before, after));
         }
         if (currentMode() == LotusMode::Preedit) {
             if (keyEvent.rawKey().check(FcitxKey_Shift_L) ||
@@ -1406,7 +1475,7 @@ namespace fcitx {
         keyEvent.filterAndAccept();
         // Both replacements delete exactly one code point.
         if (currentMode() == LotusMode::SurroundingText) {
-            replaceSurrounding(1, replacement.addedPart);
+            replaceSurrounding(replacement.deletedPart, replacement.addedPart);
         } else {
             performReplacement(replacement);
         }
@@ -1547,6 +1616,7 @@ namespace fcitx {
         }
         resetMacroSkip();
         invalidateSurroundingWord(false);
+        pendingRevert_.reset();
         oldPreBuffer_.clear();
         hasHistory_         = false;
         uinputAbortPending_ = false;

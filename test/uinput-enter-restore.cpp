@@ -21,9 +21,15 @@
 #include <systemd/sd-event.h>
 
 #include <array>
+#include <chrono>
+#include <thread>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
 #include <vector>
 #include <memory>
 #include <string>
@@ -51,6 +57,8 @@ namespace {
         /// A web editor (Apple Notes in Brave) that reports its text but drops deleteSurroundingText
         /// and resets the input method after every key.
         bool                            notes = false;
+        /// Time between two keys, the event loop running meanwhile.
+        int                             keyMs = 0;
 
         /** Lets the event loop run the 0 ms timers the dbus frontend defers its commits to. */
         void pump() {
@@ -109,6 +117,11 @@ namespace {
             }
             for (int& age : pendingAge) {
                 ++age;
+            }
+            const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(keyMs);
+            while (std::chrono::steady_clock::now() < until) {
+                sync();
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
             }
             return drain(false);
         }
@@ -183,7 +196,34 @@ namespace {
                 if (ch == '\n') {
                     ok = press(fcitx::Key(FcitxKey_Return), U'\n');
                 } else if (ch == '\b') {
+                    // Shift is still down: the backspaces must wait for its release, or the app
+                    // gets Shift+BackSpace (Messenger ignores it).
+                    const size_t before = pending.size();
                     ok = press(fcitx::Key(FcitxKey_BackSpace, fcitx::KeyState::Shift), 0);
+                    // Ctrl goes down and up again meanwhile: Shift is still held.
+                    fcitx::KeyEvent ctrlDown(&context, fcitx::Key(FcitxKey_Control_L, fcitx::KeyState::Shift), false);
+                    engine.keyEvent(entry, ctrlDown);
+                    fcitx::KeyEvent ctrlUp(&context,
+                        fcitx::Key(FcitxKey_Control_L, fcitx::KeyStates{fcitx::KeyState::Shift, fcitx::KeyState::Ctrl}), true);
+                    engine.keyEvent(entry, ctrlUp);
+                    sync();
+                    KbMsg early{};
+                    while (listener.tryReceive(early)) {
+                        pending.push_back(early);
+                        pendingAge.push_back(0);
+                    }
+                    if (ok && pending.size() != before) {
+                        std::printf("  the revert deleted with Shift held on '%s'\n", encode(text).c_str());
+                        return false;
+                    }
+                    fcitx::KeyEvent up(&context, fcitx::Key(FcitxKey_Shift_L, fcitx::KeyState::Shift), true);
+                    engine.keyEvent(entry, up);
+                    sync();
+                    KbMsg msg{};
+                    while (listener.tryReceive(msg)) {
+                        pending.push_back(msg);
+                        pendingAge.push_back(0);
+                    }
                 } else {
                     ok = press(fcitx::Key(static_cast<fcitx::KeySym>(static_cast<unsigned char>(ch))), static_cast<char32_t>(ch));
                 }
@@ -307,6 +347,101 @@ int main() {
             std::printf("FAIL Apple Notes: expected 'được được việt ', got '%s'\n", encode(client.text).c_str());
             ++failures;
         }
+    }
+
+    // Messenger on facebook.com through GNOME Shell keeps reporting an empty field, so GNOME Shell
+    // drops every deletion (here: none is applied): once the app has shown none of the edits for
+    // a while, the field goes through the uinput server. Keys 60 ms apart.
+    {
+        auto ctx = std::make_unique<TestInputContext>(&testInstance.instance, "gnome-shell");
+        ctx->setCapabilityFlags(fcitx::CapabilityFlag::SurroundingText);
+        ctx->focusIn();
+        fcitx::InputContextEvent focusEvent(ctx.get(), fcitx::EventType::InputContextFocusIn);
+        engine.activate(entry, focusEvent);
+        ctx->surroundingText().setText("", 0, 0);
+        ctx->updateSurroundingText();
+        Client client{.engine = engine, .entry = entry, .context = *ctx, .listener = listener,
+            .loop = &testInstance.instance.eventLoop(), .keyMs = 60};
+        bool ok = client.type("khi naof ");
+        // the held edit gives up waiting for the app after 200 ms: the server gets its burst
+        KbMsg msg{};
+        for (int i = 0; i < 400 && client.pending.empty(); ++i) {
+            client.sync();
+            while (listener.tryReceive(msg)) {
+                client.pending.push_back(msg);
+                client.pendingAge.push_back(0);
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        ok = ok && client.drain(true);
+        if (!ok || client.text != U"khi nào ") {
+            std::printf("FAIL Messenger: expected 'khi nào ', got '%s'\n", encode(client.text).c_str());
+            ++failures;
+        }
+    }
+
+    // The same field, clicked while the edit waits: the cursor may have moved. No uinput
+    // backspaces (they would delete at the new cursor), and no protocol edit the app cannot
+    // be seen to take (GNOME Shell would drop its deletion, "nao" became "naoào "): the edit
+    // is dropped. Unless the app shows what it deletes by then: it goes through the protocol.
+    {
+        // the server's mouse socket, which the engine connects to on activation
+        FdGuard mouse(socket(AF_UNIX, SOCK_SEQPACKET, 0));
+        sockaddr_un address{};
+        address.sun_family = AF_UNIX;
+        const std::string mousePath = buildSocketPath(VANH_MOUSE_SOCKET_FILE);
+        std::memcpy(address.sun_path, mousePath.data(), mousePath.size());
+        unlink(mousePath.c_str());
+        if (bind(mouse.get(), reinterpret_cast<const sockaddr*>(&address), sizeof(address)) < 0 || listen(mouse.get(), 1) < 0) {
+            std::printf("FAIL Messenger, click: mouse socket\n");
+            return 1;
+        }
+        FdGuard watcher;
+        for (const bool reports : {false, true}) {
+            auto ctx = std::make_unique<TestInputContext>(&testInstance.instance, "gnome-shell");
+            ctx->setCapabilityFlags(fcitx::CapabilityFlag::SurroundingText);
+            ctx->focusIn();
+            fcitx::InputContextEvent focusEvent(ctx.get(), fcitx::EventType::InputContextFocusIn);
+            engine.activate(entry, focusEvent);
+            ctx->surroundingText().setText("", 0, 0);
+            ctx->updateSurroundingText();
+            if (!watcher.isValid()) {
+                watcher = FdGuard(accept(mouse.get(), nullptr, nullptr));
+            }
+            Client client{.engine = engine, .entry = entry, .context = *ctx, .listener = listener,
+                .loop = &testInstance.instance.eventLoop(), .keyMs = 60};
+            const bool ok = client.type("khi naof ");
+            const size_t edits = ctx->edits().size();
+            if (reports) {
+                ctx->surroundingText().setText("khi nao", 7, 7);
+                ctx->updateSurroundingText();
+            }
+            if (send(watcher.get(), "C", 1, 0) != 1) {
+                std::printf("FAIL Messenger, click: send click\n");
+                return 1;
+            }
+            KbMsg msg{};
+            for (int i = 0; i < 400; ++i) {
+                client.sync();
+                while (listener.tryReceive(msg)) {
+                    client.pending.push_back(msg);
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+            const auto& sent = ctx->edits();
+            const bool expected = reports
+                ? sent.size() == edits + 2 && sent[edits].kind == 'd' && sent[edits].size == 2 && sent[edits + 1].text == "ào "
+                : sent.size() == edits;
+            if (!ok || !client.pending.empty() || !expected) {
+                std::printf("FAIL Messenger, click (app %s): %zu uinput message(s), %zu protocol edit(s)\n",
+                    reports ? "reports" : "silent", client.pending.size(), sent.size() - edits);
+                for (size_t i = edits; i < sent.size(); ++i) {
+                    std::printf("  %c %u '%s'\n", sent[i].kind, sent[i].size, sent[i].text.c_str());
+                }
+                ++failures;
+            }
+        }
+        unlink(mousePath.c_str());
     }
 
     if (failures != 0) {

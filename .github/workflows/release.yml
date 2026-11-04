@@ -1,0 +1,91 @@
+name: Build & Release
+
+# Builds the .deb in a clean container per distro (the package links against each distro's
+# libc and fcitx5), and on a v* tag makes a draft GitHub Release with all of them.
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - 'v*'
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  build-deb:
+    name: DEB [${{ matrix.codename }}]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: debian:12
+            codename: bookworm
+          - distro: debian:13
+            codename: trixie
+          - distro: debian:testing
+            codename: forky
+          - distro: debian:unstable
+            codename: sid
+          - distro: ubuntu:22.04
+            codename: jammy
+          - distro: ubuntu:24.04
+            codename: noble
+          - distro: ubuntu:25.10
+            codename: questing
+          - distro: ubuntu:26.04
+            codename: resolute
+          - distro: ubuntu:26.10
+            codename: stonking
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Prepare debian directory
+        run: cp -r packaging/debian debian
+
+      - name: Build DEB
+        uses: jtdor/build-deb-action@v1
+        with:
+          docker-image: ${{ matrix.distro }}
+          buildpackage-opts: --build=binary --no-sign
+
+      - name: Name the DEB after the distro
+        run: |
+          for f in debian/artifacts/*.deb; do
+            sudo mv "$f" "${f%.deb}_${{ matrix.codename }}.deb"
+          done
+
+      - name: Upload DEB artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: deb-${{ matrix.codename }}
+          path: debian/artifacts/*.deb
+          retention-days: 3
+
+  release:
+    name: Create GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-deb]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts/
+
+      - name: Upload to a draft GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: artifacts/deb-*/*.deb
+          generate_release_notes: true
+          draft: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -253,7 +253,11 @@ int main() {
         std::string_view    keys;
         std::u32string_view want;
     };
-    constexpr std::array<Case, 7> cases{
+    constexpr std::array<Case, 11> cases{
+        Case{.keys = "inss\n", .want = U"ins\n"},
+        Case{.keys = "inss ", .want = U"ins "},
+        Case{.keys = "ins\n", .want = U"ins\n"},
+        Case{.keys = "ins ", .want = U"ins "},
         Case{.keys = "the poller is\n", .want = U"the poller is\n"},
         Case{.keys = "status line as\nnext", .want = U"status line as\nnext"},
         Case{.keys = "tooi ddi hocj\n", .want = U"tôi đi học\n"},

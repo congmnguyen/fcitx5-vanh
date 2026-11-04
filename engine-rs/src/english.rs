@@ -273,7 +273,8 @@ fn stem_score(word: &str, direct: i32) -> i32 {
     }
     for suffix in ["s", "es", "ed", "d", "ing", "ly"] {
         if let Some(stem) = word.strip_suffix(suffix) {
-            if stem.len() >= 3 {
+            // After an s English adds "es": "inss" (ins after the Telex undo) is no plural.
+            if stem.len() >= 3 && !(suffix == "s" && stem.ends_with('s')) {
                 let s = en_lookup(stem);
                 if s != MISSING {
                     return s - INFLECTION_PENALTY;

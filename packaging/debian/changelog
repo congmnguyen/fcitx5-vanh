@@ -1,3 +1,22 @@
+fcitx5-vanh (6.0.5-1) unstable; urgency=medium
+
+  * Surrounding text through GNOME Shell: pace edits and wait for the app to
+    show the text an edit deletes, so fast typing no longer garbles words
+    ("được" became "đươcợc").
+  * Switch a field to the uinput server when the app drops deletions (Apple
+    Notes on the web, Messenger on facebook.com).
+  * Revert key: turns the last word to its other reading (English <->
+    Vietnamese); it waits for its modifiers to go up.
+  * Enter restores the word like a word break, sent through the uinput server.
+  * English restore: better context for developer text and for same-looking
+    words after a clearly Vietnamese word.
+  * English restore keeps a word the Telex undo made ("inss" stays "ins"),
+    so Enter in the Chromium address bar opens the suggested site.
+  * Harden the IPC between the addon and the uinput server.
+  * New tray icons: a V badge, a grey E badge and a smiley.
+
+ -- congmnguyen <kv8haiquan@gmail.com>  Wed, 04 Nov 2026 22:58:38 +0700
+
 fcitx5-vanh (6.0.4-1) unstable; urgency=medium
 
   * Rename the package, addon, input method, server and data paths from lotus

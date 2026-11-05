@@ -64,8 +64,10 @@ jobs:
               apt-get install -y --no-install-recommends curl ca-certificates
               curl -sSf https://sh.rustup.rs | RUSTUP_HOME=/opt/rustup CARGO_HOME=/opt/cargo \
                 sh -s -- -y --no-modify-path --profile minimal --default-toolchain 1.93.1
-              ln -sf /opt/rustup/toolchains/1.93.1-*/bin/rustc /opt/rustup/toolchains/1.93.1-*/bin/cargo /usr/local/bin/
-              rustc --version && cargo --version
+              for tool in rustc rustdoc cargo; do
+                ln -sf /opt/rustup/toolchains/1.93.1-*/bin/$tool /usr/local/bin/
+              done
+              rustc --version && rustdoc --version && cargo --version
             fi
 
       - name: Name the DEB after the distro

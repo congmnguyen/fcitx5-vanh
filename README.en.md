@@ -19,7 +19,7 @@ The package, addon, input method, server and config files are named `vanh` (`fci
 ```bash
 sudo apt install --no-install-recommends debhelper dh-python cmake g++ extra-cmake-modules fcitx5-modules-dev \
   libfcitx5core-dev libfcitx5config-dev libfcitx5utils-dev libinput-dev libnotify-dev \
-  libdbus-1-dev libudev-dev pkg-config python3 gettext cargo rustc
+  libdbus-1-dev libsystemd-dev libudev-dev pkg-config python3 gettext cargo rustc
 git clone https://github.com/congmnguyen/fcitx5-vanh && cd fcitx5-vanh
 cp -r packaging/debian debian && dpkg-buildpackage -b -us -uc -j$(nproc) && rm -rf debian obj-*
 sudo apt install ../fcitx5-vanh_*_amd64.deb python3-pyqt5

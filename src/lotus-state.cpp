@@ -323,9 +323,11 @@ namespace fcitx {
         // Surrounding text can lag behind IME state, so confirm oldPreBuffer_ is still near the
         // cursor before trusting it.
         const size_t buffLen    = oldPreBuffer_.length();
-        const size_t pb         = u32Text.find(oldPreBuffer_);
+        // The last occurrence starting at or before the cursor: the word may also stand earlier
+        // in the field.
+        const size_t pb         = u32Text.rfind(oldPreBuffer_, cursor);
         const size_t rangeStart = cursor >= buffLen ? cursor - buffLen : 0;
-        const bool   sameprefix = pb != std::u32string::npos && pb >= rangeStart && pb <= cursor;
+        const bool   sameprefix = pb != std::u32string::npos && pb >= rangeStart;
 
         // Browser autofill/autocomplete suggestion: the selection extends from the cursor
         // (common address bar behavior).

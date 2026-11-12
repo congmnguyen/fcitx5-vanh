@@ -322,19 +322,13 @@ namespace fcitx {
                 StandardPath::Type::PkgData, "vanh/vietnamese.cm.dict");
 #endif
             for (const auto& p : paths) {
-#if LOTUS_USE_MODERN_FCITX_API
-                if (!p.string().starts_with("/home/")) {
-                    auto fd = fcitx::UnixFD(::open(p.c_str(), O_RDONLY));
-                    if (fd.isValid()) {
-                        loadFromFd(fd.release());
-#else
-                if (!p.starts_with("home/")) {
-                    int fd = ::open(p.c_str(), O_RDONLY);
-                    if (fd != -1) {
-                        loadFromFd(fd);
-#endif
-                        break;
-                    }
+                if (std::string_view(p.c_str()).starts_with("/home/")) {
+                    continue;
+                }
+                const int fd = ::open(p.c_str(), O_RDONLY);
+                if (fd != -1) {
+                    loadFromFd(fd);
+                    break;
                 }
             }
         }
@@ -1097,9 +1091,10 @@ namespace fcitx {
                 if (n <= 0) {
                     LOTUS_ERROR(
                         "Mouse socket recv error or disconnected: " + std::string(strerror(errno)));
-                    mouseEventSource_.reset();
-                    g_mouseSocketFd.store(-1, std::memory_order_release);
+                    // reset() destroys this lambda and its captures: take the fd out first.
                     FdGuard closed(sockFd);
+                    g_mouseSocketFd.store(-1, std::memory_order_release);
+                    mouseEventSource_.reset();
                     return true;
                 }
                 if (buf[0] != 'C') {

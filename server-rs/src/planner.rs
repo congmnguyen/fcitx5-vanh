@@ -18,6 +18,8 @@
 //!   `postDelay` to 0..=1000 ms, the range the addon sends (`clampDelay()` of
 //!   src/lotus-state.cpp). The waits block the event loop, so an unclamped value from a confused
 //!   or hostile client could freeze the server for up to 49 days.
+//! * At most 1024 BackSpace or Shift+Left taps are pending at a time, for the same reason: Cancel
+//!   completes a started selection in one blocking loop.
 
 use crate::log::Level;
 use crate::protocol::{KbMsg, KbOp};
@@ -32,6 +34,8 @@ pub const MAX_INTERVAL_MS: u32 = 1000;
 pub const MAX_DELAY_MS: u32 = 1000;
 /// Most Return taps one request may ask for.
 const MAX_RETURNS: usize = 4;
+/// Most BackSpace or Shift+Left taps that may be pending: far above any word plus its autofill.
+const MAX_PENDING: usize = 1024;
 
 /// Pause between the last Shift+Left and the Shift release.
 pub const SHIFT_RELEASE_DELAY_MS: u32 = 10;
@@ -195,7 +199,8 @@ impl Planner {
                 out.sleep_ms(self.interval);
                 out.tap(keys::LEFT);
                 // A previous burst may still be draining.
-                self.pending_selects = self.pending_selects.saturating_add(msg.count - 1);
+                self.pending_selects =
+                    self.pending_selects.saturating_add(msg.count - 1).min(MAX_PENDING);
                 self.pending_select_anchor = true;
                 self.pending_anchor = false;
             }
@@ -204,7 +209,8 @@ impl Planner {
                     self.drop_selection(out);
                 }
                 self.pending_anchor = true;
-                self.pending_backspaces = self.pending_backspaces.saturating_add(msg.count - 1);
+                self.pending_backspaces =
+                    self.pending_backspaces.saturating_add(msg.count - 1).min(MAX_PENDING);
                 out.tap(keys::BACKSPACE);
             }
             KbOp::Return => {
@@ -556,13 +562,18 @@ mod tests {
     }
 
     #[test]
-    fn huge_counts_saturate() {
+    fn huge_counts_are_capped() {
         let mut planner = Planner::default();
         let mut out = Recorder::default();
         planner.handle(&msg(KbOp::Backspace, usize::MAX, 0, 3, 0), Released, &mut out);
         planner.handle(&msg(KbOp::Backspace, usize::MAX, 0, 3, 0), Released, &mut out);
-        assert_eq!(planner.pending_backspaces, usize::MAX);
+        assert_eq!(planner.pending_backspaces, MAX_PENDING);
         planner.handle(&msg(KbOp::Cancel, 0, 0, 3, 0), Released, &mut out);
+        assert!(!planner.has_pending());
+        let mut out = Recorder::default();
+        planner.handle(&msg(KbOp::Select, usize::MAX, 0, 3, 0), Released, &mut out);
+        planner.handle(&msg(KbOp::Cancel, 0, 0, 3, 0), Released, &mut out);
+        assert_eq!(out.keys().iter().filter(|&k| *k == Tap(keys::LEFT)).count(), MAX_PENDING + 1);
         assert!(!planner.has_pending());
     }
 

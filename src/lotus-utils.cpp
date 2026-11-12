@@ -31,7 +31,6 @@
 std::atomic<fcitx::LotusMode> g_realMode{fcitx::LotusMode::Smooth};
 std::atomic<bool>             g_mouseClicked{false};
 std::atomic<bool>             g_isDeleting{false};
-std::atomic<bool>             g_stopFlagMonitor{false};
 std::atomic<unsigned int>     g_realTextLen{0};
 std::atomic<int>              g_mouseSocketFd{-1};
 
@@ -173,7 +172,7 @@ int64_t nowMs() {
 }
 
 bool isBackspace(uint32_t sym) {
-    return sym == 65288 || sym == 8 || sym == FcitxKey_BackSpace;
+    return sym == 8 || sym == FcitxKey_BackSpace;
 }
 
 uint32_t engineKeyValue(uint32_t sym) {

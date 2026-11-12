@@ -118,7 +118,6 @@ pub struct KeyProcessor {
     dictionary: Option<Shared<Dictionary>>,
     preedit: Vec<char>,
     commit: Vec<char>,
-    last_key_with_shift: bool,
     should_restore_key_strokes: bool,
     /// Keys typed for the current word (English restore).
     typed_keys: Vec<char>,
@@ -205,7 +204,6 @@ impl KeyProcessor {
             dictionary: None,
             preedit: Vec::new(),
             commit: Vec::new(),
-            last_key_with_shift: false,
             should_restore_key_strokes: false,
             typed_keys: Vec::new(),
             typed_keys_known: true,
@@ -289,11 +287,7 @@ impl KeyProcessor {
 
     /// Processes one key event, like Go's preeditProcessKeyEvent; true when the key was handled.
     pub fn process_key(&mut self, key_val: u32, states: u32) -> bool {
-        // Go defers updateLastKeyWithShift, so the bookkeeping runs on every return path.
-        let accepted = self.preedit_process_key_event(key_val, states);
-        self.last_key_with_shift =
-            self.engine_can_process(key_val) && states & key_state::SHIFT != 0;
-        accepted
+        self.preedit_process_key_event(key_val, states)
     }
 
     /// The key as a character; keysyms beyond Unicode (and surrogates) are no engine key.
@@ -971,9 +965,5 @@ impl KeyProcessor {
         // update_preedit which stores the charset encoded text.
         self.preedit = self.get_preedit_string();
         self.commit.clear();
-    }
-
-    pub fn last_key_with_shift(&self) -> bool {
-        self.last_key_with_shift
     }
 }

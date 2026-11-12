@@ -43,12 +43,6 @@ namespace lotus::fcitx_text {
     void commit(fcitx::InputContext* ic, std::u32string_view text,
         std::chrono::steady_clock::time_point& lastCommitTime);
 
-    /**
-     * @brief Code point of a key symbol, as a one code point text.
-     * @param sym Key symbol.
-     * @return One code point text, empty when the symbol has no Unicode mapping.
-     */
-    std::u32string fromKeySym(fcitx::KeySym sym);
 
 } // namespace lotus::fcitx_text
 

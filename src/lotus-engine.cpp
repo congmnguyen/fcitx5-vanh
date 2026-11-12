@@ -264,7 +264,6 @@ namespace fcitx {
     }
 
     LotusEngine::~LotusEngine() {
-        g_stopFlagMonitor.store(true, std::memory_order_release);
         mouseEventSource_.reset();
         FdGuard fd(g_mouseSocketFd.exchange(-1, std::memory_order_acq_rel));
         if (fd.isValid()) {

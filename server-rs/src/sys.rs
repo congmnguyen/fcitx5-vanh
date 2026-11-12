@@ -236,7 +236,6 @@ type CpuSet = [c_ulong; CPU_SETSIZE / CPU_WORD_BITS];
 extern "C" {
     fn socket(domain: c_int, kind: c_int, protocol: c_int) -> c_int;
     fn bind(fd: c_int, addr: *const sockaddr_un, len: u32) -> c_int;
-    fn connect(fd: c_int, addr: *const sockaddr_un, len: u32) -> c_int;
     fn listen(fd: c_int, backlog: c_int) -> c_int;
     fn accept4(fd: c_int, addr: *mut c_void, len: *mut u32, flags: c_int) -> c_int;
     fn recv(fd: c_int, buf: *mut c_void, len: usize, flags: c_int) -> isize;
@@ -370,12 +369,6 @@ pub fn bind_unix(fd: BorrowedFd<'_>, addr: &UnixAddr) -> io::Result<()> {
     cvt(unsafe { bind(fd.as_raw_fd(), &addr.addr, addr.len) }).map(drop)
 }
 
-/// `connect()` to a filesystem address (used by the tests).
-pub fn connect_unix(fd: BorrowedFd<'_>, addr: &UnixAddr) -> io::Result<()> {
-    // SAFETY: as in bind_unix.
-    cvt(unsafe { connect(fd.as_raw_fd(), &addr.addr, addr.len) }).map(drop)
-}
-
 /// `listen()`.
 pub fn listen_socket(fd: BorrowedFd<'_>, backlog: i32) -> io::Result<()> {
     // SAFETY: plain syscall on a borrowed descriptor.
@@ -408,12 +401,6 @@ pub fn send_nonblocking(fd: BorrowedFd<'_>, buf: &[u8]) -> io::Result<usize> {
     // SAFETY: buf is a valid readable buffer of buf.len() bytes.
     let flags = MSG_NOSIGNAL | MSG_DONTWAIT;
     cvt_size(unsafe { send(fd.as_raw_fd(), buf.as_ptr().cast(), buf.len(), flags) })
-}
-
-/// `send(MSG_NOSIGNAL)`, blocking (used by the tests and the replay helper).
-pub fn send_packet(fd: BorrowedFd<'_>, buf: &[u8]) -> io::Result<usize> {
-    // SAFETY: buf is a valid readable buffer of buf.len() bytes.
-    cvt_size(unsafe { send(fd.as_raw_fd(), buf.as_ptr().cast(), buf.len(), MSG_NOSIGNAL) })
 }
 
 /// Credentials of the peer of a connected AF_UNIX socket (`SO_PEERCRED`).

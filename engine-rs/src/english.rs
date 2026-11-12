@@ -8,6 +8,7 @@
 
 use crate::data::tech_english::TECH_WORDS;
 use crate::data::{vikey_autoswitch as words, vikey_bigram as bigram};
+use crate::utf8::encode;
 
 pub const MISSING: i32 = -1000;
 
@@ -122,32 +123,12 @@ fn vote(cv: i32, ce: i32) -> i32 {
     (v * BIGRAM_WEIGHT).round() as i32
 }
 
-/// The UTF-8 bytes of the C++ helper, which only writes up to three byte sequences (the readings
-/// are Vietnamese letters, so it never sees anything wider).
-fn utf8(s: &[char]) -> Vec<u8> {
-    let mut out = Vec::with_capacity(s.len() * 2);
-    for &ch in s {
-        let c = ch as u32;
-        if c < 0x80 {
-            out.push(c as u8);
-        } else if c < 0x800 {
-            out.push((0xC0 | (c >> 6)) as u8);
-            out.push((0x80 | (c & 0x3F)) as u8);
-        } else {
-            out.push((0xE0 | (c >> 12)) as u8);
-            out.push((0x80 | ((c >> 6) & 0x3F)) as u8);
-            out.push((0x80 | (c & 0x3F)) as u8);
-        }
-    }
-    out
-}
-
 /// The word before as it shows: the keys, or the Vietnamese reading.
 fn surface(p: &Prev) -> Vec<u8> {
     if p.english {
         p.word.raw.as_bytes().to_vec()
     } else {
-        utf8(&p.word.reading)
+        encode(&p.word.reading).into_bytes()
     }
 }
 
@@ -162,14 +143,14 @@ fn joined(a: &[u8], b: &[u8]) -> Vec<u8> {
 /// > 0: the Vietnamese reading follows the word before more often, < 0: the English one (D30).
 fn bigram_vote(p: &Prev, w: &Word) -> i32 {
     let before = surface(p);
-    let vietnamese = pair_count(&joined(&before, &utf8(&w.reading)));
+    let vietnamese = pair_count(&joined(&before, encode(&w.reading).as_bytes()));
     vote(vietnamese, pair_count(&joined(&before, w.raw.as_bytes())))
 }
 
 /// > 0: the word after follows the Vietnamese reading of the earlier word more often (D35).
 fn next_pair_vote(earlier: &Word, next: &Word) -> i32 {
-    let after = if next.same { next.raw.as_bytes().to_vec() } else { utf8(&next.reading) };
-    let vietnamese = pair_count(&joined(&utf8(&earlier.reading), &after));
+    let after = if next.same { next.raw.as_bytes().to_vec() } else { encode(&next.reading).into_bytes() };
+    let vietnamese = pair_count(&joined(encode(&earlier.reading).as_bytes(), &after));
     vote(vietnamese, pair_count(&joined(earlier.raw.as_bytes(), &after)))
 }
 

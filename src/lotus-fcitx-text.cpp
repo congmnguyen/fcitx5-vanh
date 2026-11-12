@@ -39,12 +39,4 @@ namespace lotus::fcitx_text {
         lastCommitTime = std::chrono::steady_clock::now();
     }
 
-    std::u32string fromKeySym(fcitx::KeySym sym) {
-        const uint32_t codePoint = fcitx::Key::keySymToUnicode(sym);
-        if (codePoint == 0U) {
-            return {};
-        }
-        return std::u32string(1, static_cast<char32_t>(codePoint));
-    }
-
 } // namespace lotus::fcitx_text

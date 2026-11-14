@@ -1,0 +1,55 @@
+name: Báo lỗi / Bug report
+description: Gõ ra sai chữ, mất hoặc lặp chữ, bộ gõ không chạy / Wrong, lost or doubled letters, the input method does not work
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: Chuyện gì xảy ra / What happens
+      description: Phím đã gõ, chữ hiện ra, chữ bạn mong đợi / The keys typed, the text shown, the text expected
+      placeholder: |
+        Gõ / Typed: thuwr nghieemj
+        Hiện ra / Shown: thửnghiệm
+        Mong đợi / Expected: thử nghiệm
+    validations:
+      required: true
+  - type: input
+    id: app
+    attributes:
+      label: App và phiên bản / App and version
+      placeholder: Brave 1.80 (thanh địa chỉ / address bar), GNOME Text Editor 48, Ghostty 1.2 ...
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Hệ điều hành, desktop, X11 hay Wayland / Distro, desktop, X11 or Wayland
+      placeholder: Ubuntu 26.04, GNOME 50, Wayland
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Phiên bản Vanh và fcitx5 / Vanh and fcitx5 versions
+      description: "`apt list --installed fcitx5 fcitx5-vanh`"
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Chế độ gõ / Typing mode
+      options:
+        - Uinput (Smooth)
+        - Uinput (Super Smooth)
+        - Uinput (Select)
+        - Surrounding Text
+        - Preedit
+        - Không rõ / Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log
+      description: "`fcitx5 -r --verbose=vanh=5` trong terminal rồi gõ lại / in a terminal, then type again; `journalctl -u fcitx5-vanh-server@$USER -e`. Log ghi lại phím đã gõ: đừng gõ mật khẩu / The log records the keys typed: do not type a password."
+      render: text

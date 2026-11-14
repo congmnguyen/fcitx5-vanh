@@ -14,7 +14,21 @@
 
 The package, addon, input method, server and config files are named `vanh` (`fcitx5-vanh`, `fcitx5-vanh-server@<user>.service`, `~/.config/fcitx5/conf/vanh.conf`). The `fcitx5-vanh` package replaces `fcitx5-lotus`; on the first start Vanh copies an existing lotus configuration (config, macros, keymap, app rules, emoji history, user dictionary) to the new names and puts Vanh in place of lotus in the input method list. The old files are kept.
 
-## Build and install (Debian/Ubuntu)
+## Install from a release (Debian/Ubuntu)
+
+Every release ships a `.deb` (amd64) for Ubuntu 22.04, 24.04, 25.10, 26.04, 26.10 and Debian 12, 13, testing, unstable:
+
+```bash
+ver=6.0.5-1; deb=fcitx5-vanh_${ver}_amd64_$(lsb_release -cs).deb
+wget https://github.com/congmnguyen/fcitx5-vanh/releases/download/v${ver%-*}/$deb
+sudo apt install ./$deb
+sudo systemctl enable --now fcitx5-vanh-server@$USER
+im-config -n fcitx5
+```
+
+Log out and back in, open Fcitx5 Configuration (`fcitx5-configtool`) and add **Vanh** to the input method list.
+
+## Build from source (Debian/Ubuntu)
 
 ```bash
 sudo apt install --no-install-recommends debhelper dh-python cmake g++ extra-cmake-modules fcitx5-modules-dev \
@@ -28,6 +42,42 @@ fcitx5 -r -d
 ```
 
 Other distros (`cargo` and `rustc` are needed too): `cmake -DCMAKE_INSTALL_PREFIX=/usr . && make && sudo make install` with the matching dev packages.
+
+## Usage
+
+- **Typing modes.** The `` ` `` key opens the mode menu: Uinput (Smooth), Uinput (Super Smooth), Uinput (Select), Surrounding Text, Preedit, Emoji Picker, OFF. The default is Preedit (underlined). To type without underline, pick a Uinput mode (the `fcitx5-vanh-server@<user>` server must be running) or Surrounding Text.
+- **Revert.** `Shift+BackSpace` turns the last word to its other reading (English ↔ Vietnamese) when Vanh guessed wrong.
+- **Settings.** `fcitx5-vanh-settings` edits the input method, charset, hotkeys, macros, the user dictionary, a custom keymap, and backs up or restores the configuration.
+- **App rules.** The mode menu can assign a mode to the app in use; the rules are kept in `~/.config/fcitx5/conf/vanh-app-rules.conf`.
+
+## Accuracy
+
+The public corpus [`engine-rs/eval/public.tsv`](engine-rs/eval/public.tsv) has 116 mixed Vietnamese/English sentences (975 words), typed back as Telex through the engine; on every build `ctest` checks that no word comes out wrong.
+
+| Configuration | Wrong words | Per 1000 words |
+|---|---|---|
+| Vanh (default) | 0 | 0 |
+| Restore of misspelled words only (bamboo style) | 24 | 24.6 |
+| Plain Telex | 97 | 99.5 |
+
+The corpus is small and was written for this measurement, so it is easier than real text. To run it again:
+
+```bash
+cd engine-rs && cargo run --release --example replay -- run eval/public.tsv --split all --config default
+```
+
+`--config bamboo` and `--config off` give the other two rows.
+
+## Troubleshooting
+
+- **"The uinput server is not running" notification.** Check `systemctl status fcitx5-vanh-server@$USER`; if it is not enabled, run `sudo systemctl enable --now fcitx5-vanh-server@$USER`. While the server runs, `/run/vanh/$USER/` holds `kb.sock` and `mouse.sock`.
+- **The server cannot open `/dev/uinput`.** `getfacl /dev/uinput` must list `user:uinput_proxy:rw-`. If it does not: `sudo modprobe uinput && sudo udevadm trigger --subsystem-match=misc --sysname-match=uinput`.
+- **Logs.** Server: `journalctl -u fcitx5-vanh-server@$USER -e`. Input method: run `fcitx5 -r --verbose=vanh=5` in a terminal.
+- **An app drops or doubles letters.** Try another mode for that app in the mode menu, then [open an issue](https://github.com/congmnguyen/fcitx5-vanh/issues/new/choose) with the app, its version, the desktop and X11 or Wayland.
+
+## Contributing
+
+Building, testing and linting are described in [`CONTRIBUTING.md`](CONTRIBUTING.md); the changes of each release in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## License and credits
 

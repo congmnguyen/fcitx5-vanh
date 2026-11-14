@@ -1,7 +1,8 @@
 name: Build & Release
 
 # Builds the .deb in a clean container per distro (the package links against each distro's
-# libc and fcitx5), and on a v* tag makes a draft GitHub Release with all of them.
+# libc and fcitx5), checks the format, the lints and the tests under the sanitizers, and on a v*
+# tag makes a draft GitHub Release with every .deb.
 on:
   push:
     branches:
@@ -56,7 +57,7 @@ jobs:
         with:
           docker-image: ${{ matrix.distro }}
           buildpackage-opts: --build=binary --no-sign
-          # The rustc of these distros is too old for the crates (Rust 1.77+): build with a
+          # The rustc of these distros is too old for the crates (Rust 1.82+): build with a
           # current one. Its binaries go first on PATH; they need no rustup home, which the
           # build may not see. Rust links statically, so the .deb gains no dependency.
           before-build-hook: |
@@ -83,10 +84,72 @@ jobs:
           path: debian/artifacts/*.deb
           retention-days: 3
 
+  checks:
+    name: Format, lint, sanitizers
+    runs-on: ubuntu-latest
+    # The tools of Ubuntu 26.04 (clang-format 21, Rust 1.93) decide the format; clang-tidy and
+    # ruff are pinned below. LeakSanitizer needs ptrace.
+    container:
+      image: ubuntu:26.04
+      options: --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      PIPX_HOME: /opt/pipx
+      PIPX_BIN_DIR: /usr/local/bin
+
+    steps:
+      - name: Install the build dependencies and the tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git ca-certificates make cmake g++ \
+            extra-cmake-modules fcitx5-modules-dev libfcitx5core-dev libfcitx5config-dev \
+            libfcitx5utils-dev libinput-dev libnotify-dev libdbus-1-dev libsystemd-dev \
+            libudev-dev pkg-config python3 gettext cargo rustc rustfmt rust-clippy \
+            clang-format appstream pipx
+          pipx install clang-tidy==23.1.4
+          pipx install ruff==0.17.5
+
+      - uses: actions/checkout@v7
+
+      - name: clang-format
+        run: git ls-files '*.cpp' '*.h' | xargs clang-format --dry-run -Werror
+
+      - name: rustfmt and clippy
+        if: ${{ !cancelled() }}
+        run: |
+          for crate in engine-rs server-rs; do
+            (cd $crate && cargo fmt --check && \
+              cargo clippy --offline --locked --all-targets -- -D warnings)
+          done
+
+      - name: ruff
+        if: ${{ !cancelled() }}
+        run: ruff check . && ruff format --check .
+
+      - name: Translations
+        if: ${{ !cancelled() }}
+        run: msgfmt --check --statistics -o /dev/null po/vi.po
+
+      - name: clang-tidy
+        if: ${{ !cancelled() }}
+        run: |
+          cmake -S . -B build-tidy
+          ls src/*.cpp engine-rs/cxx/*.cpp | xargs -P "$(nproc)" -n 1 \
+            clang-tidy -p build-tidy --quiet --warnings-as-errors='*'
+
+      - name: Tests under AddressSanitizer and UBSan
+        if: ${{ !cancelled() }}
+        run: |
+          cmake -S . -B build-asan -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer"
+          cmake --build build-asan -j "$(nproc)"
+          appstreamcli validate --no-net build-asan/org.fcitx.Fcitx5.Addon.Vanh.metainfo.xml
+          ctest --test-dir build-asan -j "$(nproc)" --output-on-failure
+
   release:
     name: Create GitHub Release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-deb]
+    needs: [build-deb, checks]
     runs-on: ubuntu-latest
     permissions:
       contents: write

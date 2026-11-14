@@ -39,7 +39,7 @@ gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
-RUN = Path("/tmp/claude-1000/ve2e")  # short: a Wayland socket path must fit in 108 bytes
+RUN = Path(f"/tmp/ve2e-{os.getuid()}")  # short: a Wayland socket path must fit in 108 bytes
 # Another build to compare against: VANH_E2E_BUILD (a CMake build dir) and VANH_E2E_REPLAY.
 BUILD = Path(os.environ.get("VANH_E2E_BUILD", ROOT / "build"))
 REPLAY = Path(os.environ.get("VANH_E2E_REPLAY", ROOT / "engine-rs/target/release/examples/replay"))
@@ -695,8 +695,8 @@ def main():
         (Path.home() / ".config/fcitx5/conf/vanh.conf").read_text() if a.config == "user" else ""
     )
     sentences = a.text.split("|") if a.text else SENTENCES
+    s = Session(a)  # creates RUN, which telex_keys writes to
     keys = telex_keys(sentences)
-    s = Session(a)
     results = []
     try:
         s.start_shell()

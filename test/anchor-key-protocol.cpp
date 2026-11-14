@@ -71,6 +71,14 @@ int main() {
                       "the replacement committed before the anchor key arrived");
         return 1;
     }
+    // Some GTK apps forward a backspace twice: the duplicate must not close the burst.
+    if (!send(engine, entry, *context, FcitxKey_BackSpace, false))
+        return 1;
+    if (!context->commits().empty()) {
+        reportFailure("duplicate backspace", "no commit before the anchor", "commits=" + std::to_string(context->commits().size()),
+                      "a backspace echoed twice closed the burst before the anchor key arrived");
+        return 1;
+    }
     if (!send(engine, entry, *context, FcitxKey_Pause, true))
         return 1;
     const std::vector<std::string> expected{"á"};

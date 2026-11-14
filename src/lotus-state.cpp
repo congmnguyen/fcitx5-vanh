@@ -1203,6 +1203,13 @@ namespace fcitx {
         if (keyEvent.isRelease()) {
             return;
         }
+        // A key typed before the deferred commit went out would reach the app first ("ái" as
+        // "iá"): it is replayed right after the commit.
+        if (deferredCommitPending_ && !Key::keySymToUTF8(rawSym).empty()) {
+            bufferedKeys_.push({.sym = rawSym, .state = keyEvent.rawKey().states()});
+            keyEvent.filterAndAccept();
+            return;
+        }
         if (held_) {
             // A printable key joins the held edit; any other key would reach the app before it.
             const uint32_t cp           = Key::keySymToUnicode(rawSym);
@@ -1220,16 +1227,6 @@ namespace fcitx {
         if (!engine_.kbSender().connected()) {
             LOTUS_WARN("Cannot connect to uinput server, reconnecting....");
             engine_.kbSender().ensureConnected();
-        }
-        // Finish a replacement whose echoes overran its count.
-        if (currentBackspaceCount_ > expectedBackspaces_ &&
-            g_isDeleting.load(std::memory_order_acquire)) {
-            stopReplacement();
-            if (!bufferedKeys_.empty()) {
-                deferCommits_ = isDbus();
-                replayBufferedKeys();
-                flushCommitBatch();
-            }
         }
         finishOverdueReplacement();
 
@@ -1321,10 +1318,12 @@ namespace fcitx {
                 if (!isPause && g_realTextLen.load(std::memory_order_acquire) > 0) {
                     g_realTextLen.fetch_sub(1, std::memory_order_acq_rel);
                 }
-                currentBackspaceCount_ += 1;
-                if (currentBackspaceCount_ <= expectedBackspaces_ && !isPause) {
+                if (!isPause) {
                     // Re-arm the deadline so a slow burst is never abandoned. The echo reaches the
-                    // app to clear autofill/old text or extend the selection.
+                    // app to clear autofill/old text or extend the selection. Only the anchor
+                    // closes the burst: some GTK apps forward a backspace twice.
+                    currentBackspaceCount_ =
+                        std::min(currentBackspaceCount_ + 1, expectedBackspaces_);
                     replacementDeadlineMs_ = nowMs() + replacementEchoGrace_;
                     return;
                 }

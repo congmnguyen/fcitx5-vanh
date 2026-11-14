@@ -66,3 +66,12 @@ set(LOTUS_RUST_TEST_COMMAND
     "${CARGO_EXECUTABLE}" test --offline --locked --manifest-path "${CMAKE_CURRENT_SOURCE_DIR}/Cargo.toml"
     PARENT_SCOPE
 )
+
+# Accuracy of the English/Vietnamese switch on the public corpus (eval/public.tsv): the replay
+# harness types every sentence and counts the words that come out wrong.
+set(LOTUS_RUST_EVAL_COMMAND
+    ${CMAKE_COMMAND} -E env ${LOTUS_CARGO_ENV}
+    "${CARGO_EXECUTABLE}" run --offline --locked --manifest-path "${CMAKE_CURRENT_SOURCE_DIR}/Cargo.toml"
+    --example replay -- run "${CMAKE_CURRENT_SOURCE_DIR}/eval/public.tsv" --split all --worst 20
+    PARENT_SCOPE
+)

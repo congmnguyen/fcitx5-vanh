@@ -118,6 +118,11 @@ set_target_properties(lotus_unit_tests PROPERTIES UNITY_BUILD OFF)
 add_test(NAME lotus_engine_rust_tests COMMAND ${LOTUS_RUST_TEST_COMMAND})
 set_tests_properties(lotus_engine_rust_tests PROPERTIES LABELS "unit;lotus;engine" TIMEOUT 900)
 
+# No word of the public corpus may come out wrong; the report names the words that do.
+add_test(NAME lotus_engine_public_corpus COMMAND ${LOTUS_RUST_EVAL_COMMAND})
+set_tests_properties(lotus_engine_public_corpus PROPERTIES LABELS "unit;lotus;engine;eval" TIMEOUT 900
+    PASS_REGULAR_EXPRESSION "TOTAL +0 +0\\.00")
+
 add_lotus_unit_test(lotus_utf8 utf8 lotus-utf8-test.cpp "unit;lotus")
 add_lotus_unit_test(lotus_engine_api engine_api lotus-engine-api-test.cpp "unit;lotus")
 add_lotus_unit_test(lotus_golden_smoke golden_smoke lotus-golden-smoke.cpp "unit;lotus;golden")

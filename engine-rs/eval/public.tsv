@@ -1,0 +1,117 @@
+# split	source	tier	id	labels	text
+test	public	typed	public#0	vvvveve	tôi đang sửa lỗi build cho server
+test	public	typed	public#1	eeveveve	fix typo trong README rồi push lên main
+test	public	typed	public#2	veevevvv	chạy git status rồi commit lại giúp mình
+test	public	typed	public#3	eeeevvv	the poller is stuck khi mất mạng
+test	public	typed	public#4	vveevve	kiểm tra file config trước khi deploy
+test	public	typed	public#5	vveevv	được rồi, merge PR này đi
+test	public	typed	public#6	vvvvvvvvv	hôm nay trời đẹp quá, đi cà phê không
+test	public	typed	public#7	vvevvvev	mình vừa review xong, có vài comment nhỏ
+test	public	typed	public#8	eeeeeee	please update the docs before the release
+test	public	typed	public#9	vevvev	cái bug này khó reproduce lắm
+test	public	typed	public#10	vvvvvvevvv	anh ơi cho em hỏi cái deadline là thứ mấy
+test	public	typed	public#11	vveevevv	em gửi link meeting vào group rồi nhé
+test	public	typed	public#12	eeeeeeeee	The quick brown fox jumps over the lazy dog
+test	public	typed	public#13	vvvvvvvv	Việt Nam là một đất nước xinh đẹp
+test	public	typed	public#14	vvvvvvvvv	không sao đâu, để mai làm tiếp cũng được
+test	public	typed	public#15	eeeeeeeeee	this function returns an error when the input is empty
+test	public	typed	public#16	vvevvvev	cần thêm test cho trường hợp input rỗng
+test	public	typed	public#17	evevvvv	server bị crash lúc ba giờ sáng
+test	public	typed	public#18	eevvevvvv	restart service rồi xem log có gì lạ không
+test	public	typed	public#19	vvvvvvvvv	chị ấy đang họp, lát nữa gọi lại sau
+test	public	typed	public#20	eeeeeeee	I think we should refactor this module first
+test	public	typed	public#21	vvvveevv	theo mình thì nên refactor module này trước
+test	public	typed	public#22	vevvvvev	dùng cache để giảm thời gian load trang
+test	public	typed	public#23	eveveve	database bị lock nên request bị timeout
+test	public	typed	public#24	vveevevv	bạn thử clear cache rồi reload lại xem
+test	public	typed	public#25	vvvvvvv	cảm ơn bạn nhiều, mình hiểu rồi
+test	public	typed	public#26	eeeeeeeee	let me check and get back to you tomorrow
+test	public	typed	public#27	vvevvvevv	tuần sau team mình có buổi demo sản phẩm
+test	public	typed	public#28	vevvvvev	nhớ backup dữ liệu trước khi update nhé
+test	public	typed	public#29	vvvvvevve	ứng dụng chạy chậm vì query chưa có index
+test	public	typed	public#30	eeeeeeee	can you send me the report by Friday
+test	public	typed	public#31	vvvvvvvvv	gửi báo cáo cho sếp trước thứ sáu nha
+test	public	typed	public#32	vvvvvvvvv	mật khẩu phải có ít nhất tám ký tự
+test	public	typed	public#33	evvvvvvve	user không đăng nhập được sau khi đổi password
+test	public	typed	public#34	vevvvvvvv	thêm button đăng xuất ở góc trên bên phải
+test	public	typed	public#35	eeeeeee	the new design looks great on mobile
+test	public	typed	public#36	vvvvvvvve	giao diện mới nhìn đẹp hơn nhiều trên mobile
+test	public	typed	public#37	vvvvvvvvv	tối nay ăn gì nhỉ, phở hay bún chả
+test	public	typed	public#38	vvvvvvvv	cuối tuần này về quê thăm ông bà
+test	public	typed	public#39	vvvvvvvv	mẹ dặn mua thêm ít rau với trứng
+test	public	typed	public#40	vvvvvvv	đường hôm nay kẹt xe kinh khủng
+test	public	typed	public#41	eeeeeeee	we need more time to finish this feature
+test	public	typed	public#42	vvvvvvvev	cần thêm thời gian để hoàn thành feature này
+test	public	typed	public#43	vevveevvev	đã fix xong, bạn pull code mới về test thử
+test	public	typed	public#44	evevevevv	branch này conflict với main rồi, rebase lại đi
+test	public	typed	public#45	eeeeeeee	sorry for the late reply, I was busy
+test	public	typed	public#46	vvvvvvvvvvv	xin lỗi vì trả lời muộn, hôm qua mình bận quá
+test	public	typed	public#47	vvvvvvvv	học tiếng Anh mỗi ngày ba mươi phút
+test	public	typed	public#48	vvvvvvvvv	cuốn sách này hay lắm, bạn nên đọc thử
+test	public	typed	public#49	vvvvvvvv	máy tính của tôi hết pin giữa chừng
+test	public	typed	public#50	evvvvvvv	laptop mới mua mà quạt kêu to quá
+test	public	typed	public#51	vevvvvvvv	cài Ubuntu xong thì gõ tiếng Việt bằng gì
+test	public	typed	public#52	vvvvvvvvvv	bộ gõ này không bị mất chữ khi gõ nhanh
+test	public	typed	public#53	eeeeeeee	open the terminal and run the install script
+test	public	typed	public#54	vevvevv	mở terminal rồi chạy script cài đặt
+test	public	typed	public#55	vvvvvvev	lỗi này chỉ xảy ra trên production thôi
+test	public	typed	public#56	evvvvvv	staging vẫn chạy bình thường, lạ thật
+test	public	typed	public#57	vvvvvevvvv	ai đó đã xoá nhầm file trong thư mục chung
+test	public	typed	public#58	eeeeeeeee	it works on my machine but fails on CI
+test	public	typed	public#59	vvvvvveve	trên máy mình chạy được mà CI lại fail
+test	public	typed	public#60	vvevvvvv	thử tăng timeout lên mười giây xem sao
+test	public	typed	public#61	eevvvvvvv	memory leak ở đâu đó trong vòng lặp này
+test	public	typed	public#62	vvevvvvvvv	số lượng user tăng gấp đôi so với tháng trước
+test	public	typed	public#63	vvvvvvvvvv	doanh thu quý này vượt kế hoạch mười phần trăm
+test	public	typed	public#64	vvvvvvvvvv	khách hàng phản hồi rất tích cực về bản mới
+test	public	typed	public#65	eeeeeeeee	please review my pull request when you have time
+test	public	typed	public#66	vvevvveev	rảnh thì review giúp mình cái pull request nhé
+test	public	typed	public#67	vvvvvvvv	họp lúc hai giờ chiều ở phòng lớn
+test	public	typed	public#68	vvvvvvee	tài liệu thiết kế nằm trong folder shared
+test	public	typed	public#69	vvvvvvv	đổi tên biến cho dễ hiểu hơn
+test	public	typed	public#70	vvvvvvvvvv	hàm này dài quá, tách ra thành hai hàm nhỏ
+test	public	typed	public#71	eeeeeeee	the test suite takes ten minutes to run
+test	public	typed	public#72	vevvvvvv	bộ test chạy mất mười phút, lâu quá
+test	public	typed	public#73	vevevv	thêm log để debug cho dễ
+test	public	typed	public#74	vvvvvvvve	chưa hiểu tại sao nó lại trả về null
+test	public	typed	public#75	vvvvvvv	kết quả không đúng với mong đợi
+test	public	typed	public#76	eeeeeeeee	is there a better way to handle this case
+test	public	typed	public#77	vvvvvvvvvvv	có cách nào xử lý trường hợp này tốt hơn không
+test	public	typed	public#78	vvvvvvv	đừng quên tắt máy trước khi về
+test	public	typed	public#79	vvvvvvvvv	sáng mai chín giờ mình có lịch phỏng vấn
+test	public	typed	public#80	vvvvvvvvv	chúc mừng sinh nhật, chúc bạn luôn vui vẻ
+test	public	typed	public#81	vvvvvvvv	thời tiết Hà Nội dạo này lạnh lắm
+test	public	typed	public#82	vvvvvvv	Sài Gòn mưa suốt cả tuần nay
+test	public	typed	public#83	vvvvvvvv	giá xăng lại tăng thêm một nghìn đồng
+test	public	typed	public#84	eeeeeeee	I will be out of office next week
+test	public	typed	public#85	vvvvvvvvve	tuần sau mình nghỉ phép, có gì nhắn qua email
+test	public	typed	public#86	eevvevvv	copy file này sang server mới giúp anh
+test	public	typed	public#87	vvvvvvvvve	quyền truy cập bị từ chối, kiểm tra lại token
+test	public	typed	public#88	evvvvev	token hết hạn rồi, phải login lại
+test	public	typed	public#89	vvvvvvvvvv	thư viện này đã ngừng hỗ trợ từ năm ngoái
+test	public	typed	public#90	vevvvvv	nâng version lên bản mới nhất đi
+test	public	typed	public#91	eeeeeeeee	the build is green again after the last commit
+test	public	typed	public#92	evvvvevv	build xanh lại rồi sau commit vừa nãy
+test	public	typed	public#93	vveevvvv	viết thêm unit test cho phần thanh toán
+test	public	typed	public#94	vvvvvevvv	đơn hàng bị trùng do user bấm hai lần
+test	public	typed	public#95	vevevvvv	thêm loading để user biết đang xử lý
+test	public	typed	public#96	vvevvvv	trang chủ load mất gần năm giây
+test	public	typed	public#97	vvvvvvve	ảnh nặng quá, nén lại trước khi upload
+test	public	typed	public#98	eeeeeee	thanks for your help, really appreciate it
+test	public	typed	public#99	vvvvvvvvvvv	cảm ơn anh đã hỗ trợ, em làm được rồi ạ
+test	public	typed	public#100	vvvvvvvvv	để em hỏi lại khách rồi báo anh sau
+test	public	typed	public#101	vvvvvvvvv	dự án này bắt đầu từ đầu năm ngoái
+test	public	typed	public#102	vvvvvevv	chúng ta cần thống nhất format trước đã
+test	public	typed	public#103	vvvvvvvvvv	mọi người cho ý kiến về đề xuất này nhé
+test	public	typed	public#104	eeeeeee	which approach do you prefer and why
+test	public	typed	public#105	vvvvvvvvv	bạn thích cách nào hơn, giải thích giúp mình
+test	public	typed	public#106	vvvvvvvvvv	nói chung là ổn, chỉ cần sửa vài chỗ nhỏ
+test	public	typed	public#107	vvvvvvvv	gõ nhanh quá nên sai chính tả hoài
+test	public	typed	public#108	vvvvvvvv	từ này viết thế nào cho đúng nhỉ
+test	public	typed	public#109	vvvvvvevvvv	tên miền mới sẽ trỏ về server cũ trong một tuần
+test	public	typed	public#110	vvevvvvv	dọn dẹp code cũ không còn dùng nữa
+test	public	typed	public#111	vvvevvvv	xoá mấy dòng comment thừa đi cho gọn
+test	public	typed	public#112	eeeeeee	the error message is not clear enough
+test	public	typed	public#113	vvvvvvv	thông báo lỗi chưa đủ rõ ràng
+test	public	typed	public#114	vvvvvvvv	khi nào xong thì báo mình một tiếng
+test	public	typed	public#115	evvvvvevvvv	ok để mình xem lại rồi fix luôn trong hôm nay

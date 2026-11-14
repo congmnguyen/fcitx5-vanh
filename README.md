@@ -52,15 +52,15 @@ Distro khác (cần thêm `cargo` và `rustc`): `cmake -DCMAKE_INSTALL_PREFIX=/u
 
 ## Độ chính xác
 
-Bộ câu công khai [`engine-rs/eval/public.tsv`](engine-rs/eval/public.tsv) gồm 116 câu Việt/Anh xen kẽ (975 từ) được gõ lại bằng Telex qua engine; mỗi lần build, `ctest` kiểm tra không từ nào ra sai.
+Bộ câu công khai [`engine-rs/eval/public.tsv`](engine-rs/eval/public.tsv) gồm 165 câu Việt/Anh xen kẽ (1333 từ), có cả câu chứa lệnh, đường dẫn, tên biến và từ đọc được cả hai cách, được gõ lại bằng Telex qua engine; mỗi lần build, `ctest` kiểm tra số từ sai không đổi.
 
 | Cấu hình | Từ sai | Trên 1000 từ |
 |---|---|---|
-| Vanh (mặc định) | 0 | 0 |
-| Chỉ khôi phục từ sai chính tả (kiểu bamboo) | 24 | 24,6 |
-| Telex thuần | 97 | 99,5 |
+| Vanh (mặc định) | 1 | 0,75 |
+| Chỉ khôi phục từ sai chính tả (kiểu bamboo) | 41 | 30,8 |
+| Telex thuần | 158 | 118,5 |
 
-Bộ câu này nhỏ và được viết riêng cho việc đo, nên dễ hơn văn bản thật. Chạy lại:
+Từ Vanh còn sai là `conf` nằm trong đường dẫn (`~/.config/fcitx5/conf/vanh.conf` ra `còn`). Bộ câu này nhỏ, tự soạn cho việc đo và chỉ có 30 token code, nên dễ hơn văn bản thật. Chạy lại:
 
 ```bash
 cd engine-rs && cargo run --release --example replay -- run eval/public.tsv --split all --config default

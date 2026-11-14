@@ -52,15 +52,15 @@ Other distros (`cargo` and `rustc` are needed too): `cmake -DCMAKE_INSTALL_PREFI
 
 ## Accuracy
 
-The public corpus [`engine-rs/eval/public.tsv`](engine-rs/eval/public.tsv) has 116 mixed Vietnamese/English sentences (975 words), typed back as Telex through the engine; on every build `ctest` checks that no word comes out wrong.
+The public corpus [`engine-rs/eval/public.tsv`](engine-rs/eval/public.tsv) has 165 mixed Vietnamese/English sentences (1333 words), some with commands, paths, identifiers and words that read both ways, typed back as Telex through the engine; on every build `ctest` checks that the number of wrong words has not changed.
 
 | Configuration | Wrong words | Per 1000 words |
 |---|---|---|
-| Vanh (default) | 0 | 0 |
-| Restore of misspelled words only (bamboo style) | 24 | 24.6 |
-| Plain Telex | 97 | 99.5 |
+| Vanh (default) | 1 | 0.75 |
+| Restore of misspelled words only (bamboo style) | 41 | 30.8 |
+| Plain Telex | 158 | 118.5 |
 
-The corpus is small and was written for this measurement, so it is easier than real text. To run it again:
+The word Vanh still gets wrong is `conf` inside a path (`~/.config/fcitx5/conf/vanh.conf` comes out as `còn`). The corpus is small, written for this measurement and has only 30 code tokens, so it is easier than real text. To run it again:
 
 ```bash
 cd engine-rs && cargo run --release --example replay -- run eval/public.tsv --split all --config default

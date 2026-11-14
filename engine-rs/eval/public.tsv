@@ -115,3 +115,52 @@ test	public	typed	public#112	eeeeeee	the error message is not clear enough
 test	public	typed	public#113	vvvvvvv	thông báo lỗi chưa đủ rõ ràng
 test	public	typed	public#114	vvvvvvvv	khi nào xong thì báo mình một tiếng
 test	public	typed	public#115	evvvvvevvvv	ok để mình xem lại rồi fix luôn trong hôm nay
+test	public	typed	hard#0	veeveee	chạy npm install rồi npm run dev
+test	public	typed	hard#1	vvcvec	sửa hàm getUserById trong file user_service.py
+test	public	typed	hard#2	vecvv	mở file ~/.config/fcitx5/conf/vanh.conf lên xem
+test	public	typed	hard#3	eecevveve	git commit -m "fix: sửa lỗi timeout khi upload"
+test	public	typed	hard#4	vcooveoo	đặt max_tokens = 4096 và temperature = 0.7
+test	public	typed	hard#5	vcvvevvev	biến isLoading phải là false sau khi fetch xong
+test	public	typed	hard#6	vcvvee	thêm --no-cache vào lệnh docker build
+test	public	typed	hard#7	vecvvvo	gọi API /api/v1/users/42 thì trả về 404
+test	public	typed	hard#8	ecveevvv	set DEBUG=true trong file .env rồi chạy lại
+test	public	typed	hard#9	veeeevvve	dùng sudo systemctl restart nginx sau khi sửa config
+test	public	typed	hard#10	vceeeee	lỗi TypeError: cannot read properties of undefined
+test	public	typed	hard#11	eeeevvc	import numpy as np rồi gọi np.zeros
+test	public	typed	hard#12	vcvvevvc	hàm parse_args trả về None khi thiếu --input
+test	public	typed	hard#13	ecoec	cd ~/code/fcitx5-vanh && make -j8
+test	public	typed	hard#14	vvcvcvvec	kiểm tra README.md và CHANGELOG.md trước khi tag v1.2.0
+test	public	typed	hard#15	eeccvve	pip install -r requirements.txt bị lỗi version
+test	public	typed	hard#16	veevvc	thêm type hint cho hàm load_config
+test	public	typed	hard#17	vcvcvev	dùng useState và useEffect trong component này
+test	public	typed	hard#18	evecvece	ssh vào server staging-01 rồi tail -f log
+test	public	typed	hard#19	vevovovc	đổi port từ 8080 sang 3000 trong docker-compose.yml
+test	public	typed	hard#20	evvvvvv	bus số mấy thì tới bến xe
+test	public	typed	hard#21	eeeeeee	the bus was late again this morning
+test	public	typed	hard#22	vvvvvvv	cho con bú xong rồi ru ngủ
+test	public	typed	hard#23	vvvevvv	mua vé xe bus ở đâu vậy
+test	public	typed	hard#24	vvvvvvv	cái ban công nhà mình hơi nhỏ
+test	public	typed	hard#25	eeeeeee	they ban smoking in all public places
+test	public	typed	hard#26	vvvevvvvv	anh ấy là fan của đội tuyển Việt Nam
+test	public	typed	hard#27	vvvvvvevv	quạt trần hỏng rồi, mua cái fan mới đi
+test	public	typed	hard#28	vvvvvvv	tôi cần một cái cốc to hơn
+test	public	typed	hard#29	eeeeeee	I need to go to the store
+test	public	typed	hard#30	vvvvve	con mèo nằm trên ghế sofa
+test	public	typed	hard#31	vvvvvv	màn hình bị vỡ góc trên
+test	public	typed	hard#32	eeeeeeee	the man at the door is my uncle
+test	public	typed	hard#33	vevvvvvvv	gửi mail cho anh Nam hỏi về hợp đồng
+test	public	typed	hard#34	eeveevee	team backend đang fix bug ở module payment
+test	public	typed	hard#35	vveevecvv	em đã push code lên branch feature/login rồi ạ
+test	public	typed	hard#36	vevvvecv	chị check giúp em cái ticket JIRA-1234 với
+test	public	typed	hard#37	veevvvvvvev	anh merge request này giúp em nhé, em cần deploy gấp
+test	public	typed	hard#38	vveevvv	mai họp sprint planning lúc mười giờ
+test	public	typed	hard#39	vecvevv	đo latency p99 của endpoint này xem
+test	public	typed	hard#40	evevvvvve	model này train mất ba ngày trên một GPU
+test	public	typed	hard#41	evvvveev	loss giảm chậm, thử tăng learning rate lên
+test	public	typed	hard#42	evvvve	dataset có khoảng hai triệu sample
+test	public	typed	hard#43	eevvvveee	batch size lớn quá nên bị out of memory
+test	public	typed	hard#44	vevec	viết docstring cho class DataLoader
+test	public	typed	hard#45	evvvvvve	case này hiếm gặp nhưng vẫn phải handle
+test	public	typed	hard#46	vvvvvvv	tôi sẽ tới lúc sáu giờ tối
+test	public	typed	hard#47	vvvvvvv	tới giờ ăn trưa rồi, đi thôi
+test	public	typed	hard#48	vvveeeee	anh ta nói is this real or fake

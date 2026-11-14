@@ -17,26 +17,32 @@
 
 namespace {
 
-    bool receiveSelectRequest(KbSocketListener& listener, size_t& count, const char* meaning, const char* timeoutExpected = "request within 5000 ms") {
+    bool receiveSelectRequest(KbSocketListener& listener, size_t& count, const char* meaning,
+        const char* timeoutExpected = "request within 5000 ms") {
         KbMsg msg{};
         if (!listener.receive(msg, meaning, timeoutExpected))
             return false;
         if (msg.op != KbOp::Select || msg.count <= 0) {
-            reportFailure("receive replacement request", "op=select, count > 0", "op=" + std::to_string(static_cast<int>(msg.op)) + ", count=" + std::to_string(msg.count),
-                          meaning);
+            reportFailure("receive replacement request", "op=select, count > 0",
+                "op=" + std::to_string(static_cast<int>(msg.op)) +
+                    ", count=" + std::to_string(msg.count),
+                meaning);
             return false;
         }
         count = msg.count;
         return true;
     }
 
-    bool send(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry, TestInputContext& context, fcitx::KeySym symbol, bool requireAccepted) {
+    bool send(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry,
+        TestInputContext& context, fcitx::KeySym symbol, bool requireAccepted) {
         fcitx::KeyEvent event(&context, fcitx::Key(symbol), false);
         engine.keyEvent(entry, event);
         if (event.accepted() != requireAccepted) {
-            reportFailure("process key " + std::to_string(symbol), "accepted=" + std::to_string(static_cast<int>(requireAccepted)),
-                          "accepted=" + std::to_string(static_cast<int>(event.accepted())) + ", commits=" + std::to_string(context.commits().size()),
-                          "Select echo handling accepted or rejected the key unexpectedly");
+            reportFailure("process key " + std::to_string(symbol),
+                "accepted=" + std::to_string(static_cast<int>(requireAccepted)),
+                "accepted=" + std::to_string(static_cast<int>(event.accepted())) +
+                    ", commits=" + std::to_string(context.commits().size()),
+                "Select echo handling accepted or rejected the key unexpectedly");
             return false;
         }
         return true;
@@ -59,9 +65,11 @@ int main() {
     config.setValueByPath("Mode", "Uinput (Select)");
     config.setValueByPath("InputMethod", "Telex");
     engine.setConfig(config);
-    if (engine.config().mode.value() != fcitx::LotusMode::Select || engine.config().inputMethod.value() != fcitx::InputMethodId::Telex) {
-        reportFailure("configure Select/Telex", "mode=Select, input method=Telex", "configured mode or input method differs",
-                      "the select test cannot exercise Select mode Telex behavior");
+    if (engine.config().mode.value() != fcitx::LotusMode::Select ||
+        engine.config().inputMethod.value() != fcitx::InputMethodId::Telex) {
+        reportFailure("configure Select/Telex", "mode=Select, input method=Telex",
+            "configured mode or input method differs",
+            "the select test cannot exercise Select mode Telex behavior");
         return 1;
     }
 
@@ -77,15 +85,18 @@ int main() {
 
     // Telex a, s changes the Bamboo preedit a -> á. Select mode must ask the
     // uinput server to select the old character(s) instead of sending backspaces.
-    if (!send(engine, entry, *context, FcitxKey_a, false) || !send(engine, entry, *context, FcitxKey_s, true))
+    if (!send(engine, entry, *context, FcitxKey_a, false) ||
+        !send(engine, entry, *context, FcitxKey_s, true))
         return 1;
     size_t selects = 0;
-    if (!receiveSelectRequest(listener, selects, "the initial Telex replacement did not request a selection"))
+    if (!receiveSelectRequest(
+            listener, selects, "the initial Telex replacement did not request a selection"))
         return 1;
 
     // A key typed while the selection is in flight must not commit immediately.
     if (!send(engine, entry, *context, FcitxKey_x, true) || !context->commits().empty()) {
-        reportFailure("buffer key x before the selection completes", "no immediate commits", commitList(*context), "buffered key x was emitted before the selection completed");
+        reportFailure("buffer key x before the selection completes", "no immediate commits",
+            commitList(*context), "buffered key x was emitted before the selection completed");
         return 1;
     }
 
@@ -101,8 +112,9 @@ int main() {
         return 1;
     const std::vector<std::string> afterFirst{"á"};
     if (context->commits() != afterFirst) {
-        reportFailure("verify commit after the last left arrow", "commits=['á']", commitList(*context) + ", selects=" + std::to_string(selects),
-                      "the replacement was not committed exactly once when the selection completed");
+        reportFailure("verify commit after the last left arrow", "commits=['á']",
+            commitList(*context) + ", selects=" + std::to_string(selects),
+            "the replacement was not committed exactly once when the selection completed");
         return 1;
     }
 
@@ -110,8 +122,9 @@ int main() {
     // No left arrow is replayed: only one new request arrives and it matches the
     // count the replacement needs.
     size_t replaySelects = 0;
-    if (!receiveSelectRequest(listener, replaySelects, "buffered key was not replayed after the selection completed",
-                              "buffered x replay starts another selection request within 5000 ms"))
+    if (!receiveSelectRequest(listener, replaySelects,
+            "buffered key was not replayed after the selection completed",
+            "buffered x replay starts another selection request within 5000 ms"))
         return 1;
     for (size_t i = 0; i < replaySelects; ++i) {
         if (!send(engine, entry, *context, FcitxKey_Left, false))
@@ -125,8 +138,10 @@ int main() {
     const std::vector<std::string> expected{"á", "ã"};
     if (context->commits() != expected) {
         reportFailure("verify final replay commits", "commits=['á']['ã']",
-                      commitList(*context) + ", first-selects=" + std::to_string(selects) + ", replay-selects=" + std::to_string(replaySelects),
-                      "the buffered key replay did not produce the expected final commits, or a left arrow was replayed");
+            commitList(*context) + ", first-selects=" + std::to_string(selects) +
+                ", replay-selects=" + std::to_string(replaySelects),
+            "the buffered key replay did not produce the expected final commits, or a left arrow "
+            "was replayed");
         return 1;
     }
     return 0;

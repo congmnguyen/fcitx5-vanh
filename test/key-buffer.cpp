@@ -18,11 +18,13 @@ namespace {
 
     int  failures = 0;
 
-    void check(bool ok, const std::string& step, const std::string& expected, const std::string& actual) {
+    void check(
+        bool ok, const std::string& step, const std::string& expected, const std::string& actual) {
         if (ok)
             return;
         ++failures;
-        std::cerr << "Step: " << step << "\nExpected: " << expected << "\nActual: " << actual << "\n";
+        std::cerr << "Step: " << step << "\nExpected: " << expected << "\nActual: " << actual
+                  << "\n";
     }
 
     std::string entryStr(const KeyEntry& e) {
@@ -40,7 +42,8 @@ int main() {
         buf.push({.sym = 102, .state = 20});
         buf.push({.sym = 103, .state = 30});
         check(!buf.empty(), "after push", "not empty", "empty");
-        check(buf.pop().sym == 101 && buf.pop().sym == 102, "fifo order", "101,102", "out of order");
+        check(
+            buf.pop().sym == 101 && buf.pop().sym == 102, "fifo order", "101,102", "out of order");
         const KeyEntry last = buf.pop();
         check(last.sym == 103 && last.state == 30, "fifo tail", "(103,30)", entryStr(last));
         check(buf.empty(), "drained", "empty", "not empty");

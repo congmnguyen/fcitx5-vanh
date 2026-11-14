@@ -63,7 +63,8 @@ int main(int argc, char** argv) {
                 }
                 const auto actual = engine.subModeIcon(entry, context);
                 if (actual != expected) {
-                    std::fprintf(stderr, "FAIL %s/%s/%s: expected %s, got %s\n", mode, theme, lotusIcons ? "Vanh" : "text", expected.c_str(), actual.c_str());
+                    std::fprintf(stderr, "FAIL %s/%s/%s: expected %s, got %s\n", mode, theme,
+                        lotusIcons ? "Vanh" : "text", expected.c_str(), actual.c_str());
                     ok = false;
                 }
             }

@@ -2,6 +2,8 @@
 name = "lotus-engine"
 version = "6.0.5"
 edition = "2021"
+# Option::is_none_or; the lints follow it, so clippy never asks for a newer API.
+rust-version = "1.82"
 license = "GPL-3.0-or-later"
 description = "Vietnamese typing engine of fcitx5-vanh: a port of bamboo-core plus the English restore"
 publish = false

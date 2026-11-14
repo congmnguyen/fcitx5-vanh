@@ -20,12 +20,14 @@ namespace {
 
     int  failures = 0;
 
-    void check(bool ok, const std::string& step, const std::string& expected, const std::string& actual) {
+    void check(
+        bool ok, const std::string& step, const std::string& expected, const std::string& actual) {
         if (ok) {
             return;
         }
         ++failures;
-        std::cerr << "Step: " << step << "\nExpected: " << expected << "\nActual: " << actual << "\n";
+        std::cerr << "Step: " << step << "\nExpected: " << expected << "\nActual: " << actual
+                  << "\n";
     }
 
     std::string triggers(const std::vector<EmojiEntry>& entries) {
@@ -41,8 +43,11 @@ namespace {
 
     std::vector<EmojiEntry> tierEntries() {
         return {
-            {.trigger = "cat", .output = "C"},         {.trigger = "cat_face", .output = "F"}, {.trigger = "black_cat", .output = "B"},
-            {.trigger = "educational", .output = "E"}, {.trigger = "dog", .output = "D"},
+            {.trigger = "cat", .output = "C"},
+            {.trigger = "cat_face", .output = "F"},
+            {.trigger = "black_cat", .output = "B"},
+            {.trigger = "educational", .output = "E"},
+            {.trigger = "dog", .output = "D"},
         };
     }
 
@@ -56,7 +61,9 @@ namespace {
     }
 
     bool contains(const std::vector<EmojiEntry>& results, const std::string& trigger) {
-        return std::ranges::any_of(results, [&](const EmojiEntry& entry) { return entry.trigger == trigger; });
+        return std::ranges::any_of(results, [&](const EmojiEntry& entry) {
+            return entry.trigger == trigger;
+        });
     }
 
 } // namespace
@@ -64,12 +71,14 @@ namespace {
 int main() {
     // Seams link: point history at a missing file; history reloads empty.
     {
-        EmojiLoader     loader(nullptr);
-        const auto      missing = std::filesystem::temp_directory_path() / "vanh-emoji-search-history-missing.conf";
+        EmojiLoader loader(nullptr);
+        const auto  missing =
+            std::filesystem::temp_directory_path() / "vanh-emoji-search-history-missing.conf";
         std::error_code ec;
         std::filesystem::remove(missing, ec);
         loader.setHistoryPathForTest(missing.string());
-        check(loader.history().empty(), "missing history", "empty", std::to_string(loader.history().size()));
+        check(loader.history().empty(), "missing history", "empty",
+            std::to_string(loader.history().size()));
     }
 
     // Tier order exact > prefix > boundary > fuzzy, plus case-insensitive exact.
@@ -79,9 +88,12 @@ int main() {
 
         const auto results = loader.search("cat");
         check(results.size() == 4, "tier size", "4", triggers(results));
-        check(indexOf(results, "cat") < indexOf(results, "cat_face"), "exact>prefix", "cat first", triggers(results));
-        check(indexOf(results, "cat_face") < indexOf(results, "black_cat"), "prefix>boundary", "cat_face before black_cat", triggers(results));
-        check(indexOf(results, "black_cat") < indexOf(results, "educational"), "boundary>fuzzy", "black_cat before educational", triggers(results));
+        check(indexOf(results, "cat") < indexOf(results, "cat_face"), "exact>prefix", "cat first",
+            triggers(results));
+        check(indexOf(results, "cat_face") < indexOf(results, "black_cat"), "prefix>boundary",
+            "cat_face before black_cat", triggers(results));
+        check(indexOf(results, "black_cat") < indexOf(results, "educational"), "boundary>fuzzy",
+            "black_cat before educational", triggers(results));
         check(!contains(results, "dog"), "non-match excluded", "no dog", triggers(results));
 
         const auto upper = loader.search("CAT");
@@ -103,8 +115,10 @@ int main() {
         entries.push_back({.trigger = "rank", .output = "BEST"});
         loader.setEmojiListForTest(std::move(entries));
         const auto results = loader.search("rank");
-        check(results.size() == EmojiLoader::kMaxEmojiSearchResults, "top-k size", "100", std::to_string(results.size()));
-        check(!results.empty() && results[0].trigger == "rank", "best match first", "rank", triggers(results));
+        check(results.size() == EmojiLoader::kMaxEmojiSearchResults, "top-k size", "100",
+            std::to_string(results.size()));
+        check(!results.empty() && results[0].trigger == "rank", "best match first", "rank",
+            triggers(results));
         check(!contains(results, "rank_99"), "worst dropped", "rank_99 absent", triggers(results));
     }
 
@@ -117,8 +131,10 @@ int main() {
         });
         const auto results = loader.search("dup");
         check(results.size() == 2, "dup size", "2", triggers(results));
-        check(results.size() == 2 && results[0].output == "A" && results[1].output == "B", "dup order", "[A][B]",
-              results.size() == 2 ? "[" + results[0].output + "][" + results[1].output + "]" : triggers(results));
+        check(results.size() == 2 && results[0].output == "A" && results[1].output == "B",
+            "dup order", "[A][B]",
+            results.size() == 2 ? "[" + results[0].output + "][" + results[1].output + "]" :
+                                  triggers(results));
     }
 
     if (failures > 0) {

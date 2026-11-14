@@ -17,12 +17,14 @@ namespace {
 
     int  failures = 0;
 
-    void check(bool ok, const std::string& step, const std::string& expected, const std::string& actual) {
+    void check(
+        bool ok, const std::string& step, const std::string& expected, const std::string& actual) {
         if (ok) {
             return;
         }
         ++failures;
-        std::cerr << "Step: " << step << "\nExpected: " << expected << "\nActual: " << actual << "\n";
+        std::cerr << "Step: " << step << "\nExpected: " << expected << "\nActual: " << actual
+                  << "\n";
     }
 
     std::string outputsStr(const std::vector<EmojiEntry>& entries) {
@@ -51,7 +53,8 @@ namespace {
 
     bool hasTmpLitter(const std::filesystem::path& dir) {
         std::error_code ec;
-        for (auto it = std::filesystem::directory_iterator(dir, ec); !ec && it != std::filesystem::directory_iterator{}; ++it) {
+        for (auto it = std::filesystem::directory_iterator(dir, ec);
+            !ec && it != std::filesystem::directory_iterator{}; ++it) {
             if (it->path().filename().string().find(".tmp") != std::string::npos) {
                 return true;
             }
@@ -68,7 +71,8 @@ namespace {
 } // namespace
 
 int main() {
-    const auto      root = std::filesystem::temp_directory_path() / ("fcitx5-vanh-emoji-history-unit-" + std::to_string(::getpid()));
+    const auto root = std::filesystem::temp_directory_path() /
+        ("fcitx5-vanh-emoji-history-unit-" + std::to_string(::getpid()));
     std::error_code ec;
     std::filesystem::create_directories(root, ec);
 
@@ -82,9 +86,11 @@ int main() {
         }
         writeText(path, text);
         auto loader = makeLoader(path);
-        check(loader.history().size() == 9, "load cap", "9", std::to_string(loader.history().size()));
-        check(!loader.history().empty() && loader.history().front().output == "e0" && loader.history().back().output == "e8", "newest first", "[e0..e8]",
-              outputsStr(loader.history()));
+        check(
+            loader.history().size() == 9, "load cap", "9", std::to_string(loader.history().size()));
+        check(!loader.history().empty() && loader.history().front().output == "e0" &&
+                loader.history().back().output == "e8",
+            "newest first", "[e0..e8]", outputsStr(loader.history()));
     }
 
     // Duplicates collapse to one entry; the newest occurrence wins.
@@ -92,8 +98,11 @@ int main() {
         const auto path = root / "dupe.conf";
         writeText(path, "t1=dupe\nt0=keep0\nt1again=dupe\nt2=keep2\n");
         auto loader = makeLoader(path);
-        check(outputsStr(loader.history()) == "[dupe,keep0,keep2]", "duplicates collapse", "[dupe,keep0,keep2]", outputsStr(loader.history()));
-        check(!loader.history().empty() && loader.history()[0].trigger == "t1", "newest trigger wins", "t1", loader.history().empty() ? "empty" : loader.history()[0].trigger);
+        check(outputsStr(loader.history()) == "[dupe,keep0,keep2]", "duplicates collapse",
+            "[dupe,keep0,keep2]", outputsStr(loader.history()));
+        check(!loader.history().empty() && loader.history()[0].trigger == "t1",
+            "newest trigger wins", "t1",
+            loader.history().empty() ? "empty" : loader.history()[0].trigger);
     }
 
     // Malformed lines are ignored; '=' splits on the first occurrence.
@@ -101,7 +110,8 @@ int main() {
         const auto path = root / "malformed.conf";
         writeText(path, "noequal\n\nt-empty=\nt=ok\nt2=a=b\n");
         auto loader = makeLoader(path);
-        check(outputsStr(loader.history()) == "[ok,a=b]", "malformed ignored", "[ok,a=b]", outputsStr(loader.history()));
+        check(outputsStr(loader.history()) == "[ok,a=b]", "malformed ignored", "[ok,a=b]",
+            outputsStr(loader.history()));
     }
 
     // recordHistory moves entries to the front and keeps the cap.
@@ -115,9 +125,12 @@ int main() {
         writeText(path, text);
         auto loader = makeLoader(path);
         loader.recordHistory(EmojiEntry{.trigger = "t9", .output = "e9"});
-        check(outputsStr(loader.history()) == "[e9,e0,e1,e2,e3,e4,e5,e6,e7]", "record prepends and caps", "[e9,e0,e1,e2,e3,e4,e5,e6,e7]", outputsStr(loader.history()));
+        check(outputsStr(loader.history()) == "[e9,e0,e1,e2,e3,e4,e5,e6,e7]",
+            "record prepends and caps", "[e9,e0,e1,e2,e3,e4,e5,e6,e7]",
+            outputsStr(loader.history()));
         loader.recordHistory(EmojiEntry{.trigger = "t5x", .output = "e5"});
-        check(loader.history().size() == 9 && loader.history().front().output == "e5", "record reorders", "9 entries, e5 first", outputsStr(loader.history()));
+        check(loader.history().size() == 9 && loader.history().front().output == "e5",
+            "record reorders", "9 entries, e5 first", outputsStr(loader.history()));
     }
 
     // Save then reload preserves order, including UTF-8 emoji.
@@ -127,7 +140,8 @@ int main() {
         loader.recordHistory(EmojiEntry{.trigger = "sushi", .output = "🍣"});
         loader.recordHistory(EmojiEntry{.trigger = "cat", .output = "🐱"});
         auto reloaded = makeLoader(path);
-        check(outputsStr(reloaded.history()) == outputsStr(loader.history()), "save round-trip", outputsStr(loader.history()), outputsStr(reloaded.history()));
+        check(outputsStr(reloaded.history()) == outputsStr(loader.history()), "save round-trip",
+            outputsStr(loader.history()), outputsStr(reloaded.history()));
     }
 
     // A failed write must not destroy the previous valid history.
@@ -141,11 +155,13 @@ int main() {
             writeText(path, "t0=e0\nt1=e1\n");
             const std::string before = readText(path);
             auto              loader = makeLoader(path);
-            std::filesystem::permissions(dir, std::filesystem::perms::owner_read | std::filesystem::perms::owner_exec, ec);
+            std::filesystem::permissions(
+                dir, std::filesystem::perms::owner_read | std::filesystem::perms::owner_exec, ec);
             check(!ec, "read-only setup", "ec clear", ec ? ec.message() : "clear");
             if (!ec) {
                 loader.recordHistory(EmojiEntry{.trigger = "t2", .output = "e2"});
-                check(readText(path) == before, "failed write preserves", "file unchanged", readText(path) == before ? "unchanged" : "modified");
+                check(readText(path) == before, "failed write preserves", "file unchanged",
+                    readText(path) == before ? "unchanged" : "modified");
             }
             std::filesystem::permissions(dir, std::filesystem::perms::owner_all, ec);
         }

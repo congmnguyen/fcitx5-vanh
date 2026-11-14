@@ -306,13 +306,13 @@ fn engine_utils() {
     assert!(has_valid_tone(&a_grave, Tone::Acute));
     assert!(has_valid_tone(&[a.clone(), dot, c.clone()], Tone::Dot));
     assert!(has_valid_tone(&a_grave, Tone::Grave));
-    assert!(!has_valid_tone(&plus(&[c.clone()]), Tone::Grave));
+    assert!(!has_valid_tone(&plus(std::slice::from_ref(&c)), Tone::Grave));
     assert!(!has_valid_tone(&plus(&[c.clone(), h.clone()]), Tone::Grave));
-    assert!(has_valid_tone(&plus(&[n.clone()]), Tone::Grave));
+    assert!(has_valid_tone(&plus(std::slice::from_ref(&n)), Tone::Grave));
 
     let a = app('a');
     let t_rule = tone_rule('f', Tone::Grave);
-    let found = find_target(&[a.clone()], std::slice::from_ref(&t_rule), std);
+    let found = find_target(std::slice::from_ref(&a), std::slice::from_ref(&t_rule), std);
     assert!(same(&found.target, &a));
     assert!(
         found.rule.effect_type == EffectType::ToneTransformation
@@ -320,7 +320,7 @@ fn engine_utils() {
             && found.rule.key == 'f'
     );
     let m_rule = mark_rule('w', 'a', 'ă', Mark::Breve);
-    let found = find_target(&[a.clone()], &[m_rule], std);
+    let found = find_target(std::slice::from_ref(&a), &[m_rule], std);
     assert!(same(&found.target, &a));
     assert!(
         found.rule.effect_type == EffectType::MarkTransformation
@@ -345,7 +345,8 @@ fn engine_utils() {
     assert!(same(&applied[0].borrow().target, &o));
     canvas(&[uo.clone(), applied].concat(), VN, "uơ");
     let double_key = appending('w', 'ư', false);
-    let doubled = generate_transformations(&[double_key.clone()], &w_rules, std, 'w', false);
+    let doubled =
+        generate_transformations(std::slice::from_ref(&double_key), &w_rules, std, 'w', false);
     assert_eq!(doubled.len(), 1);
     assert!(
         doubled[0].borrow().rule.mark() == Mark::Raw
@@ -375,7 +376,7 @@ fn engine_utils() {
     assert_eq!(undo.len(), 1);
     assert!(undo[0].borrow().rule.mark() == Mark::None && same(&undo[0].borrow().target, &a));
     canvas(&[a_hat, undo].concat(), VN, "a");
-    assert!(generate_undo_transformations(&[a.clone()], &[hat_rule], std).is_empty());
+    assert!(generate_undo_transformations(std::slice::from_ref(&a), &[hat_rule], std).is_empty());
 
     let plain = generate_fallback_transformations(&[], 'z', false);
     assert_eq!(plain.len(), 1);

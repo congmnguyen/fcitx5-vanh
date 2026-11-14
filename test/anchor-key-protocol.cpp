@@ -14,13 +14,16 @@
 
 namespace {
 
-    bool send(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry, TestInputContext& context, fcitx::KeySym symbol, bool requireAccepted) {
+    bool send(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry,
+        TestInputContext& context, fcitx::KeySym symbol, bool requireAccepted) {
         fcitx::KeyEvent event(&context, fcitx::Key(symbol), false);
         engine.keyEvent(entry, event);
         if (event.accepted() != requireAccepted) {
-            reportFailure("process key " + std::to_string(symbol), "accepted=" + std::to_string(static_cast<int>(requireAccepted)),
-                          "accepted=" + std::to_string(static_cast<int>(event.accepted())) + ", commits=" + std::to_string(context.commits().size()),
-                          "the anchor protocol test saw an unexpected key outcome");
+            reportFailure("process key " + std::to_string(symbol),
+                "accepted=" + std::to_string(static_cast<int>(requireAccepted)),
+                "accepted=" + std::to_string(static_cast<int>(event.accepted())) +
+                    ", commits=" + std::to_string(context.commits().size()),
+                "the anchor protocol test saw an unexpected key outcome");
             return false;
         }
         return true;
@@ -47,19 +50,24 @@ int main() {
     fcitx::InputContextEvent focus(context.get(), fcitx::EventType::InputContextFocusIn);
     engine.activate(entry, focus);
 
-    if (!send(engine, entry, *context, FcitxKey_a, false) || !send(engine, entry, *context, FcitxKey_s, true))
+    if (!send(engine, entry, *context, FcitxKey_a, false) ||
+        !send(engine, entry, *context, FcitxKey_s, true))
         return 1;
 
     KbMsg msg{};
     if (!listener.receive(msg, "the Telex replacement request did not arrive"))
         return 1;
     if (msg.op != KbOp::Backspace) {
-        reportFailure("replacement op", "op=Backspace", "op=" + std::to_string(static_cast<int>(msg.op)), "the replacement no longer uses the backspace burst");
+        reportFailure("replacement op", "op=Backspace",
+            "op=" + std::to_string(static_cast<int>(msg.op)),
+            "the replacement no longer uses the backspace burst");
         return 1;
     }
     if (msg.count != 1) {
-        reportFailure("count sent down", "count=1 (characters to delete, anchor excluded)", "count=" + std::to_string(msg.count),
-                      "the addon must send the word size so the server emits the burst and appends the anchor");
+        reportFailure("count sent down", "count=1 (characters to delete, anchor excluded)",
+            "count=" + std::to_string(msg.count),
+            "the addon must send the word size so the server emits the burst and appends the "
+            "anchor");
         return 1;
     }
 
@@ -67,16 +75,18 @@ int main() {
     if (!send(engine, entry, *context, FcitxKey_BackSpace, false))
         return 1;
     if (!context->commits().empty()) {
-        reportFailure("wait for the anchor", "no commit before the anchor", "commits=" + std::to_string(context->commits().size()),
-                      "the replacement committed before the anchor key arrived");
+        reportFailure("wait for the anchor", "no commit before the anchor",
+            "commits=" + std::to_string(context->commits().size()),
+            "the replacement committed before the anchor key arrived");
         return 1;
     }
     // Some GTK apps forward a backspace twice: the duplicate must not close the burst.
     if (!send(engine, entry, *context, FcitxKey_BackSpace, false))
         return 1;
     if (!context->commits().empty()) {
-        reportFailure("duplicate backspace", "no commit before the anchor", "commits=" + std::to_string(context->commits().size()),
-                      "a backspace echoed twice closed the burst before the anchor key arrived");
+        reportFailure("duplicate backspace", "no commit before the anchor",
+            "commits=" + std::to_string(context->commits().size()),
+            "a backspace echoed twice closed the burst before the anchor key arrived");
         return 1;
     }
     if (!send(engine, entry, *context, FcitxKey_Pause, true))
@@ -86,7 +96,8 @@ int main() {
         std::string actual = "commits=";
         for (const auto& commit : context->commits())
             actual += "['" + commit + "']";
-        reportFailure("commit on the anchor", "commits=['á']", actual, "the anchor echo did not finish the replacement");
+        reportFailure("commit on the anchor", "commits=['á']", actual,
+            "the anchor echo did not finish the replacement");
         return 1;
     }
 
@@ -94,7 +105,8 @@ int main() {
     if (!send(engine, entry, *context, FcitxKey_Pause, false))
         return 1;
     if (context->commits() != expected) {
-        reportFailure("anchor leak", "commits unchanged", "commits=" + std::to_string(context->commits().size()), "the anchor key produced text");
+        reportFailure("anchor leak", "commits unchanged",
+            "commits=" + std::to_string(context->commits().size()), "the anchor key produced text");
         return 1;
     }
 

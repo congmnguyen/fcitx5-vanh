@@ -12,13 +12,16 @@
 
 namespace {
 
-    bool send(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry, TestInputContext& context, fcitx::KeySym symbol, bool requireAccepted) {
+    bool send(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry,
+        TestInputContext& context, fcitx::KeySym symbol, bool requireAccepted) {
         fcitx::KeyEvent event(&context, fcitx::Key(symbol), false);
         engine.keyEvent(entry, event);
         if (event.accepted() == requireAccepted)
             return true;
-        reportFailure("process key " + std::to_string(symbol), "accepted=" + std::to_string(static_cast<int>(requireAccepted)),
-                      "accepted=" + std::to_string(static_cast<int>(event.accepted())), "unexpected key outcome");
+        reportFailure("process key " + std::to_string(symbol),
+            "accepted=" + std::to_string(static_cast<int>(requireAccepted)),
+            "accepted=" + std::to_string(static_cast<int>(event.accepted())),
+            "unexpected key outcome");
         return false;
     }
 
@@ -51,14 +54,18 @@ int main() {
     engine.activate(entry, focus);
 
     // "at" plus the tone-mark key requests a 2-character selection.
-    if (!send(engine, entry, *context, FcitxKey_a, false) || !send(engine, entry, *context, FcitxKey_t, false) || !send(engine, entry, *context, FcitxKey_s, true))
+    if (!send(engine, entry, *context, FcitxKey_a, false) ||
+        !send(engine, entry, *context, FcitxKey_t, false) ||
+        !send(engine, entry, *context, FcitxKey_s, true))
         return 1;
     KbMsg msg{};
     if (!listener.receive(msg, "the Telex replacement request did not arrive"))
         return 1;
     if (msg.op != KbOp::Select || msg.count != 2) {
-        reportFailure("receive replacement request", "op=select, count=2", "op=" + std::to_string(static_cast<int>(msg.op)) + ", count=" + std::to_string(msg.count),
-                      "the selection did not match the deleted part");
+        reportFailure("receive replacement request", "op=select, count=2",
+            "op=" + std::to_string(static_cast<int>(msg.op)) +
+                ", count=" + std::to_string(msg.count),
+            "the selection did not match the deleted part");
         return 1;
     }
 
@@ -69,7 +76,8 @@ int main() {
         return 1;
     const std::vector<std::string> afterAnchor{"át"};
     if (context->commits() != afterAnchor) {
-        reportFailure("commit on the anchor", "commits=['át']", commitList(*context), "the replacement was not committed when the anchor arrived with echoes missing");
+        reportFailure("commit on the anchor", "commits=['át']", commitList(*context),
+            "the replacement was not committed when the anchor arrived with echoes missing");
         return 1;
     }
 
@@ -77,7 +85,8 @@ int main() {
     if (!send(engine, entry, *context, FcitxKey_Pause, false))
         return 1;
     if (context->commits() != afterAnchor) {
-        reportFailure("no second commit on a stray anchor", "commits=['át']", commitList(*context), "a stray anchor committed the replacement twice");
+        reportFailure("no second commit on a stray anchor", "commits=['át']", commitList(*context),
+            "a stray anchor committed the replacement twice");
         return 1;
     }
 

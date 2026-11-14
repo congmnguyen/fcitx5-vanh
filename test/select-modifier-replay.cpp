@@ -14,17 +14,22 @@
 
 namespace {
 
-    void reportFailure(const std::string& step, const std::string& expected, const std::string& actual, const std::string& meaning) {
-        std::fprintf(stderr, "Step: %s\nExpected: %s\nActual: %s\nMeaning: %s\n", step.c_str(), expected.c_str(), actual.c_str(), meaning.c_str());
+    void reportFailure(const std::string& step, const std::string& expected,
+        const std::string& actual, const std::string& meaning) {
+        std::fprintf(stderr, "Step: %s\nExpected: %s\nActual: %s\nMeaning: %s\n", step.c_str(),
+            expected.c_str(), actual.c_str(), meaning.c_str());
     }
 
-    bool send(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry, TestInputContext& context, fcitx::Key key, bool requireAccepted) {
+    bool send(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry,
+        TestInputContext& context, fcitx::Key key, bool requireAccepted) {
         fcitx::KeyEvent event(&context, key, false);
         engine.keyEvent(entry, event);
         if (event.accepted() != requireAccepted) {
-            reportFailure("process key " + key.toString(), "accepted=" + std::to_string(static_cast<int>(requireAccepted)),
-                          "accepted=" + std::to_string(static_cast<int>(event.accepted())) + ", commits=" + std::to_string(context.commits().size()),
-                          "the Select modifier replay test saw an unexpected key outcome");
+            reportFailure("process key " + key.toString(),
+                "accepted=" + std::to_string(static_cast<int>(requireAccepted)),
+                "accepted=" + std::to_string(static_cast<int>(event.accepted())) +
+                    ", commits=" + std::to_string(context.commits().size()),
+                "the Select modifier replay test saw an unexpected key outcome");
             return false;
         }
         return true;
@@ -40,44 +45,55 @@ namespace {
     // One Select replacement of "a" -> "á" with `key` buffered after the single Left echo, i.e. in
     // the window where the old push-time rule kept the synthetic Shift. `holdShift` presses the
     // physical Shift while the replacement is in flight, which must keep the capital.
-    bool runCase(fcitx::Instance* instance, fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry, KbSocketListener& listener, bool holdShift,
-                 const std::string& expected) {
+    bool runCase(fcitx::Instance* instance, fcitx::LotusEngine& engine,
+        const fcitx::InputMethodEntry& entry, KbSocketListener& listener, bool holdShift,
+        const std::string& expected) {
         auto context = std::make_unique<TestInputContext>(instance);
         context->focusIn();
         fcitx::InputContextEvent focus(context.get(), fcitx::EventType::InputContextFocusIn);
         engine.activate(entry, focus);
 
-        if (!send(engine, entry, *context, fcitx::Key(FcitxKey_a), false) || !send(engine, entry, *context, fcitx::Key(FcitxKey_s), true))
+        if (!send(engine, entry, *context, fcitx::Key(FcitxKey_a), false) ||
+            !send(engine, entry, *context, fcitx::Key(FcitxKey_s), true))
             return false;
 
         KbMsg msg{};
         if (!listener.receive(msg, "the Telex replacement request did not arrive"))
             return false;
         if (msg.op != KbOp::Select || msg.count != 1) {
-            reportFailure("receive replacement request", "op=select, count=1", "op=" + std::to_string(static_cast<int>(msg.op)) + ", count=" + std::to_string(msg.count),
-                          "the Select replacement did not start as expected");
+            reportFailure("receive replacement request", "op=select, count=1",
+                "op=" + std::to_string(static_cast<int>(msg.op)) +
+                    ", count=" + std::to_string(msg.count),
+                "the Select replacement did not start as expected");
             return false;
         }
-        if (!send(engine, entry, *context, fcitx::Key(FcitxKey_Left), false)) { // counted echo, still deleting
+        if (!send(engine, entry, *context, fcitx::Key(FcitxKey_Left),
+                false)) { // counted echo, still deleting
             return false;
         }
-        if (holdShift && !send(engine, entry, *context, fcitx::Key(FcitxKey_Shift_L), true)) { // modifier is swallowed while deleting
+        if (holdShift &&
+            !send(engine, entry, *context, fcitx::Key(FcitxKey_Shift_L),
+                true)) { // modifier is swallowed while deleting
             return false;
         }
-        if (!send(engine, entry, *context, fcitx::Key(FcitxKey_N, fcitx::KeyState::Shift), true)) { // buffered while deleting
+        if (!send(engine, entry, *context, fcitx::Key(FcitxKey_N, fcitx::KeyState::Shift),
+                true)) { // buffered while deleting
             return false;
         }
         if (!send(engine, entry, *context, fcitx::Key(FcitxKey_Delete), false)) {
             return false;
         }
-        if (!send(engine, entry, *context, fcitx::Key(FcitxKey_Pause), true)) { // anchor finishes the replacement
+        if (!send(engine, entry, *context, fcitx::Key(FcitxKey_Pause),
+                true)) { // anchor finishes the replacement
             return false;
         }
 
         const std::string actual = commitText(*context);
         if (actual != expected) {
-            reportFailure(holdShift ? "replay with the physical Shift held" : "replay with only the synthetic Shift", expected, "'" + actual + "'",
-                          "the buffered key was replayed with the wrong Shift decision");
+            reportFailure(holdShift ? "replay with the physical Shift held" :
+                                      "replay with only the synthetic Shift",
+                expected, "'" + actual + "'",
+                "the buffered key was replayed with the wrong Shift decision");
             return false;
         }
         return true;

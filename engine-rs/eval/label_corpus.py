@@ -15,6 +15,7 @@ tier: "typed" (the user's own writing: commits/issues/PRs without an AI trailer,
 notes outside repos) or "doc" (markdown in repos and AI co-written text, which the user may not
 have typed key by key).
 """
+
 import hashlib
 import json
 import re
@@ -121,7 +122,7 @@ def main():
                         labels.append(label(t, vn_line, code_ctx))
                         if starts % 2 == 1:
                             in_tick = not in_tick
-                    if not any(l != "o" for l in labels):
+                    if not any(tag != "o" for tag in labels):
                         continue
                     rows.append((sp, src, tier, key, "".join(labels), seg))
     with open(out_dir / "corpus.tsv", "w") as f:
@@ -130,8 +131,8 @@ def main():
             f.write("\t".join(x.replace("\t", " ") for x in row) + "\n")
     stats = {}
     for sp, src, tier, _, labels, _ in rows:
-        for l in labels:
-            k = (sp, tier, l)
+        for tag in labels:
+            k = (sp, tier, tag)
             stats[k] = stats.get(k, 0) + 1
     for k in sorted(stats):
         print(*k, stats[k], sep="\t", file=sys.stderr)

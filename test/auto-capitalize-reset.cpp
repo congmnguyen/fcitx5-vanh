@@ -17,18 +17,22 @@ namespace {
 
     // Returns the key symbol the engine left on the event: auto-capitalize rewrites it in place
     // (keyEvent.setKey) before the key is handled or forwarded.
-    fcitx::KeySym sendKey(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry, TestInputContext& context, fcitx::KeySym symbol) {
+    fcitx::KeySym sendKey(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry,
+        TestInputContext& context, fcitx::KeySym symbol) {
         fcitx::KeyEvent event(&context, fcitx::Key(symbol), false);
         engine.keyEvent(entry, event);
         return event.key().sym();
     }
 
-    void reportFailure(const char* step, const std::string& expected, const std::string& actual, const char* meaning) {
-        std::printf("FAIL %s\nExpected: %s\nActual: %s\nMeaning: %s\n", step, expected.c_str(), actual.c_str(), meaning);
+    void reportFailure(const char* step, const std::string& expected, const std::string& actual,
+        const char* meaning) {
+        std::printf("FAIL %s\nExpected: %s\nActual: %s\nMeaning: %s\n", step, expected.c_str(),
+            actual.c_str(), meaning);
     }
 
     // Runs one reset event, the way a frontend reports it to the engine.
-    void sendReset(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry, TestInputContext& context, fcitx::EventType type) {
+    void sendReset(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry,
+        TestInputContext& context, fcitx::EventType type) {
         fcitx::InputContextEvent event(&context, type);
         engine.reset(entry, event);
     }
@@ -45,7 +49,8 @@ int main() {
     config.setValueByPath("AutoCapitalizeAfterPunctuation", "True");
     engine.setConfig(config);
     if (!engine.config().autoCapitalizeAfterPunctuation.value()) {
-        reportFailure("enable AutoCapitalizeAfterPunctuation", "option is on", "option is off", "the test cannot exercise sentence capitalization");
+        reportFailure("enable AutoCapitalizeAfterPunctuation", "option is on", "option is off",
+            "the test cannot exercise sentence capitalization");
         return 1;
     }
 
@@ -58,7 +63,8 @@ int main() {
     // Control: without a finished sentence the letter stays lowercase.
     const fcitx::KeySym plainLetter = sendKey(engine, entry, *context, FcitxKey_t);
     if (plainLetter != FcitxKey_t) {
-        reportFailure("plain letter", "t", fcitx::Key(plainLetter).toString(), "nothing must capitalize before a sentence ends");
+        reportFailure("plain letter", "t", fcitx::Key(plainLetter).toString(),
+            "nothing must capitalize before a sentence ends");
         return 1;
     }
 
@@ -67,8 +73,9 @@ int main() {
     sendReset(engine, entry, *context, fcitx::EventType::InputContextReset);
     const fcitx::KeySym afterClientReset = sendKey(engine, entry, *context, FcitxKey_t);
     if (afterClientReset != FcitxKey_T) {
-        reportFailure("sentence state survives a client reset", "T (the next character starts a sentence)", fcitx::Key(afterClientReset).toString(),
-                      "a client reset must not drop the Enter that ended the previous sentence");
+        reportFailure("sentence state survives a client reset",
+            "T (the next character starts a sentence)", fcitx::Key(afterClientReset).toString(),
+            "a client reset must not drop the Enter that ended the previous sentence");
         return 1;
     }
 
@@ -84,8 +91,9 @@ int main() {
     engine.activate(entry, focusIn);
     const fcitx::KeySym afterFocusOut = sendKey(engine, entry, *context, FcitxKey_t);
     if (afterFocusOut != FcitxKey_t) {
-        reportFailure("sentence state cleared on focus out", "t (lowercase)", fcitx::Key(afterFocusOut).toString(),
-                      "focus out must not leave a pending capitalization for the next context");
+        reportFailure("sentence state cleared on focus out", "t (lowercase)",
+            fcitx::Key(afterFocusOut).toString(),
+            "focus out must not leave a pending capitalization for the next context");
         return 1;
     }
 

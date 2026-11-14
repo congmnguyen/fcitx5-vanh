@@ -48,7 +48,8 @@ int main() {
     setenv(VANH_SERVER_UID_ENV, "12abc", 1);
     check("a malformed override refuses every server", !expectedServerUid().has_value());
     unsetenv(VANH_SERVER_UID_ENV);
-    check("without override the proxy user is expected", expectedServerUid() == lookupUserUid(LOTUS_UINPUT_PROXY_USER));
+    check("without override the proxy user is expected",
+        expectedServerUid() == lookupUserUid(LOTUS_UINPUT_PROXY_USER));
 
     // Peer check on a socketpair: the credentials are this process's, whatever its argv[0].
     {
@@ -57,11 +58,13 @@ int main() {
         FdGuard left(fds[0]);
         FdGuard right(fds[1]);
         setServerUid(self);
-        check("a peer of the expected uid is accepted", verifyServerPeer(left.get(), "test socket"));
+        check(
+            "a peer of the expected uid is accepted", verifyServerPeer(left.get(), "test socket"));
         setServerUid(other);
         check("a peer of another uid is refused", !verifyServerPeer(left.get(), "test socket"));
         setenv(VANH_SERVER_UID_ENV, "x", 1);
-        check("an unresolvable server user refuses the peer", !verifyServerPeer(left.get(), "test socket"));
+        check("an unresolvable server user refuses the peer",
+            !verifyServerPeer(left.get(), "test socket"));
     }
     check("a descriptor without credentials is refused", !verifyServerPeer(-1, "test socket"));
 
@@ -73,7 +76,9 @@ int main() {
         setServerUid(other);
         KbSender squatted(buildSocketPath(VANH_KB_SOCKET_FILE));
         check("the sender refuses a socket of another uid", !squatted.ensureConnected());
-        check("nothing is sent to a socket of another uid", !squatted.send(KbMsg{.op = KbOp::Backspace, .count = 1, .preDelay = 0, .interval = 1, .postDelay = 0}));
+        check("nothing is sent to a socket of another uid",
+            !squatted.send(KbMsg{
+                .op = KbOp::Backspace, .count = 1, .preDelay = 0, .interval = 1, .postDelay = 0}));
         KbMsg leaked{};
         check("the squatter receives nothing", !listener.tryReceive(leaked));
         setServerUid(self);
@@ -85,17 +90,23 @@ int main() {
     {
         setenv(VANH_SOCKET_DIR_ENV, "/run/vanh-test", 1);
         setenv(VANH_SOCKET_NAMESPACE_ENV, "alice", 1);
-        check("keyboard socket path", buildSocketPath(VANH_KB_SOCKET_FILE) == "/run/vanh-test/alice/kb.sock");
-        check("mouse socket path", buildSocketPath(VANH_MOUSE_SOCKET_FILE) == "/run/vanh-test/alice/mouse.sock");
+        check("keyboard socket path",
+            buildSocketPath(VANH_KB_SOCKET_FILE) == "/run/vanh-test/alice/kb.sock");
+        check("mouse socket path",
+            buildSocketPath(VANH_MOUSE_SOCKET_FILE) == "/run/vanh-test/alice/mouse.sock");
         unsetenv(VANH_SOCKET_DIR_ENV);
-        check("default socket directory", buildSocketPath(VANH_KB_SOCKET_FILE) == "/run/vanh/alice/kb.sock");
+        check("default socket directory",
+            buildSocketPath(VANH_KB_SOCKET_FILE) == "/run/vanh/alice/kb.sock");
         for (const char* bad : {"..", ".", "a/b", "../alice"}) {
             setenv(VANH_SOCKET_NAMESPACE_ENV, bad, 1);
-            check("a namespace that is not one path component gives no path", buildSocketPath(VANH_KB_SOCKET_FILE).empty());
+            check("a namespace that is not one path component gives no path",
+                buildSocketPath(VANH_KB_SOCKET_FILE).empty());
         }
         setenv(VANH_SOCKET_NAMESPACE_ENV, std::string(120, 'n').c_str(), 1);
-        check("a path longer than sun_path gives no path (never truncated)", buildSocketPath(VANH_KB_SOCKET_FILE).empty());
-        check("connecting to an empty path fails", connectServerSocket("", false, "test socket") < 0);
+        check("a path longer than sun_path gives no path (never truncated)",
+            buildSocketPath(VANH_KB_SOCKET_FILE).empty());
+        check(
+            "connecting to an empty path fails", connectServerSocket("", false, "test socket") < 0);
     }
 
     if (failures != 0) {

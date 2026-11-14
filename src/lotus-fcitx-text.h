@@ -43,7 +43,6 @@ namespace lotus::fcitx_text {
     void commit(fcitx::InputContext* ic, std::u32string_view text,
         std::chrono::steady_clock::time_point& lastCommitTime);
 
-
 } // namespace lotus::fcitx_text
 
 #endif // _FCITX5_LOTUS_FCITX_TEXT_H_

@@ -41,24 +41,24 @@ namespace {
     using lotus::utf8::encode;
 
     struct Client {
-        fcitx::LotusEngine&             engine;
-        const fcitx::InputMethodEntry&  entry;
-        TestInputContext&               context;
-        KbSocketListener&               listener;
-        std::u32string                  text          = {};
-        size_t                          commitsSeen   = 0;
-        size_t                          forwardedSeen = 0;
+        fcitx::LotusEngine&            engine;
+        const fcitx::InputMethodEntry& entry;
+        TestInputContext&              context;
+        KbSocketListener&              listener;
+        std::u32string                 text          = {};
+        size_t                         commitsSeen   = 0;
+        size_t                         forwardedSeen = 0;
         /// Fast typing: the server's bursts wait until `lag` more keys were typed.
-        int                             lag = 0;
+        int lag = 0;
         /// The dbus frontend in a GTK4 app: forwarded keys are dropped (fcitx5-gtk4), only keys
         /// the uinput server types (KbOp::Return) reach the app.
-        bool                            gtk4 = false;
-        fcitx::EventLoop*               loop = nullptr;
+        bool              gtk4 = false;
+        fcitx::EventLoop* loop = nullptr;
         /// A web editor (Apple Notes in Brave) that reports its text but drops deleteSurroundingText
         /// and resets the input method after every key.
-        bool                            notes = false;
+        bool notes = false;
         /// Time between two keys, the event loop running meanwhile.
-        int                             keyMs = 0;
+        int keyMs = 0;
 
         /** Lets the event loop run the 0 ms timers the dbus frontend defers its commits to. */
         void pump() {
@@ -67,15 +67,16 @@ namespace {
             }
             // One non-blocking pass of the loop (sd-event): an exited fcitx loop cannot run again.
             auto* event = static_cast<sd_event*>(loop->nativeHandle());
-            while (sd_event_run(event, 0) > 0) {}
+            while (sd_event_run(event, 0) > 0) {
+            }
         }
-        std::vector<KbMsg>              pending       = {};
-        std::vector<int>                pendingAge    = {};
+        std::vector<KbMsg> pending    = {};
+        std::vector<int>   pendingAge = {};
 
         /** Applies what the engine sent to the app since the last call. */
         size_t orderSeen = 0;
 
-        void sync() {
+        void   sync() {
             pump();
             for (; orderSeen < context.order().size(); ++orderSeen) {
                 if (context.order()[orderSeen] == 'c') {
@@ -94,7 +95,7 @@ namespace {
 
         bool press(const fcitx::Key& key, char32_t typed) {
             if (notes) {
-                const std::string shown = encode(text);
+                const std::string shown  = encode(text);
                 const auto        cursor = static_cast<unsigned int>(text.size());
                 context.surroundingText().setText(shown, cursor, cursor);
                 context.updateSurroundingText();
@@ -129,7 +130,8 @@ namespace {
         bool drain(bool all) {
             // A Return request is typed by the server at once (no burst to pace), before the next
             // key a person could type; only the backspace bursts lag.
-            while (!pending.empty() && (all || pendingAge.front() > lag || pending.front().op == KbOp::Return)) {
+            while (!pending.empty() &&
+                (all || pendingAge.front() > lag || pending.front().op == KbOp::Return)) {
                 const KbMsg msg = pending.front();
                 pending.erase(pending.begin());
                 pendingAge.erase(pendingAge.begin());
@@ -143,7 +145,8 @@ namespace {
                         engine.keyEvent(entry, enter);
                         sync();
                         if (enter.accepted()) {
-                            std::printf("  the Enter the server typed was swallowed on '%s'\n", encode(text).c_str());
+                            std::printf("  the Enter the server typed was swallowed on '%s'\n",
+                                encode(text).c_str());
                             return false;
                         }
                         text.push_back(U'\n');
@@ -159,7 +162,8 @@ namespace {
                     continue;
                 }
                 if (msg.op != KbOp::Backspace || msg.count > text.size()) {
-                    std::printf("  unexpected request op=%d count=%zu on '%s'\n", static_cast<int>(msg.op), msg.count, encode(text).c_str());
+                    std::printf("  unexpected request op=%d count=%zu on '%s'\n",
+                        static_cast<int>(msg.op), msg.count, encode(text).c_str());
                     return false;
                 }
                 if (std::getenv("TRACE") != nullptr) {
@@ -187,7 +191,8 @@ namespace {
             fcitx::InputContextEvent resetEvent(&context, fcitx::EventType::InputContextReset);
             engine.reset(entry, resetEvent);
             KbMsg drained{};
-            while (listener.tryReceive(drained)) {}
+            while (listener.tryReceive(drained)) {
+            }
             commitsSeen   = context.commits().size();
             forwardedSeen = context.forwarded().size();
             orderSeen     = context.order().size();
@@ -201,10 +206,13 @@ namespace {
                     const size_t before = pending.size();
                     ok = press(fcitx::Key(FcitxKey_BackSpace, fcitx::KeyState::Shift), 0);
                     // Ctrl goes down and up again meanwhile: Shift is still held.
-                    fcitx::KeyEvent ctrlDown(&context, fcitx::Key(FcitxKey_Control_L, fcitx::KeyState::Shift), false);
+                    fcitx::KeyEvent ctrlDown(
+                        &context, fcitx::Key(FcitxKey_Control_L, fcitx::KeyState::Shift), false);
                     engine.keyEvent(entry, ctrlDown);
                     fcitx::KeyEvent ctrlUp(&context,
-                        fcitx::Key(FcitxKey_Control_L, fcitx::KeyStates{fcitx::KeyState::Shift, fcitx::KeyState::Ctrl}), true);
+                        fcitx::Key(FcitxKey_Control_L,
+                            fcitx::KeyStates{fcitx::KeyState::Shift, fcitx::KeyState::Ctrl}),
+                        true);
                     engine.keyEvent(entry, ctrlUp);
                     sync();
                     KbMsg early{};
@@ -213,10 +221,12 @@ namespace {
                         pendingAge.push_back(0);
                     }
                     if (ok && pending.size() != before) {
-                        std::printf("  the revert deleted with Shift held on '%s'\n", encode(text).c_str());
+                        std::printf(
+                            "  the revert deleted with Shift held on '%s'\n", encode(text).c_str());
                         return false;
                     }
-                    fcitx::KeyEvent up(&context, fcitx::Key(FcitxKey_Shift_L, fcitx::KeyState::Shift), true);
+                    fcitx::KeyEvent up(
+                        &context, fcitx::Key(FcitxKey_Shift_L, fcitx::KeyState::Shift), true);
                     engine.keyEvent(entry, up);
                     sync();
                     KbMsg msg{};
@@ -225,7 +235,9 @@ namespace {
                         pendingAge.push_back(0);
                     }
                 } else {
-                    ok = press(fcitx::Key(static_cast<fcitx::KeySym>(static_cast<unsigned char>(ch))), static_cast<char32_t>(ch));
+                    ok = press(
+                        fcitx::Key(static_cast<fcitx::KeySym>(static_cast<unsigned char>(ch))),
+                        static_cast<char32_t>(ch));
                 }
                 if (!ok) {
                     return false;
@@ -267,7 +279,7 @@ int main() {
         Case{.keys = "theo max \bticket", .want = U"theo max ticket"},
     };
 
-    int failures = 0;
+    int              failures = 0;
     fcitx::RawConfig config;
     config.setValueByPath("Mode", "Uinput (Smooth)");
     config.setValueByPath("InputMethod", "Telex");
@@ -275,45 +287,7 @@ int main() {
     config.setValueByPath("EnableMacro", "False");
     engine.setConfig(config);
     for (const bool gtk4 : {false, true}) {
-    for (const Case& test : cases) {
-        auto ctx = std::make_unique<TestInputContext>(&testInstance.instance);
-        if (gtk4) {
-            ctx->setFrontendName("dbus");
-        }
-        ctx->focusIn();
-        fcitx::InputContextEvent focusEvent(ctx.get(), fcitx::EventType::InputContextFocusIn);
-        engine.activate(entry, focusEvent);
-        Client client{.engine = engine, .entry = entry, .context = *ctx, .listener = listener, .gtk4 = gtk4, .loop = gtk4 ? &testInstance.instance.eventLoop() : nullptr};
-        if (!client.type(test.keys)) {
-            std::printf("FAIL%s '%s': bad replacement request\n", gtk4 ? " (gtk4)" : "", std::string(test.keys).c_str());
-            ++failures;
-            continue;
-        }
-        if (client.text != test.want) {
-            std::printf("FAIL%s '%s': expected '%s', got '%s'\n", gtk4 ? " (gtk4)" : "", std::string(test.keys).c_str(), encode(test.want).c_str(), encode(client.text).c_str());
-            ++failures;
-        }
-    }
-    // Fast typing: random lines typed while the replacements lag one to three keys behind must
-    // come out exactly as when every replacement completes before the next key (nothing dropped,
-    // nothing doubled, Enter after the restored word).
-    const std::array<std::string_view, 14> words{"the", "is", "as", "docs", "host", "max", "tooi", "dduwowcj", "vieejt", "cos", "diff", "git", "has", "mono"};
-    uint64_t                               seed = 20261101;
-    auto                                   next = [&seed] {
-        seed ^= seed << 13;
-        seed ^= seed >> 7;
-        seed ^= seed << 17;
-        return seed;
-    };
-    const int rounds = std::getenv("VANH_FUZZ_SCALE") != nullptr ? 300 * std::atoi(std::getenv("VANH_FUZZ_SCALE")) : 300;
-    for (int round = 0; round < rounds; ++round) {
-        std::string keys;
-        for (int w = 0, n = 2 + static_cast<int>(next() % 6); w < n; ++w) {
-            keys += words[next() % words.size()];
-            keys += (next() % 4 == 0 && std::getenv("NO_ENTER") == nullptr) ? '\n' : ' ';
-        }
-        std::u32string results[2];
-        for (int lag : {0, 1 + static_cast<int>(next() % 3)}) {
+        for (const Case& test : cases) {
             auto ctx = std::make_unique<TestInputContext>(&testInstance.instance);
             if (gtk4) {
                 ctx->setFrontendName("dbus");
@@ -321,18 +295,78 @@ int main() {
             ctx->focusIn();
             fcitx::InputContextEvent focusEvent(ctx.get(), fcitx::EventType::InputContextFocusIn);
             engine.activate(entry, focusEvent);
-            Client client{.engine = engine, .entry = entry, .context = *ctx, .listener = listener, .lag = lag, .gtk4 = gtk4, .loop = gtk4 ? &testInstance.instance.eventLoop() : nullptr};
-            if (!client.type(keys)) {
-                std::printf("FAIL%s fast typing round %d (lag %d): bad replacement request typing '%s'\n", gtk4 ? " (gtk4)" : "", round, lag, keys.c_str());
+            Client client{.engine = engine,
+                .entry            = entry,
+                .context          = *ctx,
+                .listener         = listener,
+                .gtk4             = gtk4,
+                .loop             = gtk4 ? &testInstance.instance.eventLoop() : nullptr};
+            if (!client.type(test.keys)) {
+                std::printf("FAIL%s '%s': bad replacement request\n", gtk4 ? " (gtk4)" : "",
+                    std::string(test.keys).c_str());
+                ++failures;
+                continue;
+            }
+            if (client.text != test.want) {
+                std::printf("FAIL%s '%s': expected '%s', got '%s'\n", gtk4 ? " (gtk4)" : "",
+                    std::string(test.keys).c_str(), encode(test.want).c_str(),
+                    encode(client.text).c_str());
                 ++failures;
             }
-            results[lag == 0 ? 0 : 1] = client.text;
         }
-        if (results[0] != results[1]) {
-            std::printf("FAIL%s fast typing round %d: '%s' slow '%s' fast '%s'\n", gtk4 ? " (gtk4)" : "", round, keys.c_str(), encode(results[0]).c_str(), encode(results[1]).c_str());
-            ++failures;
+        // Fast typing: random lines typed while the replacements lag one to three keys behind must
+        // come out exactly as when every replacement completes before the next key (nothing dropped,
+        // nothing doubled, Enter after the restored word).
+        const std::array<std::string_view, 14> words{"the", "is", "as", "docs", "host", "max",
+            "tooi", "dduwowcj", "vieejt", "cos", "diff", "git", "has", "mono"};
+        uint64_t                               seed = 20261101;
+        auto                                   next = [&seed] {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            return seed;
+        };
+        const int rounds = std::getenv("VANH_FUZZ_SCALE") != nullptr ?
+            300 * std::atoi(std::getenv("VANH_FUZZ_SCALE")) :
+            300;
+        for (int round = 0; round < rounds; ++round) {
+            std::string keys;
+            for (int w = 0, n = 2 + static_cast<int>(next() % 6); w < n; ++w) {
+                keys += words[next() % words.size()];
+                keys += (next() % 4 == 0 && std::getenv("NO_ENTER") == nullptr) ? '\n' : ' ';
+            }
+            std::u32string results[2];
+            for (int lag : {0, 1 + static_cast<int>(next() % 3)}) {
+                auto ctx = std::make_unique<TestInputContext>(&testInstance.instance);
+                if (gtk4) {
+                    ctx->setFrontendName("dbus");
+                }
+                ctx->focusIn();
+                fcitx::InputContextEvent focusEvent(
+                    ctx.get(), fcitx::EventType::InputContextFocusIn);
+                engine.activate(entry, focusEvent);
+                Client client{.engine = engine,
+                    .entry            = entry,
+                    .context          = *ctx,
+                    .listener         = listener,
+                    .lag              = lag,
+                    .gtk4             = gtk4,
+                    .loop             = gtk4 ? &testInstance.instance.eventLoop() : nullptr};
+                if (!client.type(keys)) {
+                    std::printf("FAIL%s fast typing round %d (lag %d): bad replacement request "
+                                "typing '%s'\n",
+                        gtk4 ? " (gtk4)" : "", round, lag, keys.c_str());
+                    ++failures;
+                }
+                results[lag == 0 ? 0 : 1] = client.text;
+            }
+            if (results[0] != results[1]) {
+                std::printf("FAIL%s fast typing round %d: '%s' slow '%s' fast '%s'\n",
+                    gtk4 ? " (gtk4)" : "", round, keys.c_str(), encode(results[0]).c_str(),
+                    encode(results[1]).c_str());
+                ++failures;
+            }
         }
-    }
     }
 
     // Apple Notes on the web drops the deletions of the surrounding text path: the word typed when
@@ -346,9 +380,11 @@ int main() {
         ctx->focusIn();
         fcitx::InputContextEvent focusEvent(ctx.get(), fcitx::EventType::InputContextFocusIn);
         engine.activate(entry, focusEvent);
-        Client client{.engine = engine, .entry = entry, .context = *ctx, .listener = listener, .notes = true};
+        Client client{
+            .engine = engine, .entry = entry, .context = *ctx, .listener = listener, .notes = true};
         if (!client.type("dduwowcj dduwowcj vieetj ") || client.text != U"được được việt ") {
-            std::printf("FAIL Apple Notes: expected 'được được việt ', got '%s'\n", encode(client.text).c_str());
+            std::printf("FAIL Apple Notes: expected 'được được việt ', got '%s'\n",
+                encode(client.text).c_str());
             ++failures;
         }
     }
@@ -364,9 +400,13 @@ int main() {
         engine.activate(entry, focusEvent);
         ctx->surroundingText().setText("", 0, 0);
         ctx->updateSurroundingText();
-        Client client{.engine = engine, .entry = entry, .context = *ctx, .listener = listener,
-            .loop = &testInstance.instance.eventLoop(), .keyMs = 60};
-        bool ok = client.type("khi naof ");
+        Client client{.engine = engine,
+            .entry            = entry,
+            .context          = *ctx,
+            .listener         = listener,
+            .loop             = &testInstance.instance.eventLoop(),
+            .keyMs            = 60};
+        bool   ok = client.type("khi naof ");
         // the held edit gives up waiting for the app after 200 ms: the server gets its burst
         KbMsg msg{};
         for (int i = 0; i < 400 && client.pending.empty(); ++i) {
@@ -379,7 +419,8 @@ int main() {
         }
         ok = ok && client.drain(true);
         if (!ok || client.text != U"khi nào ") {
-            std::printf("FAIL Messenger: expected 'khi nào ', got '%s'\n", encode(client.text).c_str());
+            std::printf(
+                "FAIL Messenger: expected 'khi nào ', got '%s'\n", encode(client.text).c_str());
             ++failures;
         }
     }
@@ -390,13 +431,14 @@ int main() {
     // is dropped. Unless the app shows what it deletes by then: it goes through the protocol.
     {
         // the server's mouse socket, which the engine connects to on activation
-        FdGuard mouse(socket(AF_UNIX, SOCK_SEQPACKET, 0));
+        FdGuard     mouse(socket(AF_UNIX, SOCK_SEQPACKET, 0));
         sockaddr_un address{};
-        address.sun_family = AF_UNIX;
+        address.sun_family          = AF_UNIX;
         const std::string mousePath = buildSocketPath(VANH_MOUSE_SOCKET_FILE);
         std::memcpy(address.sun_path, mousePath.data(), mousePath.size());
         unlink(mousePath.c_str());
-        if (bind(mouse.get(), reinterpret_cast<const sockaddr*>(&address), sizeof(address)) < 0 || listen(mouse.get(), 1) < 0) {
+        if (bind(mouse.get(), reinterpret_cast<const sockaddr*>(&address), sizeof(address)) < 0 ||
+            listen(mouse.get(), 1) < 0) {
             std::printf("FAIL Messenger, click: mouse socket\n");
             return 1;
         }
@@ -412,9 +454,13 @@ int main() {
             if (!watcher.isValid()) {
                 watcher = FdGuard(accept(mouse.get(), nullptr, nullptr));
             }
-            Client client{.engine = engine, .entry = entry, .context = *ctx, .listener = listener,
-                .loop = &testInstance.instance.eventLoop(), .keyMs = 60};
-            const bool ok = client.type("khi naof ");
+            Client       client{.engine = engine,
+                      .entry            = entry,
+                      .context          = *ctx,
+                      .listener         = listener,
+                      .loop             = &testInstance.instance.eventLoop(),
+                      .keyMs            = 60};
+            const bool   ok    = client.type("khi naof ");
             const size_t edits = ctx->edits().size();
             if (reports) {
                 ctx->surroundingText().setText("khi nao", 7, 7);
@@ -432,12 +478,13 @@ int main() {
                 }
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
             }
-            const auto& sent = ctx->edits();
-            const bool expected = reports
-                ? sent.size() == edits + 2 && sent[edits].kind == 'd' && sent[edits].size == 2 && sent[edits + 1].text == "ào "
-                : sent.size() == edits;
+            const auto& sent     = ctx->edits();
+            const bool  expected = reports ? sent.size() == edits + 2 && sent[edits].kind == 'd' &&
+                    sent[edits].size == 2 && sent[edits + 1].text == "ào " :
+                                             sent.size() == edits;
             if (!ok || !client.pending.empty() || !expected) {
-                std::printf("FAIL Messenger, click (app %s): %zu uinput message(s), %zu protocol edit(s)\n",
+                std::printf(
+                    "FAIL Messenger, click (app %s): %zu uinput message(s), %zu protocol edit(s)\n",
                     reports ? "reports" : "silent", client.pending.size(), sent.size() - edits);
                 for (size_t i = edits; i < sent.size(); ++i) {
                     std::printf("  %c %u '%s'\n", sent[i].kind, sent[i].size, sent[i].text.c_str());

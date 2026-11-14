@@ -27,7 +27,8 @@
 
 namespace {
 
-    void reportFailure(const std::string& step, const std::string& expected, const std::string& actual, const std::string& meaning) {
+    void reportFailure(const std::string& step, const std::string& expected,
+        const std::string& actual, const std::string& meaning) {
         std::cerr << "Step: " << step << '\n';
         std::cerr << "Expected: " << expected << '\n';
         std::cerr << "Actual: " << actual << '\n';
@@ -36,13 +37,20 @@ namespace {
 
     std::string_view modeName(fcitx::LotusMode mode) {
         switch (mode) {
-            case fcitx::LotusMode::Off: return "Off";
-            case fcitx::LotusMode::Preedit: return "Preedit";
-            case fcitx::LotusMode::Smooth: return "Smooth";
-            case fcitx::LotusMode::SuperSmooth: return "SuperSmooth";
-            case fcitx::LotusMode::SurroundingText: return "SurroundingText";
-            case fcitx::LotusMode::Emoji: return "Emoji";
-            default: return "Unknown";
+            case fcitx::LotusMode::Off:
+                return "Off";
+            case fcitx::LotusMode::Preedit:
+                return "Preedit";
+            case fcitx::LotusMode::Smooth:
+                return "Smooth";
+            case fcitx::LotusMode::SuperSmooth:
+                return "SuperSmooth";
+            case fcitx::LotusMode::SurroundingText:
+                return "SurroundingText";
+            case fcitx::LotusMode::Emoji:
+                return "Emoji";
+            default:
+                return "Unknown";
         }
     }
 
@@ -55,11 +63,13 @@ int main() {
     // Per-app rule for the mock context's program name ("test"): Off.
     // Must be on disk before the engine is constructed (loadAppRules runs in
     // the constructor).
-    const auto rulesFile = std::filesystem::temp_directory_path() / testName / "config/fcitx5/conf/vanh-app-rules.conf";
+    const auto rulesFile = std::filesystem::temp_directory_path() / testName /
+        "config/fcitx5/conf/vanh-app-rules.conf";
     {
         std::ofstream file(rulesFile, std::ios::trunc);
         if (!file.is_open()) {
-            reportFailure("write app rules file", "file open", rulesFile.string(), "the test needs the app rule on disk");
+            reportFailure("write app rules file", "file open", rulesFile.string(),
+                "the test needs the app rule on disk");
             return 1;
         }
         file << "test=0\n";
@@ -74,7 +84,8 @@ int main() {
     config.setValueByPath("InputMethod", "Telex");
     engine.setConfig(config);
     if (engine.config().mode.value() != fcitx::LotusMode::Preedit) {
-        reportFailure("configure global Preedit", "mode=Preedit", "global mode differs", "the test needs the global mode to differ from the app rule");
+        reportFailure("configure global Preedit", "mode=Preedit", "global mode differs",
+            "the test needs the global mode to differ from the app rule");
         return 1;
     }
 
@@ -85,8 +96,9 @@ int main() {
     engine.activate(entry, focus);
 
     if (::g_realMode.load() != fcitx::LotusMode::Off) {
-        reportFailure("activate with rule Off", "g_realMode=Off", "g_realMode=" + std::string(modeName(::g_realMode.load())),
-                      "activate() must resolve the per-app rule for the focused window");
+        reportFailure("activate with rule Off", "g_realMode=Off",
+            "g_realMode=" + std::string(modeName(::g_realMode.load())),
+            "activate() must resolve the per-app rule for the focused window");
         return 1;
     }
 
@@ -99,8 +111,10 @@ int main() {
     engine.setConfig(reloaded);
 
     if (::g_realMode.load() != fcitx::LotusMode::Off) {
-        reportFailure("config reload keeps focused app rule", "g_realMode=Off", "g_realMode=" + std::string(modeName(::g_realMode.load())),
-                      "a config reload must not reset the focused window from its per-app rule back to the global mode");
+        reportFailure("config reload keeps focused app rule", "g_realMode=Off",
+            "g_realMode=" + std::string(modeName(::g_realMode.load())),
+            "a config reload must not reset the focused window from its per-app rule back to the "
+            "global mode");
         return 1;
     }
 

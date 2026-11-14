@@ -52,13 +52,15 @@ int run_numeric_macro_case() {
 
     // Tab terminates the numeric key sequence and triggers macro expansion.
     bool accepted = true;
-    for (const uint32_t key : {static_cast<uint32_t>('1'), static_cast<uint32_t>('2'), static_cast<uint32_t>('3'), 0xFF09U}) {
+    for (const uint32_t key : {static_cast<uint32_t>('1'), static_cast<uint32_t>('2'),
+             static_cast<uint32_t>('3'), 0xFF09U}) {
         accepted = processor.processKey(key, {}) && accepted;
     }
 
     const std::string actual = lotus::utf8::encode(processor.takeCommit());
     if (!accepted || actual != "Mixed Case") {
-        std::printf("FAIL numeric macro: accepted=%d expected [Mixed Case] actual [%s]\n", accepted ? 1 : 0, actual.c_str());
+        std::printf("FAIL numeric macro: accepted=%d expected [Mixed Case] actual [%s]\n",
+            accepted ? 1 : 0, actual.c_str());
         return 1;
     }
     std::printf("numeric macro case preservation: all checks passed\n");

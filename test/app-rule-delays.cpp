@@ -17,7 +17,8 @@
 
 namespace {
 
-    void reportFailure(const std::string& step, const std::string& expected, const std::string& actual, const std::string& meaning) {
+    void reportFailure(const std::string& step, const std::string& expected,
+        const std::string& actual, const std::string& meaning) {
         std::cerr << "Step: " << step << '\n';
         std::cerr << "Expected: " << expected << '\n';
         std::cerr << "Actual: " << actual << '\n';
@@ -25,15 +26,20 @@ namespace {
     }
 
     std::string settingText(const fcitx::LotusAppRuleSetting& setting) {
-        return "mode=" + std::to_string(static_cast<int>(setting.mode)) + " commit=" + std::to_string(setting.commitInterval) +
-            " backspace=" + std::to_string(setting.backspaceInterval) + " post=" + std::to_string(setting.postDelay);
+        return "mode=" + std::to_string(static_cast<int>(setting.mode)) +
+            " commit=" + std::to_string(setting.commitInterval) +
+            " backspace=" + std::to_string(setting.backspaceInterval) +
+            " post=" + std::to_string(setting.postDelay);
     }
 
-    bool expectSetting(const fcitx::LotusEngine& engine, const std::string& app, const fcitx::LotusAppRuleSetting& expected, const std::string& meaning) {
+    bool expectSetting(const fcitx::LotusEngine& engine, const std::string& app,
+        const fcitx::LotusAppRuleSetting& expected, const std::string& meaning) {
         const auto actual = engine.getAppRuleSetting(app);
-        if (actual.mode != expected.mode || actual.commitInterval != expected.commitInterval || actual.backspaceInterval != expected.backspaceInterval ||
+        if (actual.mode != expected.mode || actual.commitInterval != expected.commitInterval ||
+            actual.backspaceInterval != expected.backspaceInterval ||
             actual.postDelay != expected.postDelay) {
-            reportFailure("app rule for " + app, settingText(expected), settingText(actual), meaning);
+            reportFailure(
+                "app rule for " + app, settingText(expected), settingText(actual), meaning);
             return false;
         }
         return true;
@@ -45,7 +51,8 @@ int main() {
     const char* testName = "fcitx5-vanh-app-rule-delays";
     configureTestPaths(testName);
 
-    const auto rulesFile = std::filesystem::temp_directory_path() / testName / "config/fcitx5/conf/vanh-app-rules.conf";
+    const auto rulesFile = std::filesystem::temp_directory_path() / testName /
+        "config/fcitx5/conf/vanh-app-rules.conf";
     {
         std::filesystem::create_directories(rulesFile.parent_path());
         std::ofstream file(rulesFile);
@@ -66,12 +73,22 @@ int main() {
     engine.setConfig(config);
 
     bool ok = true;
-    ok &= expectSetting(engine, "test", {.mode = fcitx::LotusMode::Smooth, .commitInterval = 40, .backspaceInterval = 20, .postDelay = 25},
-                        "app=mode,commit,backspace,post must be parsed field by field");
-    ok &= expectSetting(engine, "legacy", {.mode = fcitx::LotusMode::Smooth}, "legacy mode id 2 must resolve to Smooth");
-    ok &= expectSetting(engine, "partial", {.mode = fcitx::LotusMode::SuperSmooth, .commitInterval = 15}, "omitted trailing delay fields must stay zero");
-    ok &= expectSetting(engine, "bare", {.mode = fcitx::LotusMode::Preedit}, "a mode-only rule must keep the parsed mode");
-    ok &= expectSetting(engine, "malformed", {.mode = fcitx::LotusMode::Preedit}, "a malformed line must be skipped");
-    ok &= expectSetting(engine, "khong-co-rule", {.mode = fcitx::LotusMode::Preedit}, "an app without a rule must inherit the global mode");
+    ok &= expectSetting(engine, "test",
+        {.mode                 = fcitx::LotusMode::Smooth,
+            .commitInterval    = 40,
+            .backspaceInterval = 20,
+            .postDelay         = 25},
+        "app=mode,commit,backspace,post must be parsed field by field");
+    ok &= expectSetting(engine, "legacy", {.mode = fcitx::LotusMode::Smooth},
+        "legacy mode id 2 must resolve to Smooth");
+    ok &= expectSetting(engine, "partial",
+        {.mode = fcitx::LotusMode::SuperSmooth, .commitInterval = 15},
+        "omitted trailing delay fields must stay zero");
+    ok &= expectSetting(engine, "bare", {.mode = fcitx::LotusMode::Preedit},
+        "a mode-only rule must keep the parsed mode");
+    ok &= expectSetting(engine, "malformed", {.mode = fcitx::LotusMode::Preedit},
+        "a malformed line must be skipped");
+    ok &= expectSetting(engine, "khong-co-rule", {.mode = fcitx::LotusMode::Preedit},
+        "an app without a rule must inherit the global mode");
     return ok ? 0 : 1;
 }

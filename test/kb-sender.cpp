@@ -23,18 +23,27 @@ int main() {
         return 1;
 
     KbSender    sender(buildSocketPath(VANH_KB_SOCKET_FILE));
-    std::thread first([&sender] { sender.send(KbMsg{.op = KbOp::Backspace, .count = 3, .preDelay = 0, .interval = 7, .postDelay = 0}); });
-    std::thread second([&sender] { sender.send(KbMsg{.op = KbOp::Select, .count = 5, .preDelay = 0, .interval = 9, .postDelay = 0}); });
+    std::thread first([&sender] {
+        sender.send(
+            KbMsg{.op = KbOp::Backspace, .count = 3, .preDelay = 0, .interval = 7, .postDelay = 0});
+    });
+    std::thread second([&sender] {
+        sender.send(
+            KbMsg{.op = KbOp::Select, .count = 5, .preDelay = 0, .interval = 9, .postDelay = 0});
+    });
     first.join();
     second.join();
 
     KbMsg a{};
     KbMsg b{};
-    if (!listener.receive(a, "first request from the sender threads") || !listener.receive(b, "second request from the sender threads"))
+    if (!listener.receive(a, "first request from the sender threads") ||
+        !listener.receive(b, "second request from the sender threads"))
         return 1;
 
-    const bool backspaceSeen = (a.op == KbOp::Backspace && a.count == 3 && a.interval == 7) || (b.op == KbOp::Backspace && b.count == 3 && b.interval == 7);
-    const bool selectSeen    = (a.op == KbOp::Select && a.count == 5 && a.interval == 9) || (b.op == KbOp::Select && b.count == 5 && b.interval == 9);
+    const bool backspaceSeen = (a.op == KbOp::Backspace && a.count == 3 && a.interval == 7) ||
+        (b.op == KbOp::Backspace && b.count == 3 && b.interval == 7);
+    const bool selectSeen = (a.op == KbOp::Select && a.count == 5 && a.interval == 9) ||
+        (b.op == KbOp::Select && b.count == 5 && b.interval == 9);
     if (!backspaceSeen || !selectSeen) {
         std::printf("FAIL both bursts arrive intact\n");
         return 1;

@@ -17,24 +17,30 @@
 
 namespace {
 
-    bool press(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry, TestInputContext& context, fcitx::KeySym symbol, bool requireAccepted) {
+    bool press(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry,
+        TestInputContext& context, fcitx::KeySym symbol, bool requireAccepted) {
         fcitx::KeyEvent event(&context, fcitx::Key(symbol), false);
         engine.keyEvent(entry, event);
         if (event.accepted() == requireAccepted)
             return true;
-        reportFailure("process key " + std::to_string(symbol), "accepted=" + std::to_string(static_cast<int>(requireAccepted)),
-                      "accepted=" + std::to_string(static_cast<int>(event.accepted())) + ", commits=" + std::to_string(context.commits().size()), "unexpected key outcome");
+        reportFailure("process key " + std::to_string(symbol),
+            "accepted=" + std::to_string(static_cast<int>(requireAccepted)),
+            "accepted=" + std::to_string(static_cast<int>(event.accepted())) +
+                ", commits=" + std::to_string(context.commits().size()),
+            "unexpected key outcome");
         return false;
     }
 
-    void loseFocus(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry, TestInputContext& context) {
+    void loseFocus(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry,
+        TestInputContext& context) {
         fcitx::InputContextEvent out(&context, fcitx::EventType::InputContextFocusOut);
         engine.deactivate(entry, out);
         engine.reset(entry, out);
         context.focusOut();
     }
 
-    void gainFocus(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry, TestInputContext& context) {
+    void gainFocus(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry,
+        TestInputContext& context) {
         context.focusIn();
         fcitx::InputContextEvent in(&context, fcitx::EventType::InputContextFocusIn);
         engine.activate(entry, in);
@@ -48,15 +54,21 @@ namespace {
     }
 
     // Types "at" + the sac mark key, waits for the Select request of 2 characters.
-    bool startAtSacReplacement(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry, TestInputContext& context, KbSocketListener& listener, const char* meaning) {
-        if (!press(engine, entry, context, FcitxKey_a, false) || !press(engine, entry, context, FcitxKey_t, false) || !press(engine, entry, context, FcitxKey_s, true))
+    bool startAtSacReplacement(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry,
+        TestInputContext& context, KbSocketListener& listener, const char* meaning) {
+        if (!press(engine, entry, context, FcitxKey_a, false) ||
+            !press(engine, entry, context, FcitxKey_t, false) ||
+            !press(engine, entry, context, FcitxKey_s, true))
             return false;
         KbMsg msg{};
         if (!listener.receive(msg, meaning))
             return false;
         if (msg.op == KbOp::Select && msg.count == 2)
             return true;
-        reportFailure("receive replacement request", "op=select, count=2", "op=" + std::to_string(static_cast<int>(msg.op)) + ", count=" + std::to_string(msg.count), meaning);
+        reportFailure("receive replacement request", "op=select, count=2",
+            "op=" + std::to_string(static_cast<int>(msg.op)) +
+                ", count=" + std::to_string(msg.count),
+            meaning);
         return false;
     }
 
@@ -83,18 +95,22 @@ int main() {
     {
         auto context = std::make_unique<TestInputContext>(&testInstance.instance);
         gainFocus(engine, entry, *context);
-        if (!startAtSacReplacement(engine, entry, *context, listener, "scenario 1: the select request did not arrive"))
+        if (!startAtSacReplacement(
+                engine, entry, *context, listener, "scenario 1: the select request did not arrive"))
             return 1;
         loseFocus(engine, entry, *context);
         KbMsg msg{};
         if (!listener.receive(msg, "scenario 1: the cancel request did not arrive"))
             return 1;
         if (msg.op != KbOp::Cancel) {
-            reportFailure("receive cancel request", "op=cancel", "op=" + std::to_string(static_cast<int>(msg.op)), "scenario 1: focus out must cancel the burst");
+            reportFailure("receive cancel request", "op=cancel",
+                "op=" + std::to_string(static_cast<int>(msg.op)),
+                "scenario 1: focus out must cancel the burst");
             return 1;
         }
         if (!context->commits().empty()) {
-            reportFailure("verify no commit at focus out", "no commits", commitList(*context), "scenario 1: the aborted replacement must not commit while unfocused");
+            reportFailure("verify no commit at focus out", "no commits", commitList(*context),
+                "scenario 1: the aborted replacement must not commit while unfocused");
             return 1;
         }
         gainFocus(engine, entry, *context);
@@ -102,7 +118,8 @@ int main() {
             return 1;
         const std::vector<std::string> stashed{"át"};
         if (context->commits() != stashed) {
-            reportFailure("verify commit after the bounce", "commits=['át']", commitList(*context), "scenario 1: the stashed replacement was not committed once focus returned");
+            reportFailure("verify commit after the bounce", "commits=['át']", commitList(*context),
+                "scenario 1: the stashed replacement was not committed once focus returned");
             return 1;
         }
     }
@@ -112,7 +129,8 @@ int main() {
     {
         auto context = std::make_unique<TestInputContext>(&testInstance.instance);
         gainFocus(engine, entry, *context);
-        if (!startAtSacReplacement(engine, entry, *context, listener, "scenario 2: the select request did not arrive"))
+        if (!startAtSacReplacement(
+                engine, entry, *context, listener, "scenario 2: the select request did not arrive"))
             return 1;
         loseFocus(engine, entry, *context);
         KbMsg msg{};
@@ -123,12 +141,15 @@ int main() {
         if (!press(engine, entry, *context, FcitxKey_Escape, false))
             return 1;
         if (!context->commits().empty()) {
-            reportFailure("verify no commit for the stale stash", "no commits", commitList(*context), "scenario 2: the stale stash must not commit");
+            reportFailure("verify no commit for the stale stash", "no commits",
+                commitList(*context), "scenario 2: the stale stash must not commit");
             return 1;
         }
         KbMsg msg2{};
         if (listener.tryReceive(msg2)) {
-            reportFailure("wait after the stale stash", "no replacement request", "a replacement request arrived", "scenario 2: the stale stash must not re-run a replacement");
+            reportFailure("wait after the stale stash", "no replacement request",
+                "a replacement request arrived",
+                "scenario 2: the stale stash must not re-run a replacement");
             return 1;
         }
     }
@@ -138,7 +159,8 @@ int main() {
     {
         auto context = std::make_unique<TestInputContext>(&testInstance.instance);
         gainFocus(engine, entry, *context);
-        if (!startAtSacReplacement(engine, entry, *context, listener, "scenario 3: the select request did not arrive"))
+        if (!startAtSacReplacement(
+                engine, entry, *context, listener, "scenario 3: the select request did not arrive"))
             return 1;
         loseFocus(engine, entry, *context);
         KbMsg msg{};
@@ -149,16 +171,21 @@ int main() {
             return 1;
         const std::vector<std::string> stashed{"át"};
         if (context->commits() != stashed) {
-            reportFailure("verify commit of the aborted replacement", "commits=['át']", commitList(*context), "scenario 3: the aborted replacement was not committed");
+            reportFailure("verify commit of the aborted replacement", "commits=['át']",
+                commitList(*context), "scenario 3: the aborted replacement was not committed");
             return 1;
         }
-        if (!startAtSacReplacement(engine, entry, *context, listener, "scenario 3: the fresh select request did not arrive"))
+        if (!startAtSacReplacement(engine, entry, *context, listener,
+                "scenario 3: the fresh select request did not arrive"))
             return 1;
-        if (!press(engine, entry, *context, FcitxKey_Left, false) || !press(engine, entry, *context, FcitxKey_Left, false) || !press(engine, entry, *context, FcitxKey_Pause, true))
+        if (!press(engine, entry, *context, FcitxKey_Left, false) ||
+            !press(engine, entry, *context, FcitxKey_Left, false) ||
+            !press(engine, entry, *context, FcitxKey_Pause, true))
             return 1;
         const std::vector<std::string> fresh{"át", "át"};
         if (context->commits() != fresh) {
-            reportFailure("verify commit of the fresh replacement", "commits=['át']['át']", commitList(*context), "scenario 3: the fresh replacement did not commit normally");
+            reportFailure("verify commit of the fresh replacement", "commits=['át']['át']",
+                commitList(*context), "scenario 3: the fresh replacement did not commit normally");
             return 1;
         }
     }

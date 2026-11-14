@@ -16,12 +16,15 @@
 
 namespace {
 
-    bool send(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry, TestInputContext& context, fcitx::Key key, bool requireAccepted) {
+    bool send(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry,
+        TestInputContext& context, fcitx::Key key, bool requireAccepted) {
         fcitx::KeyEvent event(&context, key, false);
         engine.keyEvent(entry, event);
         if (event.accepted() != requireAccepted) {
-            reportFailure("process key " + key.toString(), "accepted=" + std::to_string(static_cast<int>(requireAccepted)),
-                          "accepted=" + std::to_string(static_cast<int>(event.accepted())), "unexpected key outcome");
+            reportFailure("process key " + key.toString(),
+                "accepted=" + std::to_string(static_cast<int>(requireAccepted)),
+                "accepted=" + std::to_string(static_cast<int>(event.accepted())),
+                "unexpected key outcome");
             return false;
         }
         return true;
@@ -36,8 +39,9 @@ namespace {
 
     // Types "d" + "d" on the address bar and completes the Select burst. When `bufferedKey` is not
     // empty it is typed while the burst runs and must be replayed after the commit.
-    bool runAddressBarReplacement(fcitx::Instance* instance, fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry, KbSocketListener& listener,
-                                  std::optional<fcitx::Key> bufferedKey) {
+    bool runAddressBarReplacement(fcitx::Instance* instance, fcitx::LotusEngine& engine,
+        const fcitx::InputMethodEntry& entry, KbSocketListener& listener,
+        std::optional<fcitx::Key> bufferedKey) {
         auto context = std::make_unique<TestInputContext>(instance, "chromium");
         context->setCapabilityFlags(fcitx::CapabilityFlag::Url);
         context->focusIn();
@@ -55,7 +59,9 @@ namespace {
         if (!listener.receive(msg, "the address bar replacement did not start"))
             return false;
         if (msg.op != KbOp::Select) {
-            reportFailure("address bar burst", "op=select", "op=" + std::to_string(static_cast<int>(msg.op)), "the address bar must use the selection path");
+            reportFailure("address bar burst", "op=select",
+                "op=" + std::to_string(static_cast<int>(msg.op)),
+                "the address bar must use the selection path");
             return false;
         }
         for (size_t i = 0; i < msg.count; ++i) {
@@ -68,7 +74,8 @@ namespace {
         // drops the autocomplete selection); a swallowed echo means the old character survives (dđ).
         if (!send(engine, entry, *context, fcitx::Key(FcitxKey_Delete), false)) {
             reportFailure("Delete echo reaches the application", "accepted=false", "accepted=true",
-                          "the app could not drop the autocomplete selection, so the old character survives (dđ)");
+                "the app could not drop the autocomplete selection, so the old character survives "
+                "(dđ)");
             return false;
         }
         if (!send(engine, entry, *context, fcitx::Key(FcitxKey_Pause), true))
@@ -76,8 +83,11 @@ namespace {
 
         const std::string expected = bufferedKey.has_value() ? "đn" : "đ";
         if (commitText(*context) != expected) {
-            reportFailure(bufferedKey.has_value() ? "buffered key replayed without the synthetic Shift" : "commit after the address bar replacement", expected,
-                          commitText(*context), "the address bar replacement produced the wrong text");
+            reportFailure(bufferedKey.has_value() ?
+                    "buffered key replayed without the synthetic Shift" :
+                    "commit after the address bar replacement",
+                expected, commitText(*context),
+                "the address bar replacement produced the wrong text");
             return false;
         }
         return true;
@@ -103,7 +113,8 @@ int main() {
     if (!runAddressBarReplacement(&testInstance.instance, engine, entry, listener, std::nullopt))
         return 1;
     // A key typed during the burst is replayed with the synthetic Shift stripped.
-    if (!runAddressBarReplacement(&testInstance.instance, engine, entry, listener, fcitx::Key(FcitxKey_N, fcitx::KeyState::Shift)))
+    if (!runAddressBarReplacement(&testInstance.instance, engine, entry, listener,
+            fcitx::Key(FcitxKey_N, fcitx::KeyState::Shift)))
         return 1;
 
     std::printf("vanh chromium address bar: all checks passed\n");

@@ -18,24 +18,30 @@
 
 namespace {
 
-    bool receiveBackspaceRequest(KbSocketListener& listener, KbMsg& msg, const char* meaning, const char* timeoutExpected = "request within 5000 ms") {
+    bool receiveBackspaceRequest(KbSocketListener& listener, KbMsg& msg, const char* meaning,
+        const char* timeoutExpected = "request within 5000 ms") {
         if (!listener.receive(msg, meaning, timeoutExpected))
             return false;
         if (msg.op != KbOp::Backspace || msg.count <= 0) {
-            reportFailure("receive replacement request", "op=backspace, count > 0", "op=" + std::to_string(static_cast<int>(msg.op)) + ", count=" + std::to_string(msg.count),
-                          meaning);
+            reportFailure("receive replacement request", "op=backspace, count > 0",
+                "op=" + std::to_string(static_cast<int>(msg.op)) +
+                    ", count=" + std::to_string(msg.count),
+                meaning);
             return false;
         }
         return true;
     }
 
-    bool send(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry, TestInputContext& context, fcitx::KeySym symbol, bool requireAccepted) {
+    bool send(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry,
+        TestInputContext& context, fcitx::KeySym symbol, bool requireAccepted) {
         fcitx::KeyEvent event(&context, fcitx::Key(symbol), false);
         engine.keyEvent(entry, event);
         if (event.accepted() != requireAccepted) {
-            reportFailure("process key " + std::to_string(symbol), "accepted=" + std::to_string(static_cast<int>(requireAccepted)),
-                          "accepted=" + std::to_string(static_cast<int>(event.accepted())) + ", commits=" + std::to_string(context.commits().size()),
-                          "Smooth replacement handling accepted or rejected the key unexpectedly");
+            reportFailure("process key " + std::to_string(symbol),
+                "accepted=" + std::to_string(static_cast<int>(requireAccepted)),
+                "accepted=" + std::to_string(static_cast<int>(event.accepted())) +
+                    ", commits=" + std::to_string(context.commits().size()),
+                "Smooth replacement handling accepted or rejected the key unexpectedly");
             return false;
         }
         return true;
@@ -49,7 +55,8 @@ int main() {
 
     // The mock input context reports the program name "test"; its rule sets the
     // backspace interval to 20 ms and the post delay to 25 ms.
-    const auto rulesFile = std::filesystem::temp_directory_path() / testName / "config/fcitx5/conf/vanh-app-rules.conf";
+    const auto rulesFile = std::filesystem::temp_directory_path() / testName /
+        "config/fcitx5/conf/vanh-app-rules.conf";
     {
         std::filesystem::create_directories(rulesFile.parent_path());
         std::ofstream file(rulesFile);
@@ -75,15 +82,19 @@ int main() {
     engine.activate(entry, focus);
     context->resetPreeditUpdateCount();
 
-    if (!send(engine, entry, *context, FcitxKey_a, false) || !send(engine, entry, *context, FcitxKey_s, true))
+    if (!send(engine, entry, *context, FcitxKey_a, false) ||
+        !send(engine, entry, *context, FcitxKey_s, true))
         return 1;
 
     KbMsg msg{};
-    if (!receiveBackspaceRequest(listener, msg, "the initial Telex replacement request did not arrive"))
+    if (!receiveBackspaceRequest(
+            listener, msg, "the initial Telex replacement request did not arrive"))
         return 1;
     if (msg.interval != 20 || msg.postDelay != 25) {
-        reportFailure("per-app delays on the request", "interval=20, postDelay=25", "interval=" + std::to_string(msg.interval) + ", postDelay=" + std::to_string(msg.postDelay),
-                      "the per-app rule must win over DefaultBackspaceInterval/DefaultPostDelay");
+        reportFailure("per-app delays on the request", "interval=20, postDelay=25",
+            "interval=" + std::to_string(msg.interval) +
+                ", postDelay=" + std::to_string(msg.postDelay),
+            "the per-app rule must win over DefaultBackspaceInterval/DefaultPostDelay");
         return 1;
     }
     for (size_t i = 0; i < msg.count; ++i) {

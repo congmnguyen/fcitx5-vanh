@@ -27,22 +27,22 @@ namespace {
         fcitx::InputMethodEntry* entry;
         TestInputContext*        context;
         std::string              text;
-        bool                     stale = false; ///< App never refreshes its surrounding text (fast typing)
+        bool stale = false; ///< App never refreshes its surrounding text (fast typing)
 
-        void                     typeKey(char ch) {
+        void typeKey(char ch) {
             if (!stale || text.empty()) {
                 const size_t cursor = fcitx_utf8_strlen(text.c_str());
                 context->surroundingText().setText(text, cursor, cursor);
                 context->updateSurroundingText();
             }
-            const size_t    commitsBefore = context->commits().size();
-            const size_t    deletesBefore = context->deletes().size();
+            const size_t commitsBefore = context->commits().size();
+            const size_t deletesBefore = context->deletes().size();
 
             // '\n' is Enter, '\b' the revert key (Shift+BackSpace).
             const fcitx::Key key = ch == '\n' ? fcitx::Key(FcitxKey_Return) :
-                ch == '\b'                    ? fcitx::Key(FcitxKey_BackSpace, fcitx::KeyState::Shift) :
-                                                 fcitx::Key(static_cast<fcitx::KeySym>(ch));
-            fcitx::KeyEvent event(context, key, false);
+                ch == '\b' ? fcitx::Key(FcitxKey_BackSpace, fcitx::KeyState::Shift) :
+                             fcitx::Key(static_cast<fcitx::KeySym>(ch));
+            fcitx::KeyEvent  event(context, key, false);
             engine->keyEvent(*entry, event);
 
             for (size_t i = deletesBefore; i < context->deletes().size(); ++i) {
@@ -51,7 +51,8 @@ namespace {
                 const size_t start        = length + offset;
                 const char*  begin        = fcitx_utf8_get_nth_char(text.c_str(), start);
                 const char*  end          = fcitx_utf8_get_nth_char(begin, size);
-                text.erase(static_cast<size_t>(begin - text.c_str()), static_cast<size_t>(end - begin));
+                text.erase(
+                    static_cast<size_t>(begin - text.c_str()), static_cast<size_t>(end - begin));
             }
             for (size_t i = commitsBefore; i < context->commits().size(); ++i) {
                 text += context->commits()[i];
@@ -98,9 +99,16 @@ int main() {
         std::string_view want;
     };
     constexpr std::array<Case, 10> cases{
-        Case{.keys = "w", .want = "ư"},           Case{.keys = "ww", .want = "w"},          Case{.keys = "tw", .want = "tư"},       Case{.keys = "tww", .want = "tw"},
-        Case{.keys = "tuwf", .want = "từ"},       Case{.keys = "duwowng", .want = "dương"}, Case{.keys = "cuwngs", .want = "cứng"}, Case{.keys = "vieetj", .want = "việt"},
-        Case{.keys = "tieengs", .want = "tiếng"}, Case{.keys = "abc.", .want = "abc."},
+        Case{.keys = "w", .want = "ư"},
+        Case{.keys = "ww", .want = "w"},
+        Case{.keys = "tw", .want = "tư"},
+        Case{.keys = "tww", .want = "tw"},
+        Case{.keys = "tuwf", .want = "từ"},
+        Case{.keys = "duwowng", .want = "dương"},
+        Case{.keys = "cuwngs", .want = "cứng"},
+        Case{.keys = "vieetj", .want = "việt"},
+        Case{.keys = "tieengs", .want = "tiếng"},
+        Case{.keys = "abc.", .want = "abc."},
     };
 
     Typer typer{.engine = &engine, .entry = &entry, .context = context.get(), .text = {}};
@@ -108,7 +116,8 @@ int main() {
     for (const Case& test : cases) {
         const std::string got = typer.type(test.keys);
         if (got != test.want) {
-            std::cerr << "Surrounding Text typing '" << test.keys << "': expected '" << test.want << "', got '" << got << "'\n";
+            std::cerr << "Surrounding Text typing '" << test.keys << "': expected '" << test.want
+                      << "', got '" << got << "'\n";
             ++failures;
         }
     }
@@ -123,7 +132,8 @@ int main() {
     for (const Case& test : staleCases) {
         const std::string got = typer.type(test.keys);
         if (got != test.want) {
-            std::cerr << "Stale surrounding typing '" << test.keys << "': expected '" << test.want << "', got '" << got << "'\n";
+            std::cerr << "Stale surrounding typing '" << test.keys << "': expected '" << test.want
+                      << "', got '" << got << "'\n";
             ++failures;
         }
     }
@@ -131,15 +141,22 @@ int main() {
     // a common Vietnamese word stays.
     typer.stale = false;
     constexpr std::array<Case, 10> englishCases{
-        Case{.keys = "error ", .want = "error "}, Case{.keys = "issue ", .want = "issue "},
-        Case{.keys = "more ", .want = "more "}, Case{.keys = "user ", .want = "user "},   Case{.keys = "test ", .want = "test "},
-        Case{.keys = "cos ", .want = "có "},     Case{.keys = "ddi ", .want = "đi "},       Case{.keys = "tieengs ", .want = "tiếng "},
-        Case{.keys = "khoong ", .want = "không "}, Case{.keys = "vieetj ", .want = "việt "},
+        Case{.keys = "error ", .want = "error "},
+        Case{.keys = "issue ", .want = "issue "},
+        Case{.keys = "more ", .want = "more "},
+        Case{.keys = "user ", .want = "user "},
+        Case{.keys = "test ", .want = "test "},
+        Case{.keys = "cos ", .want = "có "},
+        Case{.keys = "ddi ", .want = "đi "},
+        Case{.keys = "tieengs ", .want = "tiếng "},
+        Case{.keys = "khoong ", .want = "không "},
+        Case{.keys = "vieetj ", .want = "việt "},
     };
     for (const Case& test : englishCases) {
         const std::string got = typer.type(test.keys);
         if (got != test.want) {
-            std::cerr << "English restore typing '" << test.keys << "': expected '" << test.want << "', got '" << got << "'\n";
+            std::cerr << "English restore typing '" << test.keys << "': expected '" << test.want
+                      << "', got '" << got << "'\n";
             ++failures;
         }
     }
@@ -155,7 +172,8 @@ int main() {
         Case{.keys = "the bus ", .want = "the bus "},
         Case{.keys = "cho con bus ", .want = "cho con bú "},
         Case{.keys = "tooi ddi hocj ", .want = "tôi đi học "},
-        Case{.keys = "minhf sex focus vaof cais issue ddos ", .want = "mình sẽ focus vào cái issue đó "},
+        Case{.keys = "minhf sex focus vaof cais issue ddos ",
+            .want  = "mình sẽ focus vào cái issue đó "},
         Case{.keys = "fix error nayf ddi ", .want = "fix error này đi "},
         Case{.keys = "user cos ", .want = "user có "},
         Case{.keys = "test xong roofi ", .want = "test xong rồi "},
@@ -178,7 +196,8 @@ int main() {
     for (const Case& test : contextCases) {
         const std::string got = typer.type(test.keys);
         if (got != test.want) {
-            std::cerr << "Context typing '" << test.keys << "': expected '" << test.want << "', got '" << got << "'\n";
+            std::cerr << "Context typing '" << test.keys << "': expected '" << test.want
+                      << "', got '" << got << "'\n";
             ++failures;
         }
     }
@@ -196,7 +215,8 @@ int main() {
     for (const Case& test : gluedCases) {
         const std::string got = typer.type(test.keys);
         if (got != test.want) {
-            std::cerr << "Glued typing without auto restore '" << test.keys << "': expected '" << test.want << "', got '" << got << "'\n";
+            std::cerr << "Glued typing without auto restore '" << test.keys << "': expected '"
+                      << test.want << "', got '" << got << "'\n";
             ++failures;
         }
     }
@@ -212,8 +232,9 @@ int main() {
     shell->surroundingText().setText("", 0, 0);
     shell->updateSurroundingText();
     for (const char ch : std::string_view("dduwowcj nguwowif vieetj\n")) {
-        const fcitx::Key key = ch == '\n' ? fcitx::Key(FcitxKey_Return) : fcitx::Key(static_cast<fcitx::KeySym>(ch));
-        fcitx::KeyEvent  event(shell.get(), key, false);
+        const fcitx::Key key =
+            ch == '\n' ? fcitx::Key(FcitxKey_Return) : fcitx::Key(static_cast<fcitx::KeySym>(ch));
+        fcitx::KeyEvent event(shell.get(), key, false);
         engine.keyEvent(entry, event);
         if (!event.accepted()) {
             shell->recordPassed(key.toString());
@@ -221,7 +242,8 @@ int main() {
     }
     auto* loop = static_cast<sd_event*>(testInstance.instance.eventLoop().nativeHandle());
     for (int i = 0; i < 200; ++i) {
-        while (sd_event_run(loop, 0) > 0) {}
+        while (sd_event_run(loop, 0) > 0) {
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
     // An edit is a deletion and the commit after it, or a commit alone.
@@ -230,8 +252,12 @@ int main() {
     char                                  previous = 0;
     for (const auto& edit : shell->edits()) {
         const bool starts = edit.kind == 'd' || (edit.kind == 'c' && previous != 'd');
-        if (starts && last != std::chrono::steady_clock::time_point{} && edit.at - last < std::chrono::milliseconds(29)) {
-            std::cerr << "GNOME Shell: an edit " << std::chrono::duration_cast<std::chrono::milliseconds>(edit.at - last).count() << " ms after the previous one\n";
+        if (starts && last != std::chrono::steady_clock::time_point{} &&
+            edit.at - last < std::chrono::milliseconds(29)) {
+            std::cerr
+                << "GNOME Shell: an edit "
+                << std::chrono::duration_cast<std::chrono::milliseconds>(edit.at - last).count()
+                << " ms after the previous one\n";
             ++failures;
         }
         if (starts) {
@@ -240,7 +266,8 @@ int main() {
         previous = edit.kind;
         if (edit.kind == 'd') {
             for (unsigned int n = 0; n < edit.size; ++n) {
-                const auto start = fcitx_utf8_get_nth_char(shown.c_str(), fcitx_utf8_strlen(shown.c_str()) - 1);
+                const auto start =
+                    fcitx_utf8_get_nth_char(shown.c_str(), fcitx_utf8_strlen(shown.c_str()) - 1);
                 shown.erase(static_cast<size_t>(start - shown.c_str()));
             }
         } else if (edit.kind == 'c') {
@@ -266,22 +293,26 @@ int main() {
     lagging->updateSurroundingText();
     std::string appText;
     std::string reported;
-    size_t      applied = 0;
+    size_t      applied  = 0;
     auto        reportAt = std::chrono::steady_clock::time_point::max();
     auto        pumpFor  = [&](int ms) {
         const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
         while (std::chrono::steady_clock::now() < until) {
-            while (sd_event_run(loop, 0) > 0) {}
+            while (sd_event_run(loop, 0) > 0) {
+            }
             for (; applied < lagging->edits().size(); ++applied) {
                 const auto& edit = lagging->edits()[applied];
                 if (edit.kind == 'd') {
                     const size_t chars = fcitx_utf8_strlen(reported.c_str());
-                    const size_t from  = static_cast<size_t>(
-                        fcitx_utf8_get_nth_char(reported.c_str(), chars - std::min<size_t>(edit.size, chars)) - reported.c_str());
+                    const size_t from =
+                        static_cast<size_t>(fcitx_utf8_get_nth_char(reported.c_str(),
+                                                        chars - std::min<size_t>(edit.size, chars)) -
+                                    reported.c_str());
                     const size_t bytes = reported.size() - from;
                     const size_t cut   = appText.size() - std::min(bytes, appText.size());
                     // a cut inside a character is invalid: the app drops the deletion
-                    if (cut == appText.size() || (static_cast<unsigned char>(appText[cut]) & 0xC0U) != 0x80) {
+                    if (cut == appText.size() ||
+                        (static_cast<unsigned char>(appText[cut]) & 0xC0U) != 0x80) {
                         appText.erase(cut);
                     }
                 } else {
@@ -292,9 +323,9 @@ int main() {
                 }
             }
             if (std::chrono::steady_clock::now() >= reportAt) {
-                reported              = appText;
-                reportAt              = std::chrono::steady_clock::time_point::max();
-                const size_t cursor   = fcitx_utf8_strlen(reported.c_str());
+                reported            = appText;
+                reportAt            = std::chrono::steady_clock::time_point::max();
+                const size_t cursor = fcitx_utf8_strlen(reported.c_str());
                 lagging->surroundingText().setText(reported, cursor, cursor);
                 lagging->updateSurroundingText();
             }
@@ -314,7 +345,8 @@ int main() {
     }
     pumpFor(400);
     if (appText != "được người việt ở nằm ") {
-        std::cerr << "GNOME Shell, late reports: expected 'được người việt ở nằm ', got '" << appText << "'\n";
+        std::cerr << "GNOME Shell, late reports: expected 'được người việt ở nằm ', got '"
+                  << appText << "'\n";
         ++failures;
     }
     return failures == 0 ? 0 : 1;

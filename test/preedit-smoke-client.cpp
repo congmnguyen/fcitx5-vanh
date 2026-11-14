@@ -13,7 +13,8 @@ int main() {
     config.setValueByPath("Mode", "Preedit");
     config.setValueByPath("InputMethod", "Telex");
     engine.setConfig(config);
-    if (engine.config().mode.value() != fcitx::LotusMode::Preedit || engine.config().inputMethod.value() != fcitx::InputMethodId::Telex) {
+    if (engine.config().mode.value() != fcitx::LotusMode::Preedit ||
+        engine.config().inputMethod.value() != fcitx::InputMethodId::Telex) {
         std::cerr << "failed to configure Preedit/Telex\n";
         return 1;
     }
@@ -35,10 +36,13 @@ int main() {
         }
     }
     const auto& preedit = context->inputPanel().clientPreedit();
-    if (preedit.toString() != "á" || !fcitx::utf8::validate(preedit.toString()) || preedit.cursor() != 2 || context->preeditUpdates() != 2 || !context->commits().empty() ||
+    if (preedit.toString() != "á" || !fcitx::utf8::validate(preedit.toString()) ||
+        preedit.cursor() != 2 || context->preeditUpdates() != 2 || !context->commits().empty() ||
         !context->inputPanel().preedit().toString().empty()) {
-        std::cerr << "client='" << preedit.toString() << "' server='" << context->inputPanel().preedit().toString() << "' cursor=" << preedit.cursor()
-                  << " updates=" << context->preeditUpdates() << " commits=" << context->commits().size() << '\n';
+        std::cerr << "client='" << preedit.toString() << "' server='"
+                  << context->inputPanel().preedit().toString() << "' cursor=" << preedit.cursor()
+                  << " updates=" << context->preeditUpdates()
+                  << " commits=" << context->commits().size() << '\n';
         return 1;
     }
     return 0;

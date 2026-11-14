@@ -8,6 +8,7 @@ block in OUT/raw.jsonl with its source and whether an AI assistant co-wrote it.
 
 Usage: collect_corpus.py OUT_DIR [--emails a@b,c@d] [--gh-user NAME]
 """
+
 import argparse
 import json
 import os
@@ -19,8 +20,24 @@ from pathlib import Path
 HOME = Path.home()
 REPO_ROOTS = [HOME / "code", HOME]
 SKIP_DIRS = {
-    "node_modules", ".git", ".venv", "venv", "site-packages", "target", "build", "dist", "cache",
-    "results", "artifacts", ".cache", ".cargo", ".rustup", ".local", ".config", "vendor", "snap",
+    "node_modules",
+    ".git",
+    ".venv",
+    "venv",
+    "site-packages",
+    "target",
+    "build",
+    "dist",
+    "cache",
+    "results",
+    "artifacts",
+    ".cache",
+    ".cargo",
+    ".rustup",
+    ".local",
+    ".config",
+    "vendor",
+    "snap",
 }
 AI_MARKERS = re.compile(
     r"co-authored-by:\s*claude|generated with \[?claude|🤖 generated|noreply@anthropic\.com", re.I
@@ -57,9 +74,9 @@ def commits(repo, emails):
             continue
         ai = bool(AI_MARKERS.search(body))
         lines = [
-            l
-            for l in body.splitlines()
-            if not TRAILER.match(l.strip()) and not AI_MARKERS.search(l)
+            line
+            for line in body.splitlines()
+            if not TRAILER.match(line.strip()) and not AI_MARKERS.search(line)
         ]
         text = "\n".join(lines).strip()
         if text:
@@ -75,7 +92,7 @@ def gh_items(user):
         for it in json.loads(out):
             body = it.get("body") or ""
             ai = bool(AI_MARKERS.search(body))
-            body = "\n".join(l for l in body.splitlines() if not AI_MARKERS.search(l))
+            body = "\n".join(line for line in body.splitlines() if not AI_MARKERS.search(line))
             text = (it["title"] + "\n" + body).strip()
             repo = it["repository"]["nameWithOwner"]
             yield {

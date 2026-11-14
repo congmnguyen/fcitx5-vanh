@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Sorts the errors of `replay run --errors FILE` into failure types (first match wins)."""
+
 import collections
 import re
 import sys
 
 EDGE = "\"'()[]{}.,;:!?*`<>"
+
 
 def ftype(kind, label, exp, pos):
     core = exp.strip(EDGE)
@@ -34,8 +36,9 @@ def ftype(kind, label, exp, pos):
         return "capitalised word / proper noun (Rust, These)"
     return "English word missing or outvoted (docs, host, theme)"
 
+
 def main():
-    rows = [l.rstrip("\n").split("\t") for l in open(sys.argv[1]) if l.strip()]
+    rows = [line.rstrip("\n").split("\t") for line in open(sys.argv[1]) if line.strip()]
     c = collections.Counter()
     ex = collections.defaultdict(collections.Counter)
     for kind, label, exp, got, _id, pos, *_ in rows:
@@ -46,6 +49,7 @@ def main():
     for t, n in c.most_common():
         examples = ", ".join(k for k, _ in ex[t].most_common(5))
         print(f"{n:5} {100 * n / total:5.1f}%  {t:52} e.g. {examples}")
+
 
 if __name__ == "__main__":
     main()

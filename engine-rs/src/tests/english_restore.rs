@@ -12,12 +12,13 @@ use std::sync::{Arc, RwLock};
 /// The addon defaults, with the shipped dictionary.
 fn processor() -> KeyProcessor {
     let mut p = KeyProcessor::new(cached_input_method(InputMethodId::Telex).clone(), true);
-    let mut o = Options::default();
-    o.english_restore = true;
-    o.macro_enabled = true;
-    o.w2u = Some(W2uMode::NonStart);
-    o.bracket_transform = Some(BracketTransformMode::Disabled);
-    p.set_options(o);
+    p.set_options(Options {
+        english_restore: true,
+        macro_enabled: true,
+        w2u: Some(W2uMode::NonStart),
+        bracket_transform: Some(BracketTransformMode::Disabled),
+        ..Default::default()
+    });
     let mut d = Dictionary::default();
     d.load_from_text(
         &std::fs::read(concat!(
@@ -36,11 +37,11 @@ fn typed(keys: &str) -> String {
     let mut p = processor();
     let mut screen: Vec<char> = Vec::new();
     let mut shown = 0; // preedit chars at the end of the screen
-    let mut apply = |p: &mut KeyProcessor,
-                     screen: &mut Vec<char>,
-                     shown: &mut usize,
-                     processed: bool,
-                     key: Option<char>| {
+    let apply = |p: &mut KeyProcessor,
+                 screen: &mut Vec<char>,
+                 shown: &mut usize,
+                 processed: bool,
+                 key: Option<char>| {
         let commit = p.take_commit();
         let before = p.take_rewritten_before();
         if !commit.is_empty() || !before.is_empty() {
@@ -252,11 +253,12 @@ impl Rng {
 /// The word alone through a processor with the given restores (no context).
 fn alone(keys: &str, auto: bool) -> String {
     let mut p = KeyProcessor::new(cached_input_method(InputMethodId::Telex).clone(), false);
-    let mut o = Options::default();
-    o.auto_non_vn_restore = auto;
-    o.w2u = Some(W2uMode::NonStart);
-    o.bracket_transform = Some(BracketTransformMode::Disabled);
-    p.set_options(o);
+    p.set_options(Options {
+        auto_non_vn_restore: auto,
+        w2u: Some(W2uMode::NonStart),
+        bracket_transform: Some(BracketTransformMode::Disabled),
+        ..Default::default()
+    });
     for c in keys.chars() {
         p.process_key(c as u32, if c.is_ascii_uppercase() { key_state::SHIFT } else { 0 });
     }

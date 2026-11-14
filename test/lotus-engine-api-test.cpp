@@ -21,7 +21,7 @@
 
 namespace {
 
-    int failures = 0;
+    int  failures = 0;
 
     void expect(bool ok, const char* what) {
         if (!ok) {
@@ -33,7 +33,8 @@ namespace {
     void expectText(const std::u32string& actual, std::string_view expected, const char* what) {
         const std::string text = lotus::utf8::encode(actual);
         if (text != expected) {
-            std::printf("FAIL %s: expected [%.*s] actual [%s]\n", what, static_cast<int>(expected.size()), expected.data(), text.c_str());
+            std::printf("FAIL %s: expected [%.*s] actual [%s]\n", what,
+                static_cast<int>(expected.size()), expected.data(), text.c_str());
             ++failures;
         }
     }
@@ -41,7 +42,9 @@ namespace {
     void type(lotus::KeyProcessor& processor, std::string_view keys) {
         for (const char c : keys) {
             const auto key = static_cast<uint32_t>(static_cast<unsigned char>(c));
-            processor.processKey(key, c >= 'A' && c <= 'Z' ? lotus::KeyStates(lotus::KeyState::Shift) : lotus::KeyStates{});
+            processor.processKey(key,
+                c >= 'A' && c <= 'Z' ? lotus::KeyStates(lotus::KeyState::Shift) :
+                                       lotus::KeyStates{});
         }
     }
 
@@ -63,7 +66,8 @@ int run_engine_api() {
         expectText(processor.takeCommit(), "Việt ", "commit on space");
         expectText(processor.takeCommit(), "", "commit taken once");
         expect(processor.canProcessKey('a'), "canProcessKey letter");
-        expect(!lotus::KeyProcessor::isValidState(lotus::KeyState::Ctrl), "ctrl is not a valid state");
+        expect(
+            !lotus::KeyProcessor::isValidState(lotus::KeyState::Ctrl), "ctrl is not a valid state");
         processor.rebuildFromText(U"ngươi");
         type(processor, "f");
         expectText(processor.preedit(), "người", "rebuild then tone");
@@ -118,17 +122,20 @@ int run_engine_api() {
         expect(dictionary.hasWordOrPrefix(U"thế"), "dictionary prefix");
         expect(!dictionary.hasWord(U"thế"), "prefix is not a word");
         dictionary.loadFromWords({"một", "hai"});
-        expect(dictionary.size() == 2 && dictionary.hasWord(U"một") && !dictionary.hasWord(U"xin"), "loadFromWords replaces the words");
+        expect(dictionary.size() == 2 && dictionary.hasWord(U"một") && !dictionary.hasWord(U"xin"),
+            "loadFromWords replaces the words");
     }
 
     // Custom input method, charsets, time format.
     {
-        const std::unordered_map<std::string, std::string> definition = {{"z", "DauSac"}, {"q", "A_Â"}};
-        lotus::KeyProcessor                                 processor(lotus::parseInputMethod(definition), false);
+        const std::unordered_map<std::string, std::string> definition = {
+            {"z", "DauSac"}, {"q", "A_Â"}};
+        lotus::KeyProcessor processor(lotus::parseInputMethod(definition), false);
         processor.setOptions(lotus::Options{});
         type(processor, "aqz");
         expectText(processor.preedit(), "ấ", "custom input method");
-        expect(lotus::encode(lotus::Charset::VniWindows, U"ệ") == "e\xC3\xA4", "VNI Windows encoding");
+        expect(
+            lotus::encode(lotus::Charset::VniWindows, U"ệ") == "e\xC3\xA4", "VNI Windows encoding");
         expect(lotus::encode(lotus::Charset::NcrDecimal, U"ă") == "&#259;", "NCR decimal encoding");
         expect(lotus::KeyProcessor::formatTime("").empty(), "empty time format");
         expect(lotus::KeyProcessor::formatTime("%Y").size() == 4, "year format");

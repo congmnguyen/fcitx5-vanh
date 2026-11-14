@@ -26,7 +26,7 @@
 
 namespace {
 
-    int failures = 0;
+    int  failures = 0;
 
     void check(const char* name, bool condition) {
         if (!condition) {
@@ -46,7 +46,8 @@ namespace {
     }
 
     int run() {
-        const auto root = std::filesystem::temp_directory_path() / ("fcitx5-vanh-migrate-module-" + std::to_string(::getpid()));
+        const auto root = std::filesystem::temp_directory_path() /
+            ("fcitx5-vanh-migrate-module-" + std::to_string(::getpid()));
         std::filesystem::remove_all(root);
         const auto config = root / "config";
         const auto data   = root / "data";
@@ -64,17 +65,18 @@ namespace {
         std::filesystem::copy_file(VANH_ADDON_CONF, sys / "fcitx5/addon/vanh.conf");
         std::filesystem::create_directories(sys / "fcitx5/inputmethod");
         std::filesystem::copy_file(VANH_INPUTMETHOD_CONF, sys / "fcitx5/inputmethod/vanh.conf");
-        writeText(config / "fcitx5/profile", "[Groups/0]\nName=Default\nDefault Layout=us\nDefaultIM=lotus\n\n"
-                                             "[Groups/0/Items/0]\nName=lotus\nLayout=\n\n"
-                                             "[GroupOrder]\n0=Default\n");
+        writeText(config / "fcitx5/profile",
+            "[Groups/0]\nName=Default\nDefault Layout=us\nDefaultIM=lotus\n\n"
+            "[Groups/0/Items/0]\nName=lotus\nLayout=\n\n"
+            "[GroupOrder]\n0=Default\n");
         writeText(config / "fcitx5/conf/lotus.conf", "UseLotusIcons=True\n");
 
         {
-            std::array<char, 32>  program{"vanh-migrate-module-test"};
-            std::array<char, 64>  enable{"--enable=vanh-migrate"};
-            std::array<char, 16>  disableAll{"--disable=all"};
-            std::array<char*, 4>  argv{program.data(), disableAll.data(), enable.data(), nullptr};
-            fcitx::Instance       instance(3, argv.data());
+            std::array<char, 32> program{"vanh-migrate-module-test"};
+            std::array<char, 64> enable{"--enable=vanh-migrate"};
+            std::array<char, 16> disableAll{"--disable=all"};
+            std::array<char*, 4> argv{program.data(), disableAll.data(), enable.data(), nullptr};
+            fcitx::Instance      instance(3, argv.data());
             instance.addonManager().registerDefaultLoader(nullptr);
             instance.initialize();
 
@@ -83,13 +85,18 @@ namespace {
             check("group exists", group != nullptr);
             if (group != nullptr) {
                 const auto& items = group->inputMethodList();
-                check("group lists vanh", std::ranges::any_of(items, [](const fcitx::InputMethodGroupItem& item) { return item.name() == "vanh"; }));
+                check("group lists vanh",
+                    std::ranges::any_of(items, [](const fcitx::InputMethodGroupItem& item) {
+                        return item.name() == "vanh";
+                    }));
                 check("default im is vanh", group->defaultInputMethod() == "vanh");
             }
         }
 
         const auto profile = readText(config / "fcitx5/profile");
-        check("profile on disk migrated", profile.find("Name=vanh") != std::string::npos && profile.find("Name=lotus") == std::string::npos);
+        check("profile on disk migrated",
+            profile.find("Name=vanh") != std::string::npos &&
+                profile.find("Name=lotus") == std::string::npos);
         check("config copied", readText(config / "fcitx5/conf/vanh.conf") == "UseVanhIcons=True\n");
         std::filesystem::remove_all(root);
 

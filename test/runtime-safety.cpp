@@ -30,14 +30,30 @@ namespace {
 
     // The engine carries fcitx5's raw modifier bits through the C boundary, so every bit the
     // portable model uses must stay identical to fcitx5's KeyState.
-    static_assert(static_cast<uint32_t>(lotus::KeyState::Shift) == static_cast<uint32_t>(fcitx::KeyState::Shift), "Shift bit");
-    static_assert(static_cast<uint32_t>(lotus::KeyState::Lock) == static_cast<uint32_t>(fcitx::KeyState::CapsLock), "Lock bit is CapsLock");
-    static_assert(static_cast<uint32_t>(lotus::KeyState::Ctrl) == static_cast<uint32_t>(fcitx::KeyState::Ctrl), "Ctrl bit");
-    static_assert(static_cast<uint32_t>(lotus::KeyState::Mod1) == static_cast<uint32_t>(fcitx::KeyState::Alt), "Mod1 bit is Alt");
-    static_assert(static_cast<uint32_t>(lotus::KeyState::Ignored) == static_cast<uint32_t>(fcitx::KeyState::IgnoredMask), "Ignored bit is IgnoredMask");
-    static_assert(static_cast<uint32_t>(lotus::KeyState::Super) == static_cast<uint32_t>(fcitx::KeyState::Super2), "Super bit is Super2");
-    static_assert(static_cast<uint32_t>(lotus::KeyState::Hyper) == static_cast<uint32_t>(fcitx::KeyState::Hyper2), "Hyper bit is Hyper2");
-    static_assert(static_cast<uint32_t>(lotus::KeyState::Meta) == static_cast<uint32_t>(fcitx::KeyState::Meta), "Meta bit");
+    static_assert(static_cast<uint32_t>(lotus::KeyState::Shift) ==
+            static_cast<uint32_t>(fcitx::KeyState::Shift),
+        "Shift bit");
+    static_assert(static_cast<uint32_t>(lotus::KeyState::Lock) ==
+            static_cast<uint32_t>(fcitx::KeyState::CapsLock),
+        "Lock bit is CapsLock");
+    static_assert(static_cast<uint32_t>(lotus::KeyState::Ctrl) ==
+            static_cast<uint32_t>(fcitx::KeyState::Ctrl),
+        "Ctrl bit");
+    static_assert(
+        static_cast<uint32_t>(lotus::KeyState::Mod1) == static_cast<uint32_t>(fcitx::KeyState::Alt),
+        "Mod1 bit is Alt");
+    static_assert(static_cast<uint32_t>(lotus::KeyState::Ignored) ==
+            static_cast<uint32_t>(fcitx::KeyState::IgnoredMask),
+        "Ignored bit is IgnoredMask");
+    static_assert(static_cast<uint32_t>(lotus::KeyState::Super) ==
+            static_cast<uint32_t>(fcitx::KeyState::Super2),
+        "Super bit is Super2");
+    static_assert(static_cast<uint32_t>(lotus::KeyState::Hyper) ==
+            static_cast<uint32_t>(fcitx::KeyState::Hyper2),
+        "Hyper bit is Hyper2");
+    static_assert(static_cast<uint32_t>(lotus::KeyState::Meta) ==
+            static_cast<uint32_t>(fcitx::KeyState::Meta),
+        "Meta bit");
 
     // Number of descriptors this process currently has open.
     std::size_t openDescriptorCount() {
@@ -48,7 +64,8 @@ namespace {
             ++count;
         }
         if (error) {
-            reportFailure("count open descriptors", "readable /proc/self/fd", error.message(), "the descriptor leak check needs /proc/self/fd");
+            reportFailure("count open descriptors", "readable /proc/self/fd", error.message(),
+                "the descriptor leak check needs /proc/self/fd");
         }
         return count;
     }
@@ -71,13 +88,16 @@ int main() {
     const std::string hourAhead = hourInZone("UTC-7");
     const std::string hourUtc   = hourInZone("UTC0");
     if (hourAhead.size() != 2 || hourUtc.size() != 2) {
-        reportFailure("$TIME hour", "two digits in both zones", "[" + hourAhead + "] and [" + hourUtc + "]", "$TIME must render the hour of the configured zone with two digits");
+        reportFailure("$TIME hour", "two digits in both zones",
+            "[" + hourAhead + "] and [" + hourUtc + "]",
+            "$TIME must render the hour of the configured zone with two digits");
         ok = false;
     } else {
         const int difference = ((std::stoi(hourAhead) - std::stoi(hourUtc)) + 24) % 24;
         if (difference != 7) {
-            reportFailure("$TIME hour", "UTC-7 (local time UTC+7) ahead of UTC0 by 7 hours", "difference=" + std::to_string(difference),
-                          "$TIME must render the local time of the configured TZ, not UTC or a fixed zone");
+            reportFailure("$TIME hour", "UTC-7 (local time UTC+7) ahead of UTC0 by 7 hours",
+                "difference=" + std::to_string(difference),
+                "$TIME must render the local time of the configured TZ, not UTC or a fixed zone");
             ok = false;
         }
     }
@@ -88,9 +108,11 @@ int main() {
     config.setValueByPath("Mode", "Uinput (Smooth)");
     config.setValueByPath("InputMethod", "Telex");
     engine.setConfig(config);
-    if (engine.config().mode.value() != fcitx::LotusMode::Smooth || engine.config().inputMethod.value() != fcitx::InputMethodId::Telex) {
-        reportFailure("configure Smooth/Telex", "mode=Smooth, input method=Telex", "configured mode or input method differs",
-                      "the descriptor check needs the transport of the Smooth mode");
+    if (engine.config().mode.value() != fcitx::LotusMode::Smooth ||
+        engine.config().inputMethod.value() != fcitx::InputMethodId::Telex) {
+        reportFailure("configure Smooth/Telex", "mode=Smooth, input method=Telex",
+            "configured mode or input method differs",
+            "the descriptor check needs the transport of the Smooth mode");
         return 1;
     }
 
@@ -98,8 +120,9 @@ int main() {
     // it, the test would drive real keystrokes, so nothing is sent in that case.
     KbSocketListener listener;
     if (!listener.valid()) {
-        reportFailure("bind kbSocket", "free socket path", "another process owns the replacement socket",
-                      "the test refuses to drive the uinput transport owned by the session");
+        reportFailure("bind kbSocket", "free socket path",
+            "another process owns the replacement socket",
+            "the test refuses to drive the uinput transport owned by the session");
         return 1;
     }
 
@@ -127,8 +150,9 @@ int main() {
     }
     const std::size_t afterWords = openDescriptorCount();
     if (afterWords != before) {
-        reportFailure("descriptor count over 50 keys", std::to_string(before) + " open descriptors", std::to_string(afterWords) + " open descriptors",
-                      "the kbSocket transport must not leak a descriptor while it replaces words");
+        reportFailure("descriptor count over 50 keys", std::to_string(before) + " open descriptors",
+            std::to_string(afterWords) + " open descriptors",
+            "the kbSocket transport must not leak a descriptor while it replaces words");
         ok = false;
     }
 
@@ -137,8 +161,10 @@ int main() {
     (void)engine.subModeIcon(entry, *context);
     const std::size_t afterProbe = openDescriptorCount();
     if (afterProbe != before) {
-        reportFailure("descriptor count over the theme probe", std::to_string(before) + " open descriptors", std::to_string(afterProbe) + " open descriptors",
-                      "the dark-mode probe must close the pipe of the subprocess it spawns");
+        reportFailure("descriptor count over the theme probe",
+            std::to_string(before) + " open descriptors",
+            std::to_string(afterProbe) + " open descriptors",
+            "the dark-mode probe must close the pipe of the subprocess it spawns");
         ok = false;
     }
 

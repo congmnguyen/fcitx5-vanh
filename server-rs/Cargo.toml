@@ -2,6 +2,8 @@
 name = "fcitx5-vanh-server"
 version = "6.0.5"
 edition = "2021"
+# offset_of!; the lints follow it, so clippy never asks for a newer API.
+rust-version = "1.77"
 license = "GPL-3.0-or-later"
 description = "Privileged uinput helper of fcitx5-vanh: injects the replacement keys and reports mouse clicks"
 publish = false

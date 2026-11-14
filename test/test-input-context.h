@@ -79,7 +79,8 @@
  */
 class TestInputContext final : public fcitx::InputContext {
   public:
-    explicit TestInputContext(fcitx::Instance* instance, const std::string& programName = "test") : InputContext(instance->inputContextManager(), programName) {
+    explicit TestInputContext(fcitx::Instance* instance, const std::string& programName = "test") :
+        InputContext(instance->inputContextManager(), programName) {
         // Fcitx5 lifecycle contract: notifies the InputContextManager that
         // this context is initialized and ready to receive events.
         created();
@@ -209,7 +210,8 @@ inline void configureTestPaths(const char* name) {
 #ifdef VANH_TEST_DICTIONARY
     // The dictionary of the source tree, not whatever the host has installed.
     std::filesystem::create_directories(root / "data/fcitx5/vanh", ec);
-    std::filesystem::copy_file(VANH_TEST_DICTIONARY, root / "data/fcitx5/vanh/vietnamese.cm.dict", std::filesystem::copy_options::overwrite_existing, ec);
+    std::filesystem::copy_file(VANH_TEST_DICTIONARY, root / "data/fcitx5/vanh/vietnamese.cm.dict",
+        std::filesystem::copy_options::overwrite_existing, ec);
 #endif
 
     setenv("HOME", root.c_str(), 1);
@@ -224,7 +226,8 @@ inline void configureTestPaths(const char* name) {
             s_socketDir = pattern;
         }
     }
-    setenv("VANH_SOCKET_DIR", s_socketDir.empty() ? (root / "run").c_str() : s_socketDir.c_str(), 1);
+    setenv(
+        "VANH_SOCKET_DIR", s_socketDir.empty() ? (root / "run").c_str() : s_socketDir.c_str(), 1);
     setenv("VANH_SERVER_UID", std::to_string(getuid()).c_str(), 1);
 
     static std::filesystem::path s_cleanupPath;

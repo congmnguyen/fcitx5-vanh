@@ -10,26 +10,32 @@
 
 namespace {
 
-    bool receiveBackspaceRequest(KbSocketListener& listener, size_t& count, const char* meaning, const char* timeoutExpected = "request within 5000 ms") {
+    bool receiveBackspaceRequest(KbSocketListener& listener, size_t& count, const char* meaning,
+        const char* timeoutExpected = "request within 5000 ms") {
         KbMsg msg{};
         if (!listener.receive(msg, meaning, timeoutExpected))
             return false;
         if (msg.op != KbOp::Backspace || msg.count <= 0) {
-            reportFailure("receive replacement request", "op=backspace, count > 0", "op=" + std::to_string(static_cast<int>(msg.op)) + ", count=" + std::to_string(msg.count),
-                          meaning);
+            reportFailure("receive replacement request", "op=backspace, count > 0",
+                "op=" + std::to_string(static_cast<int>(msg.op)) +
+                    ", count=" + std::to_string(msg.count),
+                meaning);
             return false;
         }
         count = msg.count;
         return true;
     }
 
-    bool send(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry, TestInputContext& context, fcitx::KeySym symbol, bool requireAccepted) {
+    bool send(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry,
+        TestInputContext& context, fcitx::KeySym symbol, bool requireAccepted) {
         fcitx::KeyEvent event(&context, fcitx::Key(symbol), false);
         engine.keyEvent(entry, event);
         if (event.accepted() != requireAccepted) {
-            reportFailure("process key " + std::to_string(symbol), "accepted=" + std::to_string(static_cast<int>(requireAccepted)),
-                          "accepted=" + std::to_string(static_cast<int>(event.accepted())) + ", commits=" + std::to_string(context.commits().size()),
-                          "Smooth buffered-key handling accepted or rejected the key unexpectedly");
+            reportFailure("process key " + std::to_string(symbol),
+                "accepted=" + std::to_string(static_cast<int>(requireAccepted)),
+                "accepted=" + std::to_string(static_cast<int>(event.accepted())) +
+                    ", commits=" + std::to_string(context.commits().size()),
+                "Smooth buffered-key handling accepted or rejected the key unexpectedly");
             return false;
         }
         return true;
@@ -45,9 +51,11 @@ int main() {
     config.setValueByPath("Mode", "Uinput (Smooth)");
     config.setValueByPath("InputMethod", "Telex");
     engine.setConfig(config);
-    if (engine.config().mode.value() != fcitx::LotusMode::Smooth || engine.config().inputMethod.value() != fcitx::InputMethodId::Telex) {
-        reportFailure("configure Smooth/Telex", "mode=Smooth, input method=Telex", "configured mode or input method differs",
-                      "the replay test cannot exercise Smooth Telex behavior");
+    if (engine.config().mode.value() != fcitx::LotusMode::Smooth ||
+        engine.config().inputMethod.value() != fcitx::InputMethodId::Telex) {
+        reportFailure("configure Smooth/Telex", "mode=Smooth, input method=Telex",
+            "configured mode or input method differs",
+            "the replay test cannot exercise Smooth Telex behavior");
         return 1;
     }
 
@@ -63,15 +71,18 @@ int main() {
 
     // Telex a, s changes the real Bamboo preedit a -> á. Smooth mode replaces
     // the old character through the kbSocket transport.
-    if (!send(engine, entry, *context, FcitxKey_a, false) || !send(engine, entry, *context, FcitxKey_s, true))
+    if (!send(engine, entry, *context, FcitxKey_a, false) ||
+        !send(engine, entry, *context, FcitxKey_s, true))
         return 1;
     size_t backspaces = 0;
-    if (!receiveBackspaceRequest(listener, backspaces, "the initial Telex replacement request did not arrive"))
+    if (!receiveBackspaceRequest(
+            listener, backspaces, "the initial Telex replacement request did not arrive"))
         return 1;
 
     if (!send(engine, entry, *context, FcitxKey_x, true) || !context->commits().empty()) {
-        reportFailure("buffer key x before deletion completes", "no immediate commits", "commits=" + std::to_string(context->commits().size()),
-                      "buffered key x was emitted before the first replacement completed");
+        reportFailure("buffer key x before deletion completes", "no immediate commits",
+            "commits=" + std::to_string(context->commits().size()),
+            "buffered key x was emitted before the first replacement completed");
         return 1;
     }
     for (size_t i = 0; i < backspaces; ++i) {
@@ -82,7 +93,9 @@ int main() {
         return 1;
 
     size_t replayBackspaces = 0;
-    if (!receiveBackspaceRequest(listener, replayBackspaces, "buffered key was not replayed after deletion", "buffered x replay starts another replacement request within 5000 ms"))
+    if (!receiveBackspaceRequest(listener, replayBackspaces,
+            "buffered key was not replayed after deletion",
+            "buffered x replay starts another replacement request within 5000 ms"))
         return 1;
     for (size_t i = 0; i < replayBackspaces; ++i) {
         if (!send(engine, entry, *context, FcitxKey_BackSpace, false))

@@ -149,7 +149,8 @@ fn bigram_vote(p: &Prev, w: &Word) -> i32 {
 
 /// > 0: the word after follows the Vietnamese reading of the earlier word more often (D35).
 fn next_pair_vote(earlier: &Word, next: &Word) -> i32 {
-    let after = if next.same { next.raw.as_bytes().to_vec() } else { encode(&next.reading).into_bytes() };
+    let after =
+        if next.same { next.raw.as_bytes().to_vec() } else { encode(&next.reading).into_bytes() };
     let vietnamese = pair_count(&joined(encode(&earlier.reading).as_bytes(), &after));
     vote(vietnamese, pair_count(&joined(earlier.raw.as_bytes(), &after)))
 }

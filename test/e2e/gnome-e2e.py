@@ -18,6 +18,7 @@ The text typed is a fixed list of synthetic sentences below, not the private cor
 case the expected screen text is what the engine itself produces for the same keys (engine-rs
 `replay type --raw`): a difference is a delivery bug (lost, doubled or misplaced characters).
 """
+
 import argparse
 import json
 import os
@@ -79,13 +80,33 @@ class Keyboard:
     def __init__(self):
         bus = Gio.bus_get_sync(Gio.BusType.SESSION)
         self.bus = bus
-        rd = bus.call_sync("org.gnome.Mutter.RemoteDesktop", "/org/gnome/Mutter/RemoteDesktop", "org.gnome.Mutter.RemoteDesktop", "CreateSession", None, GLib.VariantType("(o)"), 0, -1, None)
+        rd = bus.call_sync(
+            "org.gnome.Mutter.RemoteDesktop",
+            "/org/gnome/Mutter/RemoteDesktop",
+            "org.gnome.Mutter.RemoteDesktop",
+            "CreateSession",
+            None,
+            GLib.VariantType("(o)"),
+            0,
+            -1,
+            None,
+        )
         self.path = rd.unpack()[0]
         self._call("Start", None)
         self.lock = threading.Lock()
 
     def _call(self, method, args):
-        self.bus.call_sync("org.gnome.Mutter.RemoteDesktop", self.path, "org.gnome.Mutter.RemoteDesktop.Session", method, args, None, 0, -1, None)
+        self.bus.call_sync(
+            "org.gnome.Mutter.RemoteDesktop",
+            self.path,
+            "org.gnome.Mutter.RemoteDesktop.Session",
+            method,
+            args,
+            None,
+            0,
+            -1,
+            None,
+        )
 
     def key(self, code, down):
         self._call("NotifyKeyboardKeycode", GLib.Variant("(ub)", (code, down)))
@@ -166,7 +187,12 @@ class FakeUinputServer:
 
 
 CONFIG = "user"
-MODES = {"smooth": "Uinput (Smooth)", "surrounding": "Surrounding Text", "preedit": "Preedit", "select": "Uinput (Select)"}
+MODES = {
+    "smooth": "Uinput (Smooth)",
+    "surrounding": "Surrounding Text",
+    "preedit": "Preedit",
+    "select": "Uinput (Select)",
+}
 
 
 def write_fcitx_config(cfg, mode, user_conf):
@@ -176,22 +202,39 @@ def write_fcitx_config(cfg, mode, user_conf):
         "[Groups/0]\nName=Default\nDefault Layout=us\nDefaultIM=vanh\n\n[Groups/0/Items/0]\nName=keyboard-us\nLayout=\n\n"
         "[Groups/0/Items/1]\nName=vanh\nLayout=\n\n[GroupOrder]\n0=Default\n"
     )
-    (fc / "config").write_text("[Hotkey/TriggerKeys]\n0=Control+space\n[Behavior]\nActiveByDefault=True\nShareInputState=No\n")
+    (fc / "config").write_text(
+        "[Hotkey/TriggerKeys]\n0=Control+space\n[Behavior]\nActiveByDefault=True\nShareInputState=No\n"
+    )
     text = user_conf
-    lines = [l for l in text.splitlines() if not l.startswith("Mode=")]
+    lines = [line for line in text.splitlines() if not line.startswith("Mode=")]
     lines.insert(0, f'Mode="{MODES[mode]}"')
     (fc / "conf/vanh.conf").write_text("\n".join(lines) + "\n")
 
 
 def expected(keys, config):
-    out = subprocess.run([str(REPLAY), "type", "--config", config, "--raw", keys], capture_output=True, text=True, check=True).stdout
+    out = subprocess.run(
+        [str(REPLAY), "type", "--config", config, "--raw", keys],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
     return out.split(" -> ", 1)[1].rstrip("\n")
 
 
 def telex_keys(sentences):
     corpus = RUN / "e2e-corpus.tsv"
-    corpus.write_text("# split\tsource\ttier\tid\tlabels\ttext\n" + "".join(f"test\te2e\ttyped\t{i}\t{'e' * len(s.split(' '))}\t{s}\n" for i, s in enumerate(sentences)))
-    subprocess.run([str(REPLAY), "keys", str(corpus), str(RUN / "e2e-keys.txt")], check=True, capture_output=True)
+    corpus.write_text(
+        "# split\tsource\ttier\tid\tlabels\ttext\n"
+        + "".join(
+            f"test\te2e\ttyped\t{i}\t{'e' * len(s.split(' '))}\t{s}\n"
+            for i, s in enumerate(sentences)
+        )
+    )
+    subprocess.run(
+        [str(REPLAY), "keys", str(corpus), str(RUN / "e2e-keys.txt")],
+        check=True,
+        capture_output=True,
+    )
     return (RUN / "e2e-keys.txt").read_text().split("\n")[: len(sentences)]
 
 
@@ -208,7 +251,9 @@ class Session:
             self.env.pop(k, None)
         # Nothing may reach the desktop session: drop every pointer into its runtime dir
         # (keyring, ssh agent, pipewire, ...).
-        for k in [k for k, v in self.env.items() if "/run/user/" in v and k != "DBUS_SESSION_BUS_ADDRESS"]:
+        for k in [
+            k for k, v in self.env.items() if "/run/user/" in v and k != "DBUS_SESSION_BUS_ADDRESS"
+        ]:
             self.env.pop(k)
         self.env.update(
             XDG_RUNTIME_DIR=str(RUN / "xdg"),
@@ -226,7 +271,15 @@ class Session:
             NO_AT_BRIDGE="0",
             GTK_A11Y="atspi",
         )
-        for d in ("xdg", "config", "data", "cache", "state", "share/fcitx5/addon", "share/fcitx5/inputmethod"):
+        for d in (
+            "xdg",
+            "config",
+            "data",
+            "cache",
+            "state",
+            "share/fcitx5/addon",
+            "share/fcitx5/inputmethod",
+        ):
             (RUN / d).mkdir(parents=True, exist_ok=True)
         os.chmod(RUN / "xdg", 0o700)
         shutil.copy(BUILD / "src/vanh-addon.conf", RUN / "share/fcitx5/addon/vanh.conf")
@@ -234,12 +287,29 @@ class Session:
 
     def spawn(self, cmd, log, **env):
         e = dict(self.env, **env)
-        p = subprocess.Popen(cmd, env=e, stdout=open(RUN / log, "w"), stderr=subprocess.STDOUT, start_new_session=True)
+        p = subprocess.Popen(
+            cmd,
+            env=e,
+            stdout=open(RUN / log, "w"),
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
         self.procs.append(p)
         return p
 
     def start_shell(self):
-        self.spawn(["gnome-shell", "--headless", "--wayland", "--no-x11", "--wayland-display=wl-e2e", "--virtual-monitor", "1600x1000"], "shell.log")
+        self.spawn(
+            [
+                "gnome-shell",
+                "--headless",
+                "--wayland",
+                "--no-x11",
+                "--wayland-display=wl-e2e",
+                "--virtual-monitor",
+                "1600x1000",
+            ],
+            "shell.log",
+        )
         sock = RUN / "xdg/wl-e2e"
         for _ in range(100):
             if sock.exists():
@@ -277,17 +347,36 @@ class Session:
 
 # ---------------------------------------------------------------- Ghostty
 
+
 def ghostty_cases(s, mode, cases, delay, results):
     hist = RUN / f"hist-{mode}"
     rc = RUN / "bashrc"
-    rc.write_text(f"PS1='$ '\nHISTFILE={hist}\nHISTCONTROL=\nshopt -s histappend\nPROMPT_COMMAND='history -a'\nunset HISTIGNORE\n")
+    rc.write_text(
+        f"PS1='$ '\nHISTFILE={hist}\nHISTCONTROL=\nshopt -s histappend\nPROMPT_COMMAND='history -a'\nunset HISTIGNORE\n"
+    )
     pwfile = RUN / f"pw-{mode}-{delay}"
     pwscript = RUN / "pw.sh"
-    pwscript.write_text(f"#!/bin/bash\nwhile true; do read -rs -p '[sudo] password for cong: ' pw; printf '%s\\n' \"$pw\" >> {pwfile}; echo; done\n")
+    pwscript.write_text(
+        f"#!/bin/bash\nwhile true; do read -rs -p '[sudo] password for cong: ' pw; printf '%s\\n' \"$pw\" >> {pwfile}; echo; done\n"
+    )
     pwscript.chmod(0o755)
     conf = RUN / "ghostty.conf"
-    conf.write_text("gtk-single-instance = false\nconfirm-close-surface = false\nwindow-width = 120\nwindow-height = 30\n")
-    term = s.spawn(["ghostty", "--config-default-files=false", f"--config-file={conf}", "-e", "bash", "--rcfile", str(rc), "-i"], f"ghostty-{mode}.log")
+    conf.write_text(
+        "gtk-single-instance = false\nconfirm-close-surface = false\nwindow-width = 120\nwindow-height = 30\n"
+    )
+    term = s.spawn(
+        [
+            "ghostty",
+            "--config-default-files=false",
+            f"--config-file={conf}",
+            "-e",
+            "bash",
+            "--rcfile",
+            str(rc),
+            "-i",
+        ],
+        f"ghostty-{mode}.log",
+    )
     time.sleep(3)
     s.kb.type("x", 0.05)  # warm-up: the first key after the window maps can come before its IM
     s.kb.tap(22, (CTRL,))  # Ctrl+U: clears the line
@@ -306,7 +395,10 @@ def ghostty_cases(s, mode, cases, delay, results):
     half = keys.index(" ", len(keys) // 2)
     s.kb.type("# ", 0.03)
     s.kb.type(keys[:half], delay)
-    other = s.spawn(["ghostty", "--config-default-files=false", f"--config-file={conf}", "-e", "sleep", "2"], "ghostty-other.log")
+    other = s.spawn(
+        ["ghostty", "--config-default-files=false", f"--config-file={conf}", "-e", "sleep", "2"],
+        "ghostty-other.log",
+    )
     time.sleep(3.5)  # it takes focus, exits, focus comes back
     s.kb.type(keys[half:], delay)
     s.kb.type("\n", 0)
@@ -321,11 +413,24 @@ def ghostty_cases(s, mode, cases, delay, results):
     s.kb.type("\n", 0)
     time.sleep(0.8)
     got = hist.read_text().splitlines()
-    results.append(("Ghostty", mode, "shortcut Ctrl+W", "tiếng Việt + Ctrl+W", 0.03, "# tiếng ", got[-1] if got else ""))
+    results.append(
+        (
+            "Ghostty",
+            mode,
+            "shortcut Ctrl+W",
+            "tiếng Việt + Ctrl+W",
+            0.03,
+            "# tiếng ",
+            got[-1] if got else "",
+        )
+    )
     term.terminate()
     time.sleep(0.5)
     # Password prompt (read -s, like sudo): the terminal gives no sign that it is a password.
-    pw = s.spawn(["ghostty", "--config-default-files=false", f"--config-file={conf}", "-e", str(pwscript)], f"ghostty-pw-{mode}.log")
+    pw = s.spawn(
+        ["ghostty", "--config-default-files=false", f"--config-file={conf}", "-e", str(pwscript)],
+        f"ghostty-pw-{mode}.log",
+    )
     time.sleep(3)
     s.kb.type("dduowcj123\n", 0.03)
     s.kb.type("Hunter2pass\n", 0.03)
@@ -334,7 +439,17 @@ def ghostty_cases(s, mode, cases, delay, results):
     # Expected: the keys as typed (a password must never change); the engine's own output is
     # noted in the case name.
     for i, keys in enumerate(("dduowcj123", "Hunter2pass")):
-        results.append(("Ghostty", mode, "password prompt", f"{keys} (engine: {expected(keys, CONFIG)})", 0.03, keys, got[i] if len(got) > i else ""))
+        results.append(
+            (
+                "Ghostty",
+                mode,
+                "password prompt",
+                f"{keys} (engine: {expected(keys, CONFIG)})",
+                0.03,
+                keys,
+                got[i] if len(got) > i else "",
+            )
+        )
     pw.terminate()
     time.sleep(0.5)
 
@@ -379,7 +494,15 @@ class Cdp:
 
     def eval(self, expr):
         self.n += 1
-        self.ws.send(json.dumps({"id": self.n, "method": "Runtime.evaluate", "params": {"expression": expr, "returnByValue": True}}))
+        self.ws.send(
+            json.dumps(
+                {
+                    "id": self.n,
+                    "method": "Runtime.evaluate",
+                    "params": {"expression": expr, "returnByValue": True},
+                }
+            )
+        )
         while True:
             r = json.loads(self.ws.recv())
             if r.get("id") == self.n:
@@ -392,27 +515,51 @@ def brave_cases(s, mode, cases, delay, results):
     port = 9333
     prof = RUN / f"brave-{mode}"
     brave = s.spawn(
-        ["/opt/brave.com/brave-origin/brave", f"--user-data-dir={prof}", "--no-first-run", "--no-default-browser-check", "--password-store=basic", "--force-renderer-accessibility",
-         "--proxy-server=127.0.0.1:9", "--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE 127.0.0.1", "--disable-background-networking",
-         "--disable-component-update", "--disable-sync", "--disable-features=BraveRewards,BraveWallet", f"--remote-debugging-port={port}",
-         "--remote-allow-origins=*", f"file://{page}"],
+        [
+            "/opt/brave.com/brave-origin/brave",
+            f"--user-data-dir={prof}",
+            "--no-first-run",
+            "--no-default-browser-check",
+            "--password-store=basic",
+            "--force-renderer-accessibility",
+            "--proxy-server=127.0.0.1:9",
+            "--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE 127.0.0.1",
+            "--disable-background-networking",
+            "--disable-component-update",
+            "--disable-sync",
+            "--disable-features=BraveRewards,BraveWallet",
+            f"--remote-debugging-port={port}",
+            "--remote-allow-origins=*",
+            f"file://{page}",
+        ],
         f"brave-{mode}.log",
     )
     time.sleep(6)
     cdp = Cdp(port, f"file://{page}")
     cdp.call("Page.bringToFront", {})  # a new window may open without the keyboard focus
     time.sleep(0.5)
-    cdp.call("Browser.grantPermissions", {"permissions": ["clipboardReadWrite", "clipboardSanitizedWrite"]})
+    cdp.call(
+        "Browser.grantPermissions",
+        {"permissions": ["clipboardReadWrite", "clipboardSanitizedWrite"]},
+    )
     cdp.eval("document.getElementById('input').focus()")
     s.kb.type("x", 0.05)  # warm-up, as in the terminal
     time.sleep(0.3)
+
     def field_text(field):
-        return (cdp.eval(f"(e=>e.value!==undefined?e.value:e.innerText)(document.getElementById('{field}'))") or "").rstrip("\n")
+        return (
+            cdp.eval(
+                f"(e=>e.value!==undefined?e.value:e.innerText)(document.getElementById('{field}'))"
+            )
+            or ""
+        ).rstrip("\n")
 
     for field in ("input", "search", "textarea", "editable"):
         multiline = field in ("textarea", "editable")
         for name, keys, want in cases:
-            cdp.eval(f"(e=>{{e.focus(); if(e.value!==undefined) e.value=''; else e.textContent='';}})(document.getElementById('{field}'))")
+            cdp.eval(
+                f"(e=>{{e.focus(); if(e.value!==undefined) e.value=''; else e.textContent='';}})(document.getElementById('{field}'))"
+            )
             cdp.eval("enters = 0")
             time.sleep(0.3)
             s.kb.type(keys, delay)
@@ -436,7 +583,17 @@ def brave_cases(s, mode, cases, delay, results):
     time.sleep(0.1)
     s.kb.type(keys[half:] + " ", delay)
     time.sleep(0.8)
-    results.append(("Brave", mode, "input, focus change (Tab, Shift+Tab)", name, delay, expected(keys + " ", CONFIG), field_text("input")))
+    results.append(
+        (
+            "Brave",
+            mode,
+            "input, focus change (Tab, Shift+Tab)",
+            name,
+            delay,
+            expected(keys + " ", CONFIG),
+            field_text("input"),
+        )
+    )
     # Address bar (Ctrl+L), read back through AT-SPI; never submitted (Escape clears it).
     for name, keys, want in cases[:4]:
         s.kb.tap(38, (CTRL,))  # Ctrl+L
@@ -453,9 +610,27 @@ def brave_cases(s, mode, cases, delay, results):
         cdp.call("Page.bringToFront", {})
         cdp.eval("document.getElementById('input').focus()")
         time.sleep(0.3)
-        got = cdp.call("Runtime.evaluate", {"expression": "navigator.clipboard.readText()", "awaitPromise": True, "returnByValue": True, "userGesture": True})
+        got = cdp.call(
+            "Runtime.evaluate",
+            {
+                "expression": "navigator.clipboard.readText()",
+                "awaitPromise": True,
+                "returnByValue": True,
+                "userGesture": True,
+            },
+        )
         got = got.get("result", {}).get("value")
-        results.append(("Brave", mode, "address bar", name, delay, expected(keys + " ", CONFIG), got if isinstance(got, str) else "<unreadable>"))
+        results.append(
+            (
+                "Brave",
+                mode,
+                "address bar",
+                name,
+                delay,
+                expected(keys + " ", CONFIG),
+                got if isinstance(got, str) else "<unreadable>",
+            )
+        )
     brave.terminate()
     time.sleep(1)
 
@@ -468,7 +643,13 @@ def omnibox_text():
 
         desktop = Atspi.get_desktop(0)
         stack = [desktop.get_child_at_index(i) for i in range(desktop.get_child_count())]
-        stack = [a for a in stack if a and "brave" in (a.get_name() or "").lower() or (a and "chrom" in (a.get_name() or "").lower())]
+        stack = [
+            a
+            for a in stack
+            if a
+            and "brave" in (a.get_name() or "").lower()
+            or (a and "chrom" in (a.get_name() or "").lower())
+        ]
         seen = 0
         while stack and seen < 20000:
             node = stack.pop()
@@ -477,7 +658,9 @@ def omnibox_text():
                 continue
             try:
                 states = node.get_state_set()
-                if states.contains(Atspi.StateType.FOCUSED) and states.contains(Atspi.StateType.EDITABLE):
+                if states.contains(Atspi.StateType.FOCUSED) and states.contains(
+                    Atspi.StateType.EDITABLE
+                ):
                     t = node.get_text_iface()
                     if t is not None:
                         return t.get_text(0, t.get_character_count())
@@ -495,15 +678,22 @@ def main():
     ap.add_argument("--apps", default="ghostty,brave")
     ap.add_argument("--modes", default="smooth,surrounding")
     ap.add_argument("--delays", default="0.03,0.005")
-    ap.add_argument("--config", default="user", help="engine options: user (your vanh.conf) or default")
+    ap.add_argument(
+        "--config", default="user", help="engine options: user (your vanh.conf) or default"
+    )
     ap.add_argument("--text", help="sentences to type, separated by |, instead of SENTENCES")
     ap.add_argument("--out", default=str(RUN.parent / "ve2e-results.json"))
     a = ap.parse_args()
-    if "DBUS_SESSION_BUS_ADDRESS" not in os.environ or "dbus-run-session" not in open(f"/proc/{os.getppid()}/cmdline").read():
+    if (
+        "DBUS_SESSION_BUS_ADDRESS" not in os.environ
+        or "dbus-run-session" not in open(f"/proc/{os.getppid()}/cmdline").read()
+    ):
         raise SystemExit("run inside dbus-run-session (a private bus), see the docstring")
     global CONFIG
     CONFIG = a.config
-    user_conf = (Path.home() / ".config/fcitx5/conf/vanh.conf").read_text() if a.config == "user" else ""
+    user_conf = (
+        (Path.home() / ".config/fcitx5/conf/vanh.conf").read_text() if a.config == "user" else ""
+    )
     sentences = a.text.split("|") if a.text else SENTENCES
     keys = telex_keys(sentences)
     s = Session(a)
@@ -514,7 +704,10 @@ def main():
             s.start_fcitx(mode, user_conf)
             cases = [(t, k, expected(k, a.config)) for t, k in zip(sentences, keys)]
             for t, k, w in cases:
-                assert expected("# " + k, a.config) == "# " + w, (t, w)  # the comment prefix changes nothing
+                assert expected("# " + k, a.config) == "# " + w, (
+                    t,
+                    w,
+                )  # the comment prefix changes nothing
             for delay in (float(d) for d in a.delays.split(",")):
                 if "ghostty" in a.apps:
                     ghostty_cases(s, mode, cases, delay, results)
@@ -527,7 +720,16 @@ def main():
         traceback.print_exc()
     finally:
         s.stop()
-        Path(a.out).write_text(json.dumps({"results": results, "server_requests": s.server.requests[:50] if hasattr(s, "server") else []}, ensure_ascii=False, indent=1))
+        Path(a.out).write_text(
+            json.dumps(
+                {
+                    "results": results,
+                    "server_requests": s.server.requests[:50] if hasattr(s, "server") else [],
+                },
+                ensure_ascii=False,
+                indent=1,
+            )
+        )
     bad = [r for r in results if r[5] != r[6]]
     for r in results:
         print(("ok " if r[5] == r[6] else "BAD"), *r[:5], repr(r[5]), "->", repr(r[6]), sep=" | ")

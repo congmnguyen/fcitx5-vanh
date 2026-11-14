@@ -9,10 +9,15 @@
 //! structural ones below are written by hand, 1:1 with the former C++ tables (vowel_data.cpp,
 //! spelling_data.cpp, input_method_data.cpp) and with bamboo-core.
 
+// Generated tables keep the layout of their generators.
+#[rustfmt::skip]
 pub mod case;
+#[rustfmt::skip]
 pub mod charset;
 pub mod tech_english;
+#[rustfmt::skip]
 pub mod vikey_autoswitch;
+#[rustfmt::skip]
 pub mod vikey_bigram;
 
 /// Vowels with their six tones, the tone being the index modulo 6.

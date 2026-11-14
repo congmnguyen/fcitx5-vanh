@@ -63,7 +63,8 @@ int runConfigEnumNames() {
     raw.setValueByPath("InputMethod", "VNI");
     config.load(raw, true);
 
-    check("legacy OutputCharset resolves", config.outputCharset.value() == fcitx::Charset::Tcvn3Abc);
+    check(
+        "legacy OutputCharset resolves", config.outputCharset.value() == fcitx::Charset::Tcvn3Abc);
     check("legacy InputMethod resolves", config.inputMethod.value() == fcitx::InputMethodId::Vni);
 
     std::string        savedText;
@@ -74,30 +75,60 @@ int runConfigEnumNames() {
     check("reloaded InputMethod value", *reloaded.inputMethod == fcitx::InputMethodId::Vni);
 
     check("charset names",
-          fcitx::CharsetToString(fcitx::Charset::Unicode) == "Unicode" && fcitx::CharsetToString(fcitx::Charset::Tcvn3Abc) == "TCVN3 (ABC)" &&
-              fcitx::CharsetToString(fcitx::Charset::Windows1258) == "Windows 1258 codepage" && fcitx::CharsetToString(fcitx::Charset::UnicodeCombining) == "Unicode tổ hợp");
+        fcitx::CharsetToString(fcitx::Charset::Unicode) == "Unicode" &&
+            fcitx::CharsetToString(fcitx::Charset::Tcvn3Abc) == "TCVN3 (ABC)" &&
+            fcitx::CharsetToString(fcitx::Charset::Windows1258) == "Windows 1258 codepage" &&
+            fcitx::CharsetToString(fcitx::Charset::UnicodeCombining) == "Unicode tổ hợp");
     check("input method names",
-          fcitx::InputMethodIdToString(fcitx::InputMethodId::Telex) == "Telex" && fcitx::InputMethodIdToString(fcitx::InputMethodId::VniFrench) == "VNI Bàn phím tiếng Pháp" &&
-              fcitx::InputMethodIdToString(fcitx::InputMethodId::Custom) == "Custom");
+        fcitx::InputMethodIdToString(fcitx::InputMethodId::Telex) == "Telex" &&
+            fcitx::InputMethodIdToString(fcitx::InputMethodId::VniFrench) ==
+                "VNI Bàn phím tiếng Pháp" &&
+            fcitx::InputMethodIdToString(fcitx::InputMethodId::Custom) == "Custom");
 
     constexpr std::array<std::string_view, lotus::kCharsetCount> kExpectedCharsets = {
-        "Unicode",        "BKHCM 1", "BKHCM 2", "NCR Decimal", "NCR Hex", "TCVN3 (ABC)",   "UTF-8",      "Unicode C string Decimal", "Unicode C string Hex",
-        "Unicode tổ hợp", "VIQR",    "VISCII",  "VNI Windows", "VPS",     "Vietware Full", "Vietware X", "Windows 1258 codepage",
+        "Unicode",
+        "BKHCM 1",
+        "BKHCM 2",
+        "NCR Decimal",
+        "NCR Hex",
+        "TCVN3 (ABC)",
+        "UTF-8",
+        "Unicode C string Decimal",
+        "Unicode C string Hex",
+        "Unicode tổ hợp",
+        "VIQR",
+        "VISCII",
+        "VNI Windows",
+        "VPS",
+        "Vietware Full",
+        "Vietware X",
+        "Windows 1258 codepage",
     };
     constexpr std::array<std::string_view, lotus::kInputMethodCount> kExpectedInputMethods = {
-        "Telex", "VNI", "Telex + VNI", "Telex + VNI + VIQR", "VIQR", "Microsoft layout", "VNI Bàn phím tiếng Pháp", "Custom",
+        "Telex",
+        "VNI",
+        "Telex + VNI",
+        "Telex + VNI + VIQR",
+        "VIQR",
+        "Microsoft layout",
+        "VNI Bàn phím tiếng Pháp",
+        "Custom",
     };
     for (std::size_t i = 0; i < kExpectedCharsets.size(); ++i) {
-        check("charset config name", fcitx::CharsetToString(static_cast<fcitx::Charset>(i)) == kExpectedCharsets.at(i));
+        check("charset config name",
+            fcitx::CharsetToString(static_cast<fcitx::Charset>(i)) == kExpectedCharsets.at(i));
     }
     for (std::size_t i = 0; i < kExpectedInputMethods.size(); ++i) {
-        check("input method config name", fcitx::InputMethodIdToString(static_cast<fcitx::InputMethodId>(i)) == kExpectedInputMethods.at(i));
+        check("input method config name",
+            fcitx::InputMethodIdToString(static_cast<fcitx::InputMethodId>(i)) ==
+                kExpectedInputMethods.at(i));
     }
 
     fcitx::RawConfig description;
     config.inputMethod.dumpDescription(description);
     const std::string* launchSubConfig = description.valueByPath("LaunchSubConfig");
-    check("custom keymap keeps its sub-config", launchSubConfig != nullptr && *launchSubConfig == "True");
+    check("custom keymap keeps its sub-config",
+        launchSubConfig != nullptr && *launchSubConfig == "True");
     const std::string* lastName = description.valueByPath("Enum/7");
     check("input method list has Custom last", lastName != nullptr && *lastName == "Custom");
     check("enum names are not translated", description.valueByPath("EnumI18n/0") == nullptr);

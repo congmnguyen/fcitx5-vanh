@@ -26,7 +26,8 @@
 namespace {
 
     // Helper to log explicit assertion failures with step, expected, actual, and business meaning.
-    void reportFailure(const std::string& step, const std::string& expected, const std::string& actual, const std::string& meaning) {
+    void reportFailure(const std::string& step, const std::string& expected,
+        const std::string& actual, const std::string& meaning) {
         std::cerr << "Step: " << step << '\n';
         std::cerr << "Expected: " << expected << '\n';
         std::cerr << "Actual: " << actual << '\n';
@@ -37,7 +38,8 @@ namespace {
     // "vanh/vietnamese.cm.dict" from, so the test does not depend on the
     // lookup order between the user data dir and the system data dirs.
     void writeDictionary(const std::filesystem::path& root, const std::string& words) {
-        for (const auto& path : {root / "data/fcitx5/vanh/vietnamese.cm.dict", root / "pkgdata/fcitx5/vanh/vietnamese.cm.dict"}) {
+        for (const auto& path : {root / "data/fcitx5/vanh/vietnamese.cm.dict",
+                 root / "pkgdata/fcitx5/vanh/vietnamese.cm.dict"}) {
             std::filesystem::create_directories(path.parent_path());
             std::ofstream file(path);
             file << words;
@@ -45,7 +47,8 @@ namespace {
     }
 
     // Types the given ASCII keys in a fresh input context and returns the client preedit.
-    std::string typePreedit(fcitx::LotusEngine& engine, fcitx::Instance* instance, const std::string& keys) {
+    std::string typePreedit(
+        fcitx::LotusEngine& engine, fcitx::Instance* instance, const std::string& keys) {
         auto context = std::make_unique<TestInputContext>(instance);
         context->setCapabilityFlags(fcitx::CapabilityFlag::Preedit);
         context->focusIn();
@@ -54,14 +57,16 @@ namespace {
         engine.activate(entry, in);
 
         for (const auto key : keys) {
-            fcitx::KeyEvent event(context.get(), fcitx::Key(static_cast<fcitx::KeySym>(static_cast<unsigned char>(key))), false);
+            fcitx::KeyEvent event(context.get(),
+                fcitx::Key(static_cast<fcitx::KeySym>(static_cast<unsigned char>(key))), false);
             engine.keyEvent(entry, event);
         }
         return context->inputPanel().clientPreedit().toString();
     }
 
-    bool expectPreedit(fcitx::LotusEngine& engine, fcitx::Instance* instance, const std::string& keys, const std::string& expected, const std::string& step,
-                       const std::string& meaning) {
+    bool expectPreedit(fcitx::LotusEngine& engine, fcitx::Instance* instance,
+        const std::string& keys, const std::string& expected, const std::string& step,
+        const std::string& meaning) {
         const auto actual = typePreedit(engine, instance, keys);
         if (actual != expected) {
             reportFailure(step, expected, actual, meaning);
@@ -96,22 +101,25 @@ int main() {
     bool ok = true;
 
     // Step 1: "đcu" is not in the dictionary yet, so the word falls back to the raw keys.
-    ok &= expectPreedit(engine, &testInstance.instance, "ddcu", "ddcu", "type ddcu with dictionary without the word",
-                        "a non-Vietnamese word outside the dictionary must be restored to the raw keystrokes");
+    ok &= expectPreedit(engine, &testInstance.instance, "ddcu", "ddcu",
+        "type ddcu with dictionary without the word",
+        "a non-Vietnamese word outside the dictionary must be restored to the raw keystrokes");
 
     // Step 2: the settings GUI writes the new word and re-applies the configuration.
     writeDictionary(root, "đcu\n");
     engine.setConfig(config);
 
     // Step 3: the word added on disk must be honoured without restarting fcitx5.
-    ok &= expectPreedit(engine, &testInstance.instance, "ddcu", "đcu", "type ddcu after adding the word and re-applying the configuration",
-                        "applying a configuration must reload the custom dictionary");
+    ok &= expectPreedit(engine, &testInstance.instance, "ddcu", "đcu",
+        "type ddcu after adding the word and re-applying the configuration",
+        "applying a configuration must reload the custom dictionary");
 
     // Step 4: removing the word again must be honoured as well.
     writeDictionary(root, "chào\n");
     engine.setConfig(config);
-    ok &= expectPreedit(engine, &testInstance.instance, "ddcu", "ddcu", "type ddcu after removing the word and re-applying the configuration",
-                        "reloading the dictionary must replace its content, not merge");
+    ok &= expectPreedit(engine, &testInstance.instance, "ddcu", "ddcu",
+        "type ddcu after removing the word and re-applying the configuration",
+        "reloading the dictionary must replace its content, not merge");
 
     return ok ? 0 : 1;
 }

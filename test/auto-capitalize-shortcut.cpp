@@ -21,7 +21,9 @@ namespace {
         std::unique_ptr<TestInputContext> context;
         fcitx::InputMethodEntry           entry;
 
-        explicit Fixture(TestInstance& instance) : testInstance(instance), engine(&instance.instance), entry("vanh", "Vanh", "vi", "vanh") {
+        explicit Fixture(TestInstance& instance) :
+            testInstance(instance), engine(&instance.instance),
+            entry("vanh", "Vanh", "vi", "vanh") {
             fcitx::RawConfig config;
             config.setValueByPath("Mode", "Uinput (Smooth)");
             config.setValueByPath("InputMethod", "Telex");
@@ -40,14 +42,17 @@ namespace {
 
     // Sends a key through the engine, returns the symbol left on the event:
     // auto-capitalize rewrites it in place (keyEvent.setKey) before handling.
-    fcitx::KeySym sendKey(Fixture& f, fcitx::KeySym sym, fcitx::KeyStates states = fcitx::KeyStates()) {
+    fcitx::KeySym sendKey(
+        Fixture& f, fcitx::KeySym sym, fcitx::KeyStates states = fcitx::KeyStates()) {
         fcitx::KeyEvent event(f.context.get(), fcitx::Key(sym, states), false);
         f.engine.keyEvent(f.entry, event);
         return event.key().sym();
     }
 
-    void reportFailure(const char* step, const std::string& expected, const std::string& actual, const char* meaning) {
-        std::printf("FAIL %s\nExpected: %s\nActual: %s\nMeaning: %s\n", step, expected.c_str(), actual.c_str(), meaning);
+    void reportFailure(const char* step, const std::string& expected, const std::string& actual,
+        const char* meaning) {
+        std::printf("FAIL %s\nExpected: %s\nActual: %s\nMeaning: %s\n", step, expected.c_str(),
+            actual.c_str(), meaning);
     }
 
 } // namespace
@@ -61,7 +66,8 @@ int main() {
         Fixture f(testInstance);
         f.newSession();
         if (!f.engine.config().autoCapitalizeAfterPunctuation.value()) {
-            reportFailure("enable AutoCapitalizeAfterPunctuation", "option is on", "option is off", "the test cannot exercise sentence capitalization");
+            reportFailure("enable AutoCapitalizeAfterPunctuation", "option is on", "option is off",
+                "the test cannot exercise sentence capitalization");
             return 1;
         }
         sendKey(f, FcitxKey_period, fcitx::KeyState::Ctrl);
@@ -69,7 +75,8 @@ int main() {
         const fcitx::KeySym next = sendKey(f, FcitxKey_a);
         if (next != FcitxKey_a) {
             reportFailure("Ctrl+. does not end a sentence", "a", fcitx::Key(next).toString(),
-                          "Ctrl+. is a forwarded shortcut, not typed punctuation, so Space must not arm capitalization");
+                "Ctrl+. is a forwarded shortcut, not typed punctuation, so Space must not arm "
+                "capitalization");
             return 1;
         }
     }
@@ -83,7 +90,8 @@ int main() {
         const fcitx::KeySym next = sendKey(f, FcitxKey_w);
         if (next != FcitxKey_W) {
             reportFailure("real punctuation still capitalizes", "W", fcitx::Key(next).toString(),
-                          "bare period + Space must keep arming capitalization after the modifier guard lands");
+                "bare period + Space must keep arming capitalization after the modifier guard "
+                "lands");
             return 1;
         }
     }
@@ -99,7 +107,8 @@ int main() {
         sendKey(f, FcitxKey_space);
         const fcitx::KeySym next = sendKey(f, FcitxKey_w);
         if (next != FcitxKey_W) {
-            reportFailure("punctuation survives Ctrl+C", "W", fcitx::Key(next).toString(), "Ctrl+C cleared isPrevPunctuation_ before Space could arm capitalization");
+            reportFailure("punctuation survives Ctrl+C", "W", fcitx::Key(next).toString(),
+                "Ctrl+C cleared isPrevPunctuation_ before Space could arm capitalization");
             return 1;
         }
     }
@@ -113,7 +122,8 @@ int main() {
         const fcitx::KeySym next = sendKey(f, FcitxKey_a);
         if (next != FcitxKey_a) {
             reportFailure("Alt+. does not end a sentence", "a", fcitx::Key(next).toString(),
-                          "Alt+. is a forwarded shortcut, not typed punctuation, so Space must not arm capitalization");
+                "Alt+. is a forwarded shortcut, not typed punctuation, so Space must not arm "
+                "capitalization");
             return 1;
         }
     }
@@ -128,7 +138,8 @@ int main() {
         const fcitx::KeySym next = sendKey(f, FcitxKey_w);
         if (next != FcitxKey_W) {
             reportFailure("Shift+? still ends a sentence", "W", fcitx::Key(next).toString(),
-                          "Shift is stripped from unicode syms at normalize, so Shift+? is typed punctuation and Space must arm capitalization");
+                "Shift is stripped from unicode syms at normalize, so Shift+? is typed punctuation "
+                "and Space must arm capitalization");
             return 1;
         }
     }
@@ -146,7 +157,8 @@ int main() {
         const fcitx::KeySym next = sendKey(f, FcitxKey_w);
         if (next != FcitxKey_W) {
             reportFailure("punctuation survives Ctrl+A", "W", fcitx::Key(next).toString(),
-                          "forwarded shortcuts must not clear pending isPrevPunctuation_ before Space arms capitalization");
+                "forwarded shortcuts must not clear pending isPrevPunctuation_ before Space arms "
+                "capitalization");
             return 1;
         }
     }

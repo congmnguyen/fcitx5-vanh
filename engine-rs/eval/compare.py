@@ -5,6 +5,7 @@
 compare.py CORPUS --new NEW_REPLAY --base BASE_REPLAY [--unikey UNIKEY_REPLAY] [--split test]
           [--tier all]
 """
+
 import argparse
 import os
 import re
@@ -21,17 +22,19 @@ ROWS = [
     ("TOTAL", "TOTAL"),
 ]
 
+
 def parse(out):
     res = {}
     for line in out.splitlines():
         for full, short in ROWS:
             if line.startswith(full):
-                nums = line[len(full):].split()
+                nums = line[len(full) :].split()
                 res[short] = (int(nums[0]), float(nums[1]))
         m = re.match(r"segments (\d+).*words (\d+) \(vn (\d+), en (\d+), code (\d+)\)", line)
         if m:
             res["words"] = tuple(map(int, m.groups()))
     return res
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -78,6 +81,7 @@ def main():
     print("|---|" + "---:|" * len(ROWS))
     for name, r in results:
         print(f"| {name} | " + " | ".join(f"{r[s][1]:.2f} ({r[s][0]})" for _, s in ROWS) + " |")
+
 
 if __name__ == "__main__":
     main()

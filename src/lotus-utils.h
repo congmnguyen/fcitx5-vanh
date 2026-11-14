@@ -34,11 +34,11 @@ namespace fcitx {
 
 // Global state variables for input processing
 // LOTUS_EXPORT: read by the headless tests through lotus_test_core.
-extern LOTUS_EXPORT std::atomic<fcitx::LotusMode> g_realMode;     ///< Current active input mode
-extern std::atomic<bool>                          g_mouseClicked; ///< Mouse click detection flag
-extern std::atomic<bool>                          g_isDeleting;   ///< Deletion in progress flag
-extern std::atomic<unsigned int> g_realTextLen;                   ///< Current text length
-extern std::atomic<int>          g_mouseSocketFd;                 ///< Mouse socket file descriptor
+extern LOTUS_EXPORT std::atomic<fcitx::LotusMode> g_realMode;      ///< Current active input mode
+extern std::atomic<bool>                          g_mouseClicked;  ///< Mouse click detection flag
+extern std::atomic<bool>                          g_isDeleting;    ///< Deletion in progress flag
+extern std::atomic<unsigned int>                  g_realTextLen;   ///< Current text length
+extern std::atomic<int>                           g_mouseSocketFd; ///< Mouse socket file descriptor
 
 /**
  * @brief Current input mode, read with acquire ordering.

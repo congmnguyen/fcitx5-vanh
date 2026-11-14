@@ -21,9 +21,11 @@ namespace {
 
     int  failures = 0;
 
-    void expectCodePoints(const char* name, std::string_view input, const std::vector<char32_t>& expected) {
+    void expectCodePoints(
+        const char* name, std::string_view input, const std::vector<char32_t>& expected) {
         const auto actual = decode(input);
-        if (actual.size() != expected.size() || !std::equal(actual.begin(), actual.end(), expected.begin())) {
+        if (actual.size() != expected.size() ||
+            !std::equal(actual.begin(), actual.end(), expected.begin())) {
             std::printf("FAIL %s: decoded %zu code points\n", name, actual.size());
             for (char32_t cp : actual) {
                 std::printf("    U+%04X\n", static_cast<unsigned>(cp));
@@ -42,7 +44,8 @@ namespace {
     void expectEncode(const char* name, std::u32string_view input, std::string_view expected) {
         const std::string actual = encode(input);
         if (actual != expected) {
-            std::printf("FAIL %s: encoded %zu bytes, expected %zu\n", name, actual.size(), expected.size());
+            std::printf(
+                "FAIL %s: encoded %zu bytes, expected %zu\n", name, actual.size(), expected.size());
             for (unsigned char c : actual) {
                 std::printf("    \\x%02X", c);
             }
@@ -60,7 +63,8 @@ namespace {
     }
 
     // The Vietnamese vowel table used by the engine (uppercase/lowercase pairs must survive a round trip).
-    constexpr std::u32string_view kVowels = U"aàáảãạăằắẳẵặâầấẩẫậeèéẻẽẹêềếểễệiìíỉĩịoòóỏõọôồốổỗộơờớởỡợuùúủũụưừứửữựyỳýỷỹỵ";
+    constexpr std::u32string_view kVowels =
+        U"aàáảãạăằắẳẵặâầấẩẫậeèéẻẽẹêềếểễệiìíỉĩịoòóỏõọôồốổỗộơờớởỡợuùúủũụưừứửữựyỳýỷỹỵ";
 
 } // namespace
 
@@ -68,16 +72,20 @@ int run_utf8() {
     // ASCII.
     expectCodePoints("ascii", "abc", {U'a', U'b', U'c'});
     expectSize("ascii length", lotus::utf8::length("abc"), 3);
-    expectSize("ascii last", static_cast<std::size_t>(lotus::utf8::last("abc")), static_cast<std::size_t>(U'c'));
+    expectSize("ascii last", static_cast<std::size_t>(lotus::utf8::last("abc")),
+        static_cast<std::size_t>(U'c'));
 
     // 2/3/4 byte sequences.
     expectCodePoints("2byte", "\xC3\xA9", {0xE9});
     expectSize("2byte length", lotus::utf8::length("\xC3\xA9"), 1);
     expectCodePoints("3byte", "\xE2\x98\xBA", {0x263A});
     expectCodePoints("4byte", "\xF0\x9F\x99\x82", {0x1F642});
-    expectCodePoints("mixed", "a\xC3\xA9\xE2\x98\xBA\xF0\x9F\x99\x82", {U'a', 0xE9, 0x263A, 0x1F642});
+    expectCodePoints(
+        "mixed", "a\xC3\xA9\xE2\x98\xBA\xF0\x9F\x99\x82", {U'a', 0xE9, 0x263A, 0x1F642});
     expectSize("mixed length", lotus::utf8::length("a\xC3\xA9\xE2\x98\xBA\xF0\x9F\x99\x82"), 4);
-    expectSize("mixed last", static_cast<std::size_t>(lotus::utf8::last("a\xC3\xA9\xE2\x98\xBA\xF0\x9F\x99\x82")), 0x1F642);
+    expectSize("mixed last",
+        static_cast<std::size_t>(lotus::utf8::last("a\xC3\xA9\xE2\x98\xBA\xF0\x9F\x99\x82")),
+        0x1F642);
     expectSize("empty last", static_cast<std::size_t>(lotus::utf8::last("")), 0);
 
     // Invalid input: one U+FFFD per consumed byte.
@@ -88,7 +96,8 @@ int run_utf8() {
     expectCodePoints("truncated", "\xE2\x82", {0xFFFD, 0xFFFD});
     expectCodePoints("lone byte", "\xFF", {0xFFFD});
     expectCodePoints("lone continuation", "\x80", {0xFFFD});
-    expectSize("invalid last", static_cast<std::size_t>(lotus::utf8::last("a\xFF")), static_cast<std::size_t>(0xFFFD));
+    expectSize("invalid last", static_cast<std::size_t>(lotus::utf8::last("a\xFF")),
+        static_cast<std::size_t>(0xFFFD));
 
     // encode(): out of range and surrogate halves become U+FFFD, like Go's string(rune).
     const std::u32string beyondMax(1, static_cast<char32_t>(0x110000));

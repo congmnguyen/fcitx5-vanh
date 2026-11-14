@@ -15,26 +15,31 @@
 
 namespace {
 
-    bool send(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry, TestInputContext& context, fcitx::KeySym symbol, bool requireAccepted) {
+    bool send(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry,
+        TestInputContext& context, fcitx::KeySym symbol, bool requireAccepted) {
         fcitx::KeyEvent event(&context, fcitx::Key(symbol), false);
         engine.keyEvent(entry, event);
         if (event.accepted() != requireAccepted) {
-            reportFailure("process key " + std::to_string(symbol), "accepted=" + std::to_string(static_cast<int>(requireAccepted)),
-                          "accepted=" + std::to_string(static_cast<int>(event.accepted())) + ", commits=" + std::to_string(context.commits().size()),
-                          "the mid-replacement focus-out test saw an unexpected key outcome");
+            reportFailure("process key " + std::to_string(symbol),
+                "accepted=" + std::to_string(static_cast<int>(requireAccepted)),
+                "accepted=" + std::to_string(static_cast<int>(event.accepted())) +
+                    ", commits=" + std::to_string(context.commits().size()),
+                "the mid-replacement focus-out test saw an unexpected key outcome");
             return false;
         }
         return true;
     }
 
-    void loseFocus(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry, TestInputContext& context) {
+    void loseFocus(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry,
+        TestInputContext& context) {
         fcitx::InputContextEvent out(&context, fcitx::EventType::InputContextFocusOut);
         engine.deactivate(entry, out);
         engine.reset(entry, out);
         context.focusOut();
     }
 
-    void gainFocus(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry, TestInputContext& context) {
+    void gainFocus(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry,
+        TestInputContext& context) {
         context.focusIn();
         fcitx::InputContextEvent in(&context, fcitx::EventType::InputContextFocusIn);
         engine.activate(entry, in);
@@ -61,15 +66,19 @@ int main() {
     gainFocus(engine, entry, *context);
 
     // a, n, g then f: Telex adds the huyền tone, so the engine replaces "ng" of "ang" with "àng".
-    if (!send(engine, entry, *context, FcitxKey_a, false) || !send(engine, entry, *context, FcitxKey_n, false) || !send(engine, entry, *context, FcitxKey_g, false) ||
+    if (!send(engine, entry, *context, FcitxKey_a, false) ||
+        !send(engine, entry, *context, FcitxKey_n, false) ||
+        !send(engine, entry, *context, FcitxKey_g, false) ||
         !send(engine, entry, *context, FcitxKey_f, true))
         return 1;
     KbMsg msg{};
     if (!listener.receive(msg, "the Telex replacement request did not arrive"))
         return 1;
     if (msg.op != KbOp::Backspace || msg.count != 3) {
-        reportFailure("receive replacement request", "op=backspace, count=3", "op=" + std::to_string(static_cast<int>(msg.op)) + ", count=" + std::to_string(msg.count),
-                      "the replacement never started");
+        reportFailure("receive replacement request", "op=backspace, count=3",
+            "op=" + std::to_string(static_cast<int>(msg.op)) +
+                ", count=" + std::to_string(msg.count),
+            "the replacement never started");
         return 1;
     }
 
@@ -85,8 +94,9 @@ int main() {
     if (!send(engine, entry, *context, FcitxKey_q, true))
         return 1;
     if (!context->commits().empty()) {
-        reportFailure("type while the replacement is pending", "no commits yet", "commits=" + std::to_string(context->commits().size()),
-                      "a key was committed while the replacement still waits for its backspace echo");
+        reportFailure("type while the replacement is pending", "no commits yet",
+            "commits=" + std::to_string(context->commits().size()),
+            "a key was committed while the replacement still waits for its backspace echo");
         return 1;
     }
 
@@ -99,8 +109,9 @@ int main() {
     for (const auto& commit : context->commits())
         committed += commit;
     if (committed != "àngq") {
-        reportFailure("finish the overdue replacement", "committed text 'àngq' ('àng' + replayed 'q')", "committed='" + committed + "'",
-                      "the replacement stayed stuck in the deleting state after the backspace echo was lost");
+        reportFailure("finish the overdue replacement",
+            "committed text 'àngq' ('àng' + replayed 'q')", "committed='" + committed + "'",
+            "the replacement stayed stuck in the deleting state after the backspace echo was lost");
         return 1;
     }
 

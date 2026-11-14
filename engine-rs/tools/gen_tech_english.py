@@ -9,6 +9,7 @@ This counts the words of the English manual pages installed on the build machine
 
 Usage: gen_tech_english.py [MAN_DIR] > src/data/tech_english.rs
 """
+
 import collections
 import gzip
 import math
@@ -20,13 +21,14 @@ MAN = sys.argv[1] if len(sys.argv) > 1 else "/usr/share/man"
 MIN_COUNT = 20
 WORD = re.compile(r"[A-Za-z]+")
 
+
 def text_of(path):
     opener = gzip.open if path.endswith(".gz") else open
     with opener(path, "rt", errors="replace") as handle:
         raw = handle.read()
     out = []
     for line in raw.splitlines():
-        if line.startswith((".\\\"", "'\\\"")):
+        if line.startswith(('.\\"', "'\\\"")):
             continue  # comment
         if line.startswith("."):
             parts = line.split(None, 1)
@@ -35,6 +37,7 @@ def text_of(path):
         line = re.sub(r"\\f[BIRP]|\\f\(..|\\\(..|\\\*.|\\[&|^%-]|\\e", " ", line)
         out.append(line)
     return "\n".join(out)
+
 
 counts = collections.Counter()
 for sec in ("man1", "man5", "man7", "man8"):

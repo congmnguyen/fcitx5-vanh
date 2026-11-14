@@ -322,7 +322,7 @@ namespace fcitx {
 
         // Surrounding text can lag behind IME state, so confirm oldPreBuffer_ is still near the
         // cursor before trusting it.
-        const size_t buffLen    = oldPreBuffer_.length();
+        const size_t buffLen = oldPreBuffer_.length();
         // The last occurrence starting at or before the cursor: the word may also stand earlier
         // in the field.
         const size_t pb         = u32Text.rfind(oldPreBuffer_, cursor);

@@ -19,26 +19,32 @@
 
 namespace {
 
-    bool receiveBackspaceRequest(KbSocketListener& listener, size_t& count, const char* meaning, const char* timeoutExpected = "request within 5000 ms") {
+    bool receiveBackspaceRequest(KbSocketListener& listener, size_t& count, const char* meaning,
+        const char* timeoutExpected = "request within 5000 ms") {
         KbMsg msg{};
         if (!listener.receive(msg, meaning, timeoutExpected))
             return false;
         if (msg.op != KbOp::Backspace || msg.count <= 0) {
-            reportFailure("receive replacement request", "op=backspace, count > 0", "op=" + std::to_string(static_cast<int>(msg.op)) + ", count=" + std::to_string(msg.count),
-                          meaning);
+            reportFailure("receive replacement request", "op=backspace, count > 0",
+                "op=" + std::to_string(static_cast<int>(msg.op)) +
+                    ", count=" + std::to_string(msg.count),
+                meaning);
             return false;
         }
         count = msg.count;
         return true;
     }
 
-    bool send(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry, TestInputContext& context, fcitx::KeySym symbol, bool requireAccepted) {
+    bool send(fcitx::LotusEngine& engine, const fcitx::InputMethodEntry& entry,
+        TestInputContext& context, fcitx::KeySym symbol, bool requireAccepted) {
         fcitx::KeyEvent event(&context, fcitx::Key(symbol), false);
         engine.keyEvent(entry, event);
         if (event.accepted() != requireAccepted) {
-            reportFailure("process key " + std::to_string(symbol), "accepted=" + std::to_string(static_cast<int>(requireAccepted)),
-                          "accepted=" + std::to_string(static_cast<int>(event.accepted())) + ", commits=" + std::to_string(context.commits().size()),
-                          "the replacement handling accepted or rejected the key unexpectedly");
+            reportFailure("process key " + std::to_string(symbol),
+                "accepted=" + std::to_string(static_cast<int>(requireAccepted)),
+                "accepted=" + std::to_string(static_cast<int>(event.accepted())) +
+                    ", commits=" + std::to_string(context.commits().size()),
+                "the replacement handling accepted or rejected the key unexpectedly");
             return false;
         }
         return true;
@@ -47,16 +53,18 @@ namespace {
     // Runs the fcitx event loop long enough for the 0 ms deferred-commit timer to fire.
     void pumpEventLoop(TestInstance& testInstance) {
         auto&      loop      = testInstance.instance.eventLoop();
-        const auto exitTimer = loop.addTimeEvent(CLOCK_MONOTONIC, fcitx::now(CLOCK_MONOTONIC) + 5000, 0, [&loop](fcitx::EventSourceTime*, uint64_t) {
-            loop.exit();
-            return false;
-        });
+        const auto exitTimer = loop.addTimeEvent(CLOCK_MONOTONIC,
+            fcitx::now(CLOCK_MONOTONIC) + 5000, 0, [&loop](fcitx::EventSourceTime*, uint64_t) {
+                loop.exit();
+                return false;
+            });
         loop.exec();
     }
 
     // Telex "oo" -> "ô" starts a replacement, "i" is typed while the deletion runs and gets buffered,
     // so finishing the replacement replays it and its text lands in the same batch as the "ô".
-    std::unique_ptr<TestInputContext> runReplacementWithBufferedKey(TestInstance& testInstance, fcitx::LotusEngine& engine, KbSocketListener& listener, const char* frontendName) {
+    std::unique_ptr<TestInputContext> runReplacementWithBufferedKey(TestInstance& testInstance,
+        fcitx::LotusEngine& engine, KbSocketListener& listener, const char* frontendName) {
         auto context = std::make_unique<TestInputContext>(&testInstance.instance);
         context->setFrontendName(frontendName);
         context->focusIn();
@@ -65,14 +73,18 @@ namespace {
         engine.activate(entry, focus);
         context->resetPreeditUpdateCount();
 
-        if (!send(engine, entry, *context, FcitxKey_o, false) || !send(engine, entry, *context, FcitxKey_o, true))
+        if (!send(engine, entry, *context, FcitxKey_o, false) ||
+            !send(engine, entry, *context, FcitxKey_o, true))
             return nullptr;
         size_t backspaces = 0;
-        if (!receiveBackspaceRequest(listener, backspaces, "the Telex replacement request did not arrive"))
+        if (!receiveBackspaceRequest(
+                listener, backspaces, "the Telex replacement request did not arrive"))
             return nullptr;
         if (!send(engine, entry, *context, FcitxKey_i, true) || !context->commits().empty()) {
-            reportFailure("buffer key i before the deletion completes", "no commit during the deletion", "commits=" + std::to_string(context->commits().size()),
-                          "the buffered key was committed before the replacement finished");
+            reportFailure("buffer key i before the deletion completes",
+                "no commit during the deletion",
+                "commits=" + std::to_string(context->commits().size()),
+                "the buffered key was committed before the replacement finished");
             return nullptr;
         }
         for (size_t i = 0; i < backspaces; ++i) {
@@ -94,8 +106,11 @@ int main() {
     config.setValueByPath("Mode", "Uinput (Smooth)");
     config.setValueByPath("InputMethod", "Telex");
     engine.setConfig(config);
-    if (engine.config().mode.value() != fcitx::LotusMode::Smooth || engine.config().inputMethod.value() != fcitx::InputMethodId::Telex) {
-        reportFailure("configure Smooth/Telex", "mode=Smooth, input method=Telex", "configured mode or input method differs", "the test cannot exercise Smooth Telex behavior");
+    if (engine.config().mode.value() != fcitx::LotusMode::Smooth ||
+        engine.config().inputMethod.value() != fcitx::InputMethodId::Telex) {
+        reportFailure("configure Smooth/Telex", "mode=Smooth, input method=Telex",
+            "configured mode or input method differs",
+            "the test cannot exercise Smooth Telex behavior");
         return 1;
     }
 
@@ -111,8 +126,10 @@ int main() {
     if (ibusContext == nullptr)
         return 1;
     if (ibusContext->commits() != expected) {
-        reportFailure("merges the replacement and the replayed keys into one commit", "one commit of the whole replacement",
-                      "commits=" + std::to_string(ibusContext->commits().size()), "a second commit before the next done event would replace the first one");
+        reportFailure("merges the replacement and the replayed keys into one commit",
+            "one commit of the whole replacement",
+            "commits=" + std::to_string(ibusContext->commits().size()),
+            "a second commit before the next done event would replace the first one");
         return 1;
     }
 
@@ -121,14 +138,18 @@ int main() {
     if (dbusContext == nullptr)
         return 1;
     if (!dbusContext->commits().empty()) {
-        reportFailure("dbus commits deferred out of the key event", "no commit while the anchor backspace is consumed", "commits=" + std::to_string(dbusContext->commits().size()),
-                      "a dbus frontend loses the text attached to the consumed backspace");
+        reportFailure("dbus commits deferred out of the key event",
+            "no commit while the anchor backspace is consumed",
+            "commits=" + std::to_string(dbusContext->commits().size()),
+            "a dbus frontend loses the text attached to the consumed backspace");
         return 1;
     }
     pumpEventLoop(testInstance);
     if (dbusContext->commits() != expected) {
-        reportFailure("deferred batch delivered as one commit", "one commit of the whole replacement", "commits=" + std::to_string(dbusContext->commits().size()),
-                      "the deferred batch must reach the client as a single commit");
+        reportFailure("deferred batch delivered as one commit",
+            "one commit of the whole replacement",
+            "commits=" + std::to_string(dbusContext->commits().size()),
+            "the deferred batch must reach the client as a single commit");
         return 1;
     }
 

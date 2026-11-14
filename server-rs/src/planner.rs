@@ -311,6 +311,7 @@ impl Recorder {
 mod tests {
     use super::Event::{Down, Log, Sleep, Tap, Up};
     use super::*;
+    use crate::protocol::{decode, KB_MSG_SIZE, SHORT_MSG_SIZE};
     use crate::shift::ShiftState::{Held, Released, Unknown};
 
     const BS: u16 = keys::BACKSPACE;
@@ -559,6 +560,80 @@ mod tests {
         planner.handle(&msg(KbOp::Unknown(7), 2, 0, 3, 0), Released, &mut out);
         assert_eq!(out.events, vec![Log(Level::Warn, "Unknown keyboard message op: 7".to_owned())]);
         assert!(!planner.has_pending());
+    }
+
+    /// Random packets, complete and truncated, between random ticks, disconnects and shutdowns:
+    /// whatever a client sends, the server only taps its own keys, never waits longer than the
+    /// clamps, never queues more than the cap and never leaves Shift down.
+    #[test]
+    fn fuzz_hostile_packets() {
+        let mut state = 0x9e37_79b9_7f4a_7c15_u64;
+        let mut next = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        let mut planner = Planner::default();
+        for round in 0..200_000 {
+            let mut out = Recorder::default();
+            let shift_before = planner.shift_held();
+            match next() % 16 {
+                0 => planner.disconnected(&mut out),
+                1 => planner.shutdown(&mut out),
+                2..=5 => planner.tick(&mut out),
+                _ => {
+                    let mut buf = [0u8; KB_MSG_SIZE];
+                    buf.iter_mut().for_each(|byte| *byte = next() as u8);
+                    // Mostly a valid op, so the state machine is reached.
+                    if next() % 4 != 0 {
+                        buf[0] = (next() % 4) as u8;
+                    }
+                    // Small counts too: a random one is nearly always above the cap.
+                    if next() % 2 == 0 {
+                        buf[8..KB_MSG_SIZE].fill(0);
+                        buf[8] = (next() % 40) as u8;
+                    }
+                    let len = match next() % 8 {
+                        0 => SHORT_MSG_SIZE,
+                        1 => (next() % (KB_MSG_SIZE as u64 + 1)) as usize,
+                        _ => KB_MSG_SIZE,
+                    };
+                    let shift = [Released, Held, Unknown][(next() % 3) as usize];
+                    match decode(&buf, len) {
+                        Some(msg) => planner.handle(&msg, shift, &mut out),
+                        None => assert!(len != KB_MSG_SIZE && len != SHORT_MSG_SIZE),
+                    }
+                }
+            }
+            let mut shift = shift_before;
+            for event in &out.events {
+                match event {
+                    Tap(code) => assert!(
+                        [BS, LEFT, DEL, PAUSE, keys::ENTER].contains(code),
+                        "round {round}: tap {code}"
+                    ),
+                    Down(code) => {
+                        assert!(*code == SHIFT && !shift, "round {round}: down {code}");
+                        shift = true;
+                    }
+                    Up(code) => {
+                        assert!(*code == SHIFT && shift, "round {round}: up {code}");
+                        shift = false;
+                    }
+                    Sleep(ms) => assert!(*ms <= MAX_DELAY_MS, "round {round}: sleep {ms}"),
+                    Log(..) => {}
+                }
+            }
+            assert_eq!(shift, planner.shift_held(), "round {round}");
+            assert!(planner.pending_backspaces <= MAX_PENDING, "round {round}");
+            assert!(planner.pending_selects <= MAX_PENDING, "round {round}");
+            assert!(planner.tick_interval().unwrap_or(1) <= MAX_INTERVAL_MS, "round {round}");
+        }
+        let mut out = Recorder::default();
+        planner.disconnected(&mut out);
+        drain(&mut planner, &mut out);
+        assert!(!planner.shift_held());
     }
 
     #[test]

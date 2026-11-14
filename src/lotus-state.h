@@ -292,7 +292,7 @@ namespace fcitx {
         void handleSurroundingText(KeyEvent& keyEvent, KeySym currentSym);
 
         /** @brief Whether the surrounding text path is usable for this key (auto mode). */
-        bool shouldUseSurroundingText() const;
+        [[nodiscard]] bool shouldUseSurroundingText() const;
 
         /**
          * @brief Forgets the tracked surrounding word.

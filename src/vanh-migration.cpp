@@ -341,7 +341,7 @@ namespace vanh::migration {
             log.push_back("Cannot write " + profilePath.string() + ": " + error.message());
             return log;
         }
-        log.push_back("Migrated input method \"lotus\" to \"vanh\" in " + profilePath.string());
+        log.push_back(R"(Migrated input method "lotus" to "vanh" in )" + profilePath.string());
         return log;
     }
 

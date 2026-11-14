@@ -89,7 +89,7 @@ namespace fcitx {
             return cachedValue;
         }
         lastCheckMs = now;
-        cachedValue = []() {
+        cachedValue = [] {
             // KDE Plasma: the tray sits on the panel, painted by the Plasma Style,
             // while the portal below reports the application colour scheme.  The
             // two differ in the default Fedora/Kubuntu look (#374).
@@ -154,8 +154,9 @@ namespace fcitx {
     LotusEngine::LotusEngine(Instance* instance) :
         instance_(*instance), kbSender_(buildSocketPath(VANH_KB_SOCKET_FILE)),
         factory_([this](InputContext& ic) {
+            // NOLINTNEXTLINE(cppcoreguidelines-owning-memory): fcitx5 factory
             return new LotusState(this, &ic);
-        }) { // NOLINT
+        }) {
         windowFocusTracker_ = std::make_unique<WindowFocusTracker>();
         windowFocusTracker_->start();
         isGnome_ = getEnv("XDG_CURRENT_DESKTOP").find("GNOME") != std::string::npos;

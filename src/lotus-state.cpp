@@ -591,7 +591,7 @@ namespace fcitx {
             const auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::steady_clock::now() - lastCommitTime_)
                                        .count();
-            if (elapsedMs < commitMs) {
+            if (std::cmp_less(elapsedMs, commitMs)) {
                 preDelay = static_cast<uint32_t>(commitMs - elapsedMs);
             }
         }
@@ -870,7 +870,7 @@ namespace fcitx {
             if (!engine_.kbSender().connected()) {
                 return false;
             }
-            if (keyEvent.rawKey().states() & kRevertMods) {
+            if (keyEvent.rawKey().states().testAny(kRevertMods)) {
                 pendingRevert_.emplace(before, after);
             } else {
                 performReplacement(diffPart);
@@ -1162,6 +1162,7 @@ namespace fcitx {
             !(keyEvent.rawKey().states() & kRevertMods & ~Key::keySymToStates(rawSym)) :
             !keyEvent.rawKey().isModifier();
         if (pendingRevert_ && revertNow) {
+            // NOLINTNEXTLINE(bugprone-unchecked-optional-access): pendingRevert_ is checked above
             const auto [before, after] = *std::exchange(pendingRevert_, std::nullopt);
             performReplacement(compareAndSplitU32(before, after));
         }
@@ -1274,8 +1275,8 @@ namespace fcitx {
         // backspaces of an automated replacement.
         if (*engine_.config().autoCapitalizeAfterPunctuation && currentMode() != LotusMode::Off &&
             !keyEvent.key().hasModifier() &&
-            !((g_isDeleting.load(std::memory_order_acquire) && isBackspace(currentSym)) ||
-                currentSym == FcitxKey_Pause)) {
+            !(g_isDeleting.load(std::memory_order_acquire) && isBackspace(currentSym)) &&
+            currentSym != FcitxKey_Pause) {
             if (shouldCapitalize_) {
                 if (currentSym >= FcitxKey_a && currentSym <= FcitxKey_z) {
                     currentSym = static_cast<KeySym>(currentSym - (FcitxKey_a - FcitxKey_A));
@@ -1371,7 +1372,7 @@ namespace fcitx {
             if (*engine_.config().doubleSpaceToPeriod &&
                 handleDoubleKey(keyEvent,
                     currentSym == FcitxKey_space || currentSym == FcitxKey_KP_Space, isPrevSpace_,
-                    {U" ", U". "}, "Commit: . ")) {
+                    {.deletedPart = U" ", .addedPart = U". "}, "Commit: . ")) {
                 if (*engine_.config().autoCapitalizeAfterPunctuation) {
                     isPrevPunctuation_ = true;
                     shouldCapitalize_  = true;
@@ -1381,7 +1382,8 @@ namespace fcitx {
             if (*engine_.config().doubleHyphenToEmDash &&
                 handleDoubleKey(keyEvent,
                     currentSym == FcitxKey_minus || currentSym == FcitxKey_KP_Subtract,
-                    isPrevHyphen_, {U"-", U"—"}, "Commit: — (em-dash)")) {
+                    isPrevHyphen_, {.deletedPart = U"-", .addedPart = U"—"},
+                    "Commit: — (em-dash)")) {
                 return;
             }
         }

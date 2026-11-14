@@ -26,6 +26,8 @@ namespace lotus {
         method.handle_ = std::shared_ptr<const LotusInputMethod>(
             lotus_input_method_parse(keys.data(), values.data(), keys.size()),
             [](const LotusInputMethod* handle) {
+                // The C API frees through a mutable pointer.
+                // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
                 lotus_input_method_free(const_cast<LotusInputMethod*>(handle));
             });
         return method;

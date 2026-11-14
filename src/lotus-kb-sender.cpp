@@ -36,6 +36,7 @@ bool KbSender::send(const KbMsg& msg) {
         LOTUS_ERROR("Cannot send key request since cannot connect to uinput server");
         return false;
     }
+    // NOLINTNEXTLINE(clang-analyzer-unix.StdCLibraryFunctions): fd_ is valid, checked above
     const ssize_t written = ::send(fd_.get(), &msg, sizeof(msg), MSG_NOSIGNAL);
     if (std::cmp_equal(written, sizeof(msg))) {
         return true;

@@ -25,7 +25,13 @@ Checks: >
   -cppcoreguidelines-pro-type-reinterpret-cast,
   -bugprone-derived-method-shadowing-base-method,
   -bugprone-command-processor,
-  -bugprone-throwing-static-initialization
+  -bugprone-throwing-static-initialization,
+  -modernize-avoid-c-arrays,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -readability-ambiguous-smartptr-reset-call,
+  -readability-math-missing-parentheses,
+  -readability-named-parameter,
+  -readability-trailing-comma
 
 WarningsAsErrors: ''
 HeaderFilterRegex: '(src|common|engine-rs/cxx|test)/.*'
@@ -33,3 +39,5 @@ HeaderFilterRegex: '(src|common|engine-rs/cxx|test)/.*'
 CheckOptions:
   - key:             modernize-use-nullptr.NullMacros
     value:           'NULL'
+  - key:             bugprone-signed-bitwise.IgnorePositiveIntegerLiterals
+    value:           true

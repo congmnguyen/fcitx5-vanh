@@ -5,15 +5,20 @@
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0+</project_license>
   <name>Vanh</name>
-  <summary>Vietnamese input method (Vanh)</summary>
+  <summary>Vietnamese input method that mixes Vietnamese and English</summary>
   <description>
-    <p>Vanh is a Vietnamese input method for Fcitx5, supporting multiple typing modes and input
-      methods.</p>
+    <p>Vanh is a Vietnamese input method for Fcitx5. It lets you type Vietnamese and English in
+      the same text without switching modes: an English word is put back as typed at the end of
+      the word, with the words next to it deciding the ambiguous cases.</p>
+    <p>Text goes straight into the field, without an underlined preedit, and fast typing does not
+      drop or double letters. Telex, VNI and other input methods, macros, a user dictionary,
+      legacy charsets and an emoji picker are included.</p>
   </description>
   <url type="homepage">https://github.com/congmnguyen/fcitx5-vanh</url>
   <url type="bugtracker">https://github.com/congmnguyen/fcitx5-vanh/issues</url>
   <project_group>Fcitx</project_group>
   <releases>
-    <release version="@PROJECT_VERSION@" date="2026-02-26" />
+    <release version="6.0.5" date="2026-11-04" />
+    <release version="6.0.4" date="2026-10-31" />
   </releases>
 </component>

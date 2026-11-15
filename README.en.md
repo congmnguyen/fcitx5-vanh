@@ -14,14 +14,16 @@
 
 The package, addon, input method, server and config files are named `vanh` (`fcitx5-vanh`, `fcitx5-vanh-server@<user>.service`, `~/.config/fcitx5/conf/vanh.conf`). The `fcitx5-vanh` package replaces `fcitx5-lotus`; on the first start Vanh copies an existing lotus configuration (config, macros, keymap, app rules, emoji history, user dictionary) to the new names and puts Vanh in place of lotus in the input method list. The old files are kept.
 
-## Install from a release (Debian/Ubuntu)
+## Install with apt (Debian/Ubuntu)
 
-Every release ships a `.deb` (amd64) for Ubuntu 22.04, 24.04, 25.10, 26.04, 26.10 and Debian 12, 13, testing, unstable:
+The apt repository has amd64 packages for Ubuntu 22.04, 24.04, 25.10, 26.04, 26.10 and Debian 12, 13, testing, unstable. Add it once; later versions arrive through `sudo apt upgrade`. Single `.deb` files are on the [Releases](https://github.com/congmnguyen/fcitx5-vanh/releases) page.
 
 ```bash
-ver=6.0.5-1; deb=fcitx5-vanh_${ver}_amd64_$(lsb_release -cs).deb
-wget https://github.com/congmnguyen/fcitx5-vanh/releases/download/v${ver%-*}/$deb
-sudo apt install ./$deb
+url=https://congmnguyen.github.io/fcitx5-vanh key=/usr/share/keyrings/fcitx5-vanh.asc
+sudo wget -O $key $url/key.asc
+echo "deb [arch=amd64 signed-by=$key] $url $(. /etc/os-release; echo ${UBUNTU_CODENAME:-$VERSION_CODENAME}) main" \
+  | sudo tee /etc/apt/sources.list.d/fcitx5-vanh.list
+sudo apt update && sudo apt install fcitx5-vanh
 sudo systemctl enable --now fcitx5-vanh-server@$USER
 im-config -n fcitx5
 ```

@@ -2,7 +2,8 @@ name: Build & Release
 
 # Builds the .deb in a clean container per distro (the package links against each distro's
 # libc and fcitx5), checks the format, the lints and the tests under the sanitizers, and on a v*
-# tag makes a draft GitHub Release with every .deb.
+# tag makes a draft GitHub Release with every .deb. Publishing the release (or a manual run, for
+# the latest release) puts its .deb files in the apt repository on GitHub Pages.
 on:
   push:
     branches:
@@ -10,14 +11,18 @@ on:
     tags:
       - 'v*'
   pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
   build-deb:
     name: DEB [${{ matrix.codename }}]
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     strategy:
       fail-fast: false
       matrix:
@@ -86,6 +91,7 @@ jobs:
 
   checks:
     name: Format, lint, sanitizers
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     # The tools of Ubuntu 26.04 (clang-format 21, Rust 1.93) decide the format; clang-tidy and
     # ruff are pinned below. LeakSanitizer needs ptrace.
@@ -168,3 +174,54 @@ jobs:
           draft: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  apt-repo:
+    name: Publish the apt repository
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      # Every distro has its own build of the same version, so each gets its own pool directory.
+      # The repository holds the one release only; older ones stay on the Releases page.
+      - name: Build and sign the repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APT_GPG_KEY: ${{ secrets.APT_GPG_KEY }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          sudo apt-get install -y --no-install-recommends apt-utils
+          gh release download $TAG -R "$GITHUB_REPOSITORY" -p '*.deb' -D debs
+          echo "$APT_GPG_KEY" | gpg --batch --import
+          mkdir repo && cd repo
+          gpg --armor --export > key.asc
+          for deb in ../debs/*.deb; do
+            codename=${deb##*_}; codename=${codename%.deb}
+            dist=dists/$codename
+            mkdir -p pool/$codename $dist/main/binary-amd64
+            cp "$deb" pool/$codename/
+            apt-ftparchive packages pool/$codename > $dist/main/binary-amd64/Packages
+            gzip -k $dist/main/binary-amd64/Packages
+            apt-ftparchive -o APT::FTPArchive::Release::Origin=Vanh \
+              -o APT::FTPArchive::Release::Label=Vanh \
+              -o APT::FTPArchive::Release::Suite=$codename \
+              -o APT::FTPArchive::Release::Codename=$codename \
+              -o APT::FTPArchive::Release::Architectures=amd64 \
+              -o APT::FTPArchive::Release::Components=main release $dist > Release
+            mv Release $dist/
+            gpg --batch --clearsign -o $dist/InRelease $dist/Release
+            gpg --batch --armor --detach-sign -o $dist/Release.gpg $dist/Release
+          done
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: repo
+
+      - id: deploy
+        uses: actions/deploy-pages@v5

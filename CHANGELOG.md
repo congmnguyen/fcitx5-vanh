@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- apt repository on GitHub Pages: `sudo apt install fcitx5-vanh` after adding it once, and
+  updates through `apt upgrade`.
 - D-Bus frontends: a character typed while the previous commit was still on its way no longer
   lands before it ("ái" became "iá").
 - A backspace that a GTK app forwards twice no longer ends a replacement early.

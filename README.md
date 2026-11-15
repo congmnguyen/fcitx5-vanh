@@ -14,14 +14,16 @@
 
 Gói, addon, bộ gõ, server và file cấu hình đều tên `vanh` (`fcitx5-vanh`, `fcitx5-vanh-server@<user>.service`, `~/.config/fcitx5/conf/vanh.conf`). Gói `fcitx5-vanh` thay thế `fcitx5-lotus`; lần đầu chạy, Vanh tự chép cấu hình lotus cũ (cấu hình, macro, keymap, luật theo app, lịch sử emoji, từ điển người dùng) sang tên mới và đặt Vanh vào chỗ của lotus trong danh sách bộ gõ. File cũ được giữ nguyên.
 
-## Cài từ bản phát hành (Debian/Ubuntu)
+## Cài bằng apt (Debian/Ubuntu)
 
-Mỗi bản phát hành có sẵn `.deb` (amd64) cho Ubuntu 22.04, 24.04, 25.10, 26.04, 26.10 và Debian 12, 13, testing, unstable:
+Kho apt có gói amd64 cho Ubuntu 22.04, 24.04, 25.10, 26.04, 26.10 và Debian 12, 13, testing, unstable. Thêm kho một lần; các bản sau đến qua `sudo apt upgrade`. File `.deb` lẻ có ở trang [Releases](https://github.com/congmnguyen/fcitx5-vanh/releases).
 
 ```bash
-ver=6.0.5-1; deb=fcitx5-vanh_${ver}_amd64_$(lsb_release -cs).deb
-wget https://github.com/congmnguyen/fcitx5-vanh/releases/download/v${ver%-*}/$deb
-sudo apt install ./$deb
+url=https://congmnguyen.github.io/fcitx5-vanh key=/usr/share/keyrings/fcitx5-vanh.asc
+sudo wget -O $key $url/key.asc
+echo "deb [arch=amd64 signed-by=$key] $url $(. /etc/os-release; echo ${UBUNTU_CODENAME:-$VERSION_CODENAME}) main" \
+  | sudo tee /etc/apt/sources.list.d/fcitx5-vanh.list
+sudo apt update && sudo apt install fcitx5-vanh
 sudo systemctl enable --now fcitx5-vanh-server@$USER
 im-config -n fcitx5
 ```

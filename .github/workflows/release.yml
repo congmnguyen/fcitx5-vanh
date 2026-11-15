@@ -201,6 +201,25 @@ jobs:
           echo "$APT_GPG_KEY" | gpg --batch --import
           mkdir repo && cd repo
           gpg --armor --export > key.asc
+          cat > index.html <<'EOF'
+          <!doctype html>
+          <html lang="vi">
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>Kho apt của Vanh</title>
+          <body style="font-family: sans-serif; max-width: 50em; margin: 2em auto; padding: 0 1em">
+          <h1>Kho apt của Vanh</h1>
+          <p>Bộ gõ tiếng Việt cho Fcitx5, gói amd64 cho Ubuntu và Debian. Cài:</p>
+          <pre style="overflow-x: auto; background: #eee; padding: 1em">
+          url=https://congmnguyen.github.io/fcitx5-vanh key=/usr/share/keyrings/fcitx5-vanh.asc
+          sudo wget -O $key $url/key.asc
+          echo "deb [arch=amd64 signed-by=$key] $url $(. /etc/os-release
+              echo ${UBUNTU_CODENAME:-$VERSION_CODENAME}) main" \
+              | sudo tee /etc/apt/sources.list.d/fcitx5-vanh.list
+          sudo apt update &amp;&amp; sudo apt install fcitx5-vanh</pre>
+          <p>Hướng dẫn và mã nguồn:
+          <a href="https://github.com/congmnguyen/fcitx5-vanh">github.com/congmnguyen/fcitx5-vanh</a></p>
+          EOF
           for deb in ../debs/*.deb; do
             codename=${deb##*_}; codename=${codename%.deb}
             dist=dists/$codename

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- First install: the package enables and starts the uinput server for the logged-in users.
 - apt repository on GitHub Pages: `sudo apt install fcitx5-vanh` after adding it once, and
   updates through `apt upgrade`.
 - D-Bus frontends: a character typed while the previous commit was still on its way no longer

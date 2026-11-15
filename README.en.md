@@ -24,11 +24,10 @@ sudo wget -O $key $url/key.asc
 echo "deb [arch=amd64 signed-by=$key] $url $(. /etc/os-release; echo ${UBUNTU_CODENAME:-$VERSION_CODENAME}) main" \
   | sudo tee /etc/apt/sources.list.d/fcitx5-vanh.list
 sudo apt update && sudo apt install fcitx5-vanh
-sudo systemctl enable --now fcitx5-vanh-server@$USER
 im-config -n fcitx5
 ```
 
-Log out and back in, open Fcitx5 Configuration (`fcitx5-configtool`) and add **Vanh** to the input method list.
+The package enables the `fcitx5-vanh-server@<user>` server for the logged-in users. Log out and back in, open Fcitx5 Configuration (`fcitx5-configtool`) and add **Vanh** to the input method list.
 
 ## Build from source (Debian/Ubuntu)
 
@@ -39,7 +38,6 @@ sudo apt install --no-install-recommends debhelper dh-python cmake g++ extra-cma
 git clone https://github.com/congmnguyen/fcitx5-vanh && cd fcitx5-vanh
 cp -r packaging/debian debian && dpkg-buildpackage -b -us -uc -j$(nproc) && rm -rf debian obj-*
 sudo apt install ../fcitx5-vanh_*_amd64.deb python3-pyqt5
-sudo systemctl enable --now fcitx5-vanh-server@$USER
 fcitx5 -r -d
 ```
 

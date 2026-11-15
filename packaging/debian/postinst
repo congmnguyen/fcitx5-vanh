@@ -91,6 +91,15 @@ if [ "$1" = "configure" ]; then
     migrate_old_server_units
     restart_server_units
 
+    # First install: enable and start the server for the regular users logged in now.
+    enabled_users=""
+    if [ -z "$2" ] && [ -z "$had_old_units" ] && systemd_running; then
+        for user in $(loginctl list-users --no-legend | awk '$1 >= 1000 { print $2 }'); do
+            systemctl enable --now "${NEW_UNIT_PREFIX}${user}.service" >/dev/null 2>&1 \
+                && enabled_users="$enabled_users $user"
+        done
+    fi
+
     if [ -n "$had_old_units" ]; then
         echo "--- Vanh ---"
         echo "fcitx5-lotus đã được thay bằng fcitx5-vanh; dịch vụ server đã được chuyển sang"
@@ -100,8 +109,8 @@ if [ "$1" = "configure" ]; then
     elif [ -z "$2" ]; then
         echo "--- Cấu hình Vanh ---"
         echo "Hướng dẫn sau cài đặt:"
-        echo "1. Kích hoạt Server cho user của bạn:"
-        echo "   sudo systemctl enable --now fcitx5-vanh-server@\$(whoami).service"
+        echo "1. Server đã được bật cho:${enabled_users:- (chưa có user nào)}. Bật cho user khác:"
+        echo "   sudo systemctl enable --now fcitx5-vanh-server@<user>.service"
         echo ""
         echo "2. Cấu hình Fcitx5:"
         echo "   - Mở 'Fcitx5 Configuration', thêm bộ gõ Vanh"

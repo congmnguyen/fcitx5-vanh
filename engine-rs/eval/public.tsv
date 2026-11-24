@@ -164,3 +164,17 @@ test	public	typed	hard#45	evvvvvve	case này hiếm gặp nhưng vẫn phải ha
 test	public	typed	hard#46	vvvvvvv	tôi sẽ tới lúc sáu giờ tối
 test	public	typed	hard#47	vvvvvvv	tới giờ ăn trưa rồi, đi thôi
 test	public	typed	hard#48	vvveeeee	anh ta nói is this real or fake
+test	public	typed	hard#49	vecveve	sửa file /etc/nginx/conf.d/app.conf rồi reload nginx
+test	public	typed	hard#50	vcvvv	mở https://github.com/congmnguyen/fcitx5-vanh/releases xem bản mới
+test	public	typed	hard#51	vcvvvv	xem ./src/conf/main.rs có bị lỗi không
+test	public	typed	hard#52	vcvcvvvv	gõ /clear hoặc /compact để dọn lịch sử
+test	public	typed	hard#53	veevcvve	chạy cargo clippy với --all-targets trước khi push
+test	public	typed	hard#54	veeccvvv	bật systemctl enable --now fcitx5-vanh-server rồi kiểm tra
+test	public	typed	hard#55	vvvvvcv	nhớ cập nhật đường dẫn /usr/share/fcitx5/vanh/dict nhé
+test	public	typed	hard#56	vvvvvv	ngày/tháng/năm phải đúng định dạng chuẩn
+test	public	typed	hard#57	vvcvvve	đặt biến RUST_LOG=debug trước khi chạy binary
+test	public	typed	hard#58	vevcvve	xem log ở /var/log/syslog hoặc dùng journalctl
+test	public	typed	hard#59	vvecvvvv	cài thêm package python3-pyqt5 để chạy giao diện
+test	public	typed	hard#60	vcvvvc	dùng dbus-send gửi lệnh tới org.fcitx.Fcitx5
+test	public	typed	hard#61	vevecvv	tách logic sang file utils/path_helper.rs cho gọn
+test	public	typed	hard#62	vvvvvve	có/không/có gì thì nhắn lại trên Slack

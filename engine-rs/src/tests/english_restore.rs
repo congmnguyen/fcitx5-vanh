@@ -102,7 +102,33 @@ fn words_glued_into_code_tokens() {
         ("vaf/hoawcj", "và/hoặc"),
         ("Baf Rija-Vuxng Tauf", "Bà Rịa-Vũng Tàu"),
         ("gioowf/max", "giờ/mã"),
+        ("~/.config/fcitx5/conf/vanh.conf", "~/.config/fcitx5/conf/vanh.conf"),
+        (
+            "mowr file ~/.config/fcitx5/conf/vanh.conf leen xem",
+            "mở file ~/.config/fcitx5/conf/vanh.conf lên xem",
+        ),
+        (
+            "suwra file /etc/nginx/conf.d/app.conf rooif reload",
+            "sửa file /etc/nginx/conf.d/app.conf rồi reload",
+        ),
+        ("/etc/nginx/conf.d/app.conf", "/etc/nginx/conf.d/app.conf"),
+        ("./src/conf/main.rs", "./src/conf/main.rs"),
+        ("https://example.com/conf/test", "https://example.com/conf/test"),
+        ("/conf", "/conf"),
+        ("ngayf/thangs/nawm", "ngày/tháng/năm"),
+        ("cos/khoong/cos", "có/không/có"),
     ]);
+    // Also with macros disabled (the addon's non-macro path forwards leading '/', '~', '.').
+    let mut p = processor();
+    p.set_macro_enabled(false);
+    assert_eq!(
+        typed_with_revert(&mut p, "", "mowr file ~/.config/fcitx5/conf/vanh.conf leen xem"),
+        "mở file ~/.config/fcitx5/conf/vanh.conf lên xem"
+    );
+    assert_eq!(
+        typed_with_revert(&mut p, "", "suwra file /etc/nginx/conf.d/app.conf rooif reload"),
+        "sửa file /etc/nginx/conf.d/app.conf rồi reload"
+    );
 }
 
 #[test]

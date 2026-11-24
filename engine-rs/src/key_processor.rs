@@ -162,6 +162,9 @@ enum Glue {
     Code {
         strong: bool,
     },
+    /// Segment inside an ASCII filesystem path or URL ("~/.config/fcitx5/conf/vanh.conf",
+    /// "/etc/conf", "https://example.com/conf"): always stays ASCII.
+    Path,
     Hex,
     /// Glued to Vietnamese text ("tên/ngày"): an ordinary word.
     Vietnamese,
@@ -315,7 +318,27 @@ impl KeyProcessor {
                 let text = self.get_preedit_string();
                 self.commit_preedit_and_reset(text);
             }
-            self.forget_context();
+            // Printable separators/digits typed with empty preedit and macros off (e.g. '/',
+            // '~', '-', '.') still advance the current token instead of blinding glued/path
+            // detection for the rest of the token.
+            let passthrough =
+                if Self::is_valid_state(states) && !has_preedit && !self.options.macro_enabled {
+                    Self::key_char(key_val)
+                        .filter(|&c| utils::is_word_break_symbol(c) || c.is_ascii_digit())
+                } else {
+                    None
+                };
+            if let Some(ch) = passthrough {
+                self.history.clear();
+                if ch == ' ' {
+                    self.token.clear();
+                    self.token_known = true;
+                } else if self.token_known {
+                    self.token.push(ch);
+                }
+            } else {
+                self.forget_context();
+            }
             return false;
         }
 
@@ -460,6 +483,7 @@ impl KeyProcessor {
         };
         let word;
         let is_english;
+        let glued_code = matches!(self.glued(&keys), Glue::Code { .. } | Glue::Path | Glue::Hex);
         // Also for words that show no Vietnamese letter but lost a Telex undo key ("eror").
         if info.as_ref().is_some_and(|w| self.restore_to_keys(w, &keys)) {
             self.engine.restore_last_word(false);
@@ -523,7 +547,7 @@ impl KeyProcessor {
             if is_english != was_english {
                 self.history.clear(); // a new run of words in the other language
             }
-            if key == Some(' ') {
+            if key == Some(' ') && !glued_code {
                 self.history.insert(
                     0,
                     Prev {
@@ -537,7 +561,7 @@ impl KeyProcessor {
                 );
                 self.history.truncate(2);
             } else {
-                self.history.clear(); // only words separated by a single space count
+                self.history.clear(); // only standalone words separated by a single space count
             }
         } else if self.options.english_restore {
             self.history.clear(); // digits, one letter...: the chain of words breaks here
@@ -678,7 +702,7 @@ impl KeyProcessor {
     /// The English restore decision for the word ending now (`w`, analysed from `keys`).
     fn restore_to_keys(&self, w: &english::Word, keys: &[char]) -> bool {
         match self.glued(keys) {
-            Glue::Hex => return true, // "…0727aa95": hex digits, never a word
+            Glue::Hex | Glue::Path => return true, // "…0727aa95", "~/.config/fcitx5/conf/vanh.conf"
             // Part of an identifier, path or flag ("max_tokens", "docs/", "--host"): the keys,
             // unless they read clearly as a Vietnamese word ("và/hoặc", "tên/DOB").
             Glue::Code { strong } => return english::restore_glued(w, strong),
@@ -733,6 +757,27 @@ impl KeyProcessor {
         }
         if vietnamese_token {
             return Glue::Vietnamese;
+        }
+        let has_vn_in_token = self.token_known
+            && self
+                .token
+                .iter()
+                .any(|&c| !c.is_ascii() && utils::is_vietnamese_rune(case_map::to_lower(c)));
+        if !has_vn_in_token
+            && self.token_known
+            && matches!(before, Some('/' | '\\' | '.' | '-' | '_'))
+        {
+            let starts_like_path = self.token.starts_with(&['/'])
+                || self.token.starts_with(&['\\'])
+                || self.token.starts_with(&['~', '/'])
+                || self.token.starts_with(&['.', '/'])
+                || self.token.starts_with(&['.', '.', '/']);
+            let has_scheme = self.token.windows(3).any(|w| w == [':', '/', '/']);
+            let slash_count = self.token.iter().filter(|&&c| matches!(c, '/' | '\\')).count()
+                + usize::from(matches!(after, Some('/' | '\\')));
+            if starts_like_path || has_scheme || slash_count >= 2 {
+                return Glue::Path;
+            }
         }
         let strong = before.is_some_and(|c| !weak(c)) || after.is_some_and(|c| !weak(c));
         Glue::Code { strong }

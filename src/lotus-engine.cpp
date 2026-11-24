@@ -222,7 +222,13 @@ namespace fcitx {
                  vanh::migration::userConfigDir(), vanh::migration::userDataDir())) {
             LOTUS_INFO(line);
         }
+        const bool firstRun = !std::filesystem::exists(configDir + "/vanh.conf");
         reloadConfig();
+        if (firstRun && config_.mode.value() == LotusMode::Preedit && kbSender_.ensureConnected()) {
+            config_.mode.setValue(LotusMode::Smooth);
+            saveConfig();
+            LOTUS_INFO("First run with uinput server active: defaulting mode to Uinput (Smooth).");
+        }
         setMode(config_.mode.value(), nullptr);
         checkServerForMode(config_.mode.value());
         instance_.inputContextManager().registerProperty("LotusState", &factory_);

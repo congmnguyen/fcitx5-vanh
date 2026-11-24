@@ -2,14 +2,22 @@
 
 ## Unreleased
 
-- First install: the package enables and starts the uinput server for the logged-in users.
+- First install: the package enables and starts the uinput server for the logged-in users, and
+  Vanh defaults to `Uinput (Smooth)` on first run when the server is active.
+- Path and URL segments stay ASCII even when they look like common Vietnamese words
+  (`~/.config/fcitx5/conf/vanh.conf`, `/etc/nginx/conf.d/app.conf`), and a Vietnamese word
+  following a code/path token no longer flips the token's tail back to Vietnamese.
+- Glued code/path detection now keeps working when macros are disabled.
+- Settings GUI (`fcitx5-vanh-settings`): added Vanh's English restore, auto surrounding text,
+  revert hotkey, a Learned Words manager for `vanh-learned.tsv`, and one-click GNOME
+  `Super + Space` configuration so GNOME Shell toggles Fcitx5 without opening Activities.
 - apt repository on GitHub Pages: `sudo apt install fcitx5-vanh` after adding it once, and
   updates through `apt upgrade`.
 - D-Bus frontends: a character typed while the previous commit was still on its way no longer
   lands before it ("ái" became "iá").
 - A backspace that a GTK app forwards twice no longer ends a replacement early.
 - The accuracy of the English/Vietnamese switch is measured on a public corpus
-  (`engine-rs/eval/public.tsv`) on every build.
+  (`engine-rs/eval/public.tsv`) on every build (179 sentences, 0 wrong words).
 
 ## 6.0.5 (2026-11-04)
 

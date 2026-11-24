@@ -45,22 +45,22 @@ Distro khác (cần thêm `cargo` và `rustc`): `cmake -DCMAKE_INSTALL_PREFIX=/u
 
 ## Sử dụng
 
-- **Chế độ gõ.** Phím `` ` `` mở menu chế độ: Uinput (Smooth), Uinput (Super Smooth), Uinput (Select), Surrounding Text, Preedit, Emoji Picker, OFF. Mặc định là Preedit (có gạch chân). Để gõ không gạch chân, chọn một chế độ Uinput (cần server `fcitx5-vanh-server@<user>` đang chạy) hoặc Surrounding Text.
+- **Chế độ gõ.** Phím `` ` `` mở menu chế độ: Uinput (Smooth), Uinput (Super Smooth), Uinput (Select), Surrounding Text, Preedit, Emoji Picker, OFF. Lần chạy đầu, Vanh tự chọn Uinput (Smooth) nếu server `fcitx5-vanh-server@<user>` đang chạy, và giữ Preedit nếu không có server.
 - **Đảo từ.** `Shift+BackSpace` đổi từ vừa gõ sang cách đọc còn lại (Anh ↔ Việt) khi Vanh đoán sai.
-- **Cài đặt.** `fcitx5-vanh-settings` chỉnh kiểu gõ, bảng mã, phím tắt, macro, từ điển riêng, keymap riêng, và sao lưu/khôi phục cấu hình.
+- **Cài đặt.** `fcitx5-vanh-settings` chỉnh kiểu gõ, bảng mã, phím tắt (gồm nút thiết lập `Super + Space` chuẩn GNOME không mở nhầm Activities), macro, từ đã học, từ điển riêng, keymap riêng, và sao lưu/khôi phục cấu hình.
 - **Luật theo app.** Trong menu chế độ có thể gán một chế độ riêng cho app đang dùng; luật được lưu trong `~/.config/fcitx5/conf/vanh-app-rules.conf`.
 
 ## Độ chính xác
 
-Bộ câu công khai [`engine-rs/eval/public.tsv`](engine-rs/eval/public.tsv) gồm 165 câu Việt/Anh xen kẽ (1333 từ), có cả câu chứa lệnh, đường dẫn, tên biến và từ đọc được cả hai cách, được gõ lại bằng Telex qua engine; mỗi lần build, `ctest` kiểm tra số từ sai không đổi.
+Bộ câu công khai [`engine-rs/eval/public.tsv`](engine-rs/eval/public.tsv) gồm 179 câu Việt/Anh xen kẽ (1430 từ), có cả câu chứa lệnh, đường dẫn, URL, tên biến và từ đọc được cả hai cách, được gõ lại bằng Telex qua engine; mỗi lần build, `ctest` kiểm tra số từ sai không đổi.
 
 | Cấu hình | Từ sai | Trên 1000 từ |
 |---|---|---|
-| Vanh (mặc định) | 1 | 0,75 |
-| Chỉ khôi phục từ sai chính tả (kiểu bamboo) | 41 | 30,8 |
-| Telex thuần | 158 | 118,5 |
+| Vanh (mặc định) | 0 | 0,00 |
+| Chỉ khôi phục từ sai chính tả (kiểu bamboo) | 47 | 32,87 |
+| Telex thuần | 177 | 123,78 |
 
-Từ Vanh còn sai là `conf` nằm trong đường dẫn (`~/.config/fcitx5/conf/vanh.conf` ra `còn`). Bộ câu này nhỏ, tự soạn cho việc đo và chỉ có 30 token code, nên dễ hơn văn bản thật. Chạy lại:
+Bộ câu này nhỏ, tự soạn cho việc đo và có 45 token code, nên dễ hơn văn bản thật. Chạy lại:
 
 ```bash
 cd engine-rs && cargo run --release --example replay -- run eval/public.tsv --split all --config default

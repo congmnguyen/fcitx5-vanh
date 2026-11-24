@@ -45,22 +45,22 @@ Other distros (`cargo` and `rustc` are needed too): `cmake -DCMAKE_INSTALL_PREFI
 
 ## Usage
 
-- **Typing modes.** The `` ` `` key opens the mode menu: Uinput (Smooth), Uinput (Super Smooth), Uinput (Select), Surrounding Text, Preedit, Emoji Picker, OFF. The default is Preedit (underlined). To type without underline, pick a Uinput mode (the `fcitx5-vanh-server@<user>` server must be running) or Surrounding Text.
+- **Typing modes.** The `` ` `` key opens the mode menu: Uinput (Smooth), Uinput (Super Smooth), Uinput (Select), Surrounding Text, Preedit, Emoji Picker, OFF. On the first start, Vanh selects Uinput (Smooth) automatically when the `fcitx5-vanh-server@<user>` server is running, and falls back to Preedit otherwise.
 - **Revert.** `Shift+BackSpace` turns the last word to its other reading (English ↔ Vietnamese) when Vanh guessed wrong.
-- **Settings.** `fcitx5-vanh-settings` edits the input method, charset, hotkeys, macros, the user dictionary, a custom keymap, and backs up or restores the configuration.
+- **Settings.** `fcitx5-vanh-settings` edits the input method, charset, hotkeys (including one-click `Super + Space` setup on GNOME so Activities Overview is never triggered accidentally), macros, learned words, the user dictionary, a custom keymap, and backs up or restores the configuration.
 - **App rules.** The mode menu can assign a mode to the app in use; the rules are kept in `~/.config/fcitx5/conf/vanh-app-rules.conf`.
 
 ## Accuracy
 
-The public corpus [`engine-rs/eval/public.tsv`](engine-rs/eval/public.tsv) has 165 mixed Vietnamese/English sentences (1333 words), some with commands, paths, identifiers and words that read both ways, typed back as Telex through the engine; on every build `ctest` checks that the number of wrong words has not changed.
+The public corpus [`engine-rs/eval/public.tsv`](engine-rs/eval/public.tsv) has 179 mixed Vietnamese/English sentences (1430 words), including commands, paths, URLs, identifiers and words that read both ways, typed back as Telex through the engine; on every build `ctest` checks that the number of wrong words has not changed.
 
 | Configuration | Wrong words | Per 1000 words |
 |---|---|---|
-| Vanh (default) | 1 | 0.75 |
-| Restore of misspelled words only (bamboo style) | 41 | 30.8 |
-| Plain Telex | 158 | 118.5 |
+| Vanh (default) | 0 | 0.00 |
+| Restore of misspelled words only (bamboo style) | 47 | 32.87 |
+| Plain Telex | 177 | 123.78 |
 
-The word Vanh still gets wrong is `conf` inside a path (`~/.config/fcitx5/conf/vanh.conf` comes out as `còn`). The corpus is small, written for this measurement and has only 30 code tokens, so it is easier than real text. To run it again:
+The corpus is small, written for this measurement and has 45 code tokens, so it is easier than real text. To run it again:
 
 ```bash
 cd engine-rs && cargo run --release --example replay -- run eval/public.tsv --split all --config default

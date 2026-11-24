@@ -34,6 +34,16 @@ HELPERS = {
         "Press and release the selected modifier key before typing to skip macro expansion for the next word.\n"
         "If another key is pressed between the modifier's press and release, the skip is cancelled."
     ),
+    "EnglishRestore": N_(
+        "Automatically restore English words to the keys you typed at the end of a word, using context from neighboring words."
+    ),
+    "LearnFromReverts": N_(
+        "Remember your choice locally whenever you press the Revert key, so future occurrences follow your preference."
+    ),
+    "AutoSurroundingText": N_(
+        "In Uinput modes, automatically use Surrounding Text in applications that support it for smoother editing."
+    ),
+    "RevertKey": N_("Switch the word just typed to its other reading (English <-> Vietnamese)."),
 }
 
 
@@ -86,6 +96,12 @@ def local_dict_path() -> str:
     """Returns the path of the user dictionary edited by the settings GUI."""
     xdg_data_home = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
     return os.path.join(xdg_data_home, "fcitx5/vanh/vietnamese.cm.dict")
+
+
+def local_learned_path() -> str:
+    """Returns the path of the local revert-learning table read by the addon."""
+    xdg_config_home = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
+    return os.path.join(xdg_config_home, "fcitx5/conf/vanh-learned.tsv")
 
 
 def set_add_button_mode(

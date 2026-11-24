@@ -173,6 +173,11 @@ class VanhSettingsWindow(QMainWindow):
 
             return DictEditorPage(self.dbus_handler)
 
+        def create_learned():
+            from ui.pages.learned_editor import LearnedEditorPage
+
+            return LearnedEditorPage(self.dbus_handler)
+
         def create_keymap():
             from ui.pages.keymap_editor import KeymapEditorPage
 
@@ -193,6 +198,7 @@ class VanhSettingsWindow(QMainWindow):
         self._add_page(_("Applications"), "applications-other", create_applications)
         self._add_page(_("Macros"), "accessories-text-editor", create_macros)
         self._add_page(_("Dictionary"), "edit-copy", create_dict)
+        self._add_page(_("Learned Words"), "view-history", create_learned)
         self._add_page(_("Keymap"), "preferences-desktop-keyboard", create_keymap)
         self._add_page(
             _("Shortcuts"), "preferences-desktop-keyboard-shortcuts", dynamic("SHORTCUTS")

@@ -13,6 +13,7 @@ EXPECTED_MODULES = (
     "i18n",
     "main",
     "core.dbus_handler",
+    "core.gnome_shortcut",
     "ui.components",
     "ui.helpers",
     "ui.main_window",
@@ -22,6 +23,7 @@ EXPECTED_MODULES = (
     "ui.pages.dict_editor",
     "ui.pages.dynamic_settings",
     "ui.pages.keymap_editor",
+    "ui.pages.learned_editor",
     "ui.pages.macro_editor",
     "ui.pages.mode_manager",
 )

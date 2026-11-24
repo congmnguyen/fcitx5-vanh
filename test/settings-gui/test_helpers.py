@@ -16,6 +16,7 @@ from ui.helpers import (
     bool_to_str,
     config_bool,
     local_dict_path,
+    local_learned_path,
     notify_parent_changed,
     set_add_button_mode,
 )
@@ -92,6 +93,29 @@ class LocalDictPathTests(unittest.TestCase):
             "/home/lotus-user", ".local/share", "fcitx5/vanh/vietnamese.cm.dict"
         )
         self.assertEqual(local_dict_path(), expected)
+
+
+class LocalLearnedPathTests(unittest.TestCase):
+    def setUp(self):
+        self._saved = {name: os.environ.get(name) for name in ("XDG_CONFIG_HOME", "HOME")}
+
+    def tearDown(self):
+        for name, value in self._saved.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+
+    def test_uses_xdg_config_home_when_set(self):
+        os.environ["XDG_CONFIG_HOME"] = "/tmp/vanh-cfg"
+        expected = os.path.join("/tmp/vanh-cfg", "fcitx5/conf/vanh-learned.tsv")
+        self.assertEqual(local_learned_path(), expected)
+
+    def test_falls_back_to_home(self):
+        os.environ.pop("XDG_CONFIG_HOME", None)
+        os.environ["HOME"] = "/home/lotus-user"
+        expected = os.path.join("/home/lotus-user", ".config", "fcitx5/conf/vanh-learned.tsv")
+        self.assertEqual(local_learned_path(), expected)
 
 
 class HelpersCatalogTests(unittest.TestCase):

@@ -29,4 +29,6 @@ add_lotus_python_test(settings_gui_helpers test_helpers.py "unit;settings-gui;py
 add_lotus_python_test(settings_gui_components test_components.py "unit;settings-gui;python")
 add_lotus_python_test(settings_gui_dbus_handler test_dbus_handler.py "unit;settings-gui;python")
 add_lotus_python_test(settings_gui_mode_data test_mode_data.py "unit;settings-gui;python")
+add_lotus_python_test(settings_gui_gnome_shortcut test_gnome_shortcut.py "unit;settings-gui;python")
+add_lotus_python_test(settings_gui_learned_words test_learned_words.py "unit;settings-gui;python")
 add_lotus_python_test(settings_gui_smoke_imports test_smoke_imports.py "unit;settings-gui;python;smoke")

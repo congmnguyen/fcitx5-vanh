@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-14 22:31+0700\n"
+"POT-Creation-Date: 2026-11-24 21:16+0700\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -49,7 +49,7 @@ msgstr ""
 msgid "Abbreviation (e.g. kg)"
 msgstr ""
 
-#: settings-gui/ui/main_window.py:207
+#: settings-gui/ui/main_window.py:213
 msgid "About"
 msgstr ""
 
@@ -61,6 +61,8 @@ msgstr ""
 #: settings-gui/ui/pages/dict_editor.py:346
 #: settings-gui/ui/pages/macro_editor.py:184
 #: settings-gui/ui/pages/macro_editor.py:450
+#: settings-gui/ui/pages/learned_editor.py:128
+#: settings-gui/ui/pages/learned_editor.py:293
 #: settings-gui/ui/pages/keymap_editor.py:271
 #: settings-gui/ui/pages/keymap_editor.py:416 test/settings-gui/test_i18n.py:87
 msgid "Add"
@@ -101,11 +103,11 @@ msgstr ""
 msgid "App Rules"
 msgstr ""
 
-#: src/lotus-engine.cpp:951
+#: src/lotus-engine.cpp:957
 msgid "App: "
 msgstr ""
 
-#: settings-gui/ui/main_window.py:200
+#: settings-gui/ui/main_window.py:206
 msgid "Appearance"
 msgstr ""
 
@@ -114,7 +116,7 @@ msgstr ""
 msgid "Application Rules"
 msgstr ""
 
-#: settings-gui/ui/main_window.py:193 settings-gui/ui/pages/mode_manager.py:190
+#: settings-gui/ui/main_window.py:198 settings-gui/ui/pages/mode_manager.py:190
 msgid "Applications"
 msgstr ""
 
@@ -128,7 +130,7 @@ msgid ""
 "current configuration."
 msgstr ""
 
-#: settings-gui/ui/pages/dynamic_settings.py:89
+#: settings-gui/ui/pages/dynamic_settings.py:102
 msgid ""
 "Assign hotkeys to open the mode menu or quickly cycle through enabled modes."
 msgstr ""
@@ -137,7 +139,7 @@ msgstr ""
 msgid "Auto"
 msgstr ""
 
-#: src/lotus-engine.cpp:203 src/lotus-engine.cpp:400
+#: src/lotus-engine.cpp:203 src/lotus-engine.cpp:406
 msgid "Auto Non-VN Restore"
 msgstr ""
 
@@ -159,6 +161,12 @@ msgid ""
 "- KG -> KHÔ GÀ"
 msgstr ""
 
+#: settings-gui/ui/helpers.py:38
+msgid ""
+"Automatically restore English words to the keys you typed at the end of a "
+"word, using context from neighboring words."
+msgstr ""
+
 #: settings-gui/ui/helpers.py:26
 msgid ""
 "Automatically revert the typed sequence if the resulting word is not in the "
@@ -171,7 +179,7 @@ msgstr ""
 msgid "Backspace Interval"
 msgstr ""
 
-#: settings-gui/ui/main_window.py:201
+#: settings-gui/ui/main_window.py:207
 msgid "Backup"
 msgstr ""
 
@@ -193,7 +201,7 @@ msgid ""
 "<br>Includes third-party components licensed under the <b>MIT License</b>."
 msgstr ""
 
-#: settings-gui/ui/main_window.py:267
+#: settings-gui/ui/main_window.py:273
 msgid "Cannot Save"
 msgstr ""
 
@@ -203,12 +211,20 @@ msgid ""
 "format first."
 msgstr ""
 
-#: src/lotus-engine.cpp:201 src/lotus-engine.cpp:398 src/lotus-config.h:206
+#: src/lotus-engine.cpp:201 src/lotus-engine.cpp:404 src/lotus-config.h:206
 msgid "Capitalize Macro"
 msgstr ""
 
 #: src/lotus-engine.cpp:167
 msgid "Charset"
+msgstr ""
+
+#: settings-gui/ui/pages/learned_editor.py:158
+msgid "Clear All"
+msgstr ""
+
+#: settings-gui/ui/pages/learned_editor.py:355
+msgid "Clear Learned Words"
 msgstr ""
 
 #: settings-gui/ui/components.py:247
@@ -223,7 +239,11 @@ msgstr ""
 msgid "Configure Fcitx5 Vanh Input Method"
 msgstr ""
 
-#: settings-gui/ui/pages/dynamic_settings.py:79
+#: settings-gui/ui/pages/dynamic_settings.py:363
+msgid "Configure Super + Space for GNOME"
+msgstr ""
+
+#: settings-gui/ui/pages/dynamic_settings.py:92
 msgid "Configure basic input method settings and behaviors."
 msgstr ""
 
@@ -235,7 +255,7 @@ msgstr ""
 msgid "Confirm Remove"
 msgstr ""
 
-#: settings-gui/ui/main_window.py:218
+#: settings-gui/ui/main_window.py:224
 msgid "Confirm Reset"
 msgstr ""
 
@@ -247,7 +267,7 @@ msgstr ""
 msgid "Ctrl"
 msgstr ""
 
-#: src/lotus-engine.cpp:205 src/lotus-engine.cpp:402 src/lotus-config.h:232
+#: src/lotus-engine.cpp:205 src/lotus-engine.cpp:408 src/lotus-config.h:232
 msgid "Custom Dictionary"
 msgstr ""
 
@@ -260,7 +280,7 @@ msgstr ""
 msgid "Custom Keymaps"
 msgstr ""
 
-#: settings-gui/ui/pages/dynamic_settings.py:81
+#: settings-gui/ui/pages/dynamic_settings.py:94
 msgid "Customize the look and feel of the Vanh status icons and theme."
 msgstr ""
 
@@ -304,7 +324,7 @@ msgstr ""
 msgid "Developed by"
 msgstr ""
 
-#: settings-gui/ui/main_window.py:195
+#: settings-gui/ui/main_window.py:200
 msgid "Dictionary"
 msgstr ""
 
@@ -320,13 +340,13 @@ msgstr ""
 msgid "Double Space to Period"
 msgstr ""
 
-#: settings-gui/ui/pages/dynamic_settings.py:248
+#: settings-gui/ui/pages/dynamic_settings.py:261
 msgid ""
 "Drag the handle on the left to reorder modes in the menu. Use checkboxes to "
 "toggle visibility, and click the buttons to reassign shortcuts."
 msgstr ""
 
-#: settings-gui/ui/pages/dynamic_settings.py:544
+#: settings-gui/ui/pages/dynamic_settings.py:613
 msgid "Duplicate shortcut '{}' used for multiple enabled modes."
 msgstr ""
 
@@ -342,10 +362,17 @@ msgstr ""
 msgid "Enable Spell Check Using Dictionary"
 msgstr ""
 
-#: settings-gui/ui/main_window.py:278 settings-gui/ui/pages/backup.py:166
+#: settings-gui/ui/pages/learned_editor.py:207
+msgid "English (+{})"
+msgstr ""
+
+#: settings-gui/ui/main_window.py:284 settings-gui/ui/pages/backup.py:166
 #: settings-gui/ui/pages/backup.py:214 settings-gui/ui/pages/backup.py:271
-#: settings-gui/ui/pages/backup.py:294 settings-gui/ui/pages/dict_editor.py:258
+#: settings-gui/ui/pages/backup.py:294
+#: settings-gui/ui/pages/dynamic_settings.py:377
+#: settings-gui/ui/pages/dict_editor.py:258
 #: settings-gui/ui/pages/dict_editor.py:297
+#: settings-gui/ui/pages/learned_editor.py:266
 msgid "Error"
 msgstr ""
 
@@ -373,11 +400,15 @@ msgstr ""
 msgid "Export/Import Settings"
 msgstr ""
 
+#: settings-gui/ui/pages/dynamic_settings.py:378
+msgid "Failed to configure GNOME shortcut: {}"
+msgstr ""
+
 #: settings-gui/ui/pages/backup.py:166
 msgid "Failed to export backup:\n"
 msgstr ""
 
-#: settings-gui/ui/pages/dynamic_settings.py:207
+#: settings-gui/ui/pages/dynamic_settings.py:220
 msgid "Failed to load configuration."
 msgstr ""
 
@@ -385,6 +416,10 @@ msgstr ""
 msgid ""
 "Failed to load dictionary completely: {}\n"
 "Saving is disabled to prevent data loss."
+msgstr ""
+
+#: settings-gui/ui/pages/learned_editor.py:196
+msgid "Failed to load learned words: {}"
 msgstr ""
 
 #: settings-gui/ui/pages/backup.py:214
@@ -405,7 +440,11 @@ msgstr ""
 msgid "Failed to save dictionary: {}"
 msgstr ""
 
-#: settings-gui/ui/main_window.py:279
+#: settings-gui/ui/pages/learned_editor.py:266
+msgid "Failed to save learned words: {}"
+msgstr ""
+
+#: settings-gui/ui/main_window.py:285
 msgid "Failed to save settings. Please check if Fcitx5 is running."
 msgstr ""
 
@@ -413,15 +452,27 @@ msgstr ""
 msgid "Fcitx5 Vanh Settings"
 msgstr ""
 
-#: settings-gui/ui/pages/dynamic_settings.py:83
+#: settings-gui/ui/pages/dynamic_settings.py:96
 msgid "Fine-tune spelling corrections and advanced typing options."
+msgstr ""
+
+#: settings-gui/ui/pages/learned_editor.py:152
+msgid "Flip"
 msgstr ""
 
 #: settings-gui/ui/pages/macro_editor.py:180
 msgid "Full text (e.g. khô gà)"
 msgstr ""
 
-#: settings-gui/ui/main_window.py:191
+#: settings-gui/ui/pages/dynamic_settings.py:338
+msgid "GNOME Integration"
+msgstr ""
+
+#: settings-gui/ui/pages/dynamic_settings.py:372
+msgid "GNOME Super + Space shortcut has been configured."
+msgstr ""
+
+#: settings-gui/ui/main_window.py:196
 msgid "General"
 msgstr ""
 
@@ -435,6 +486,12 @@ msgstr ""
 
 #: settings-gui/ui/pages/backup.py:93
 msgid "Import Backup..."
+msgstr ""
+
+#: settings-gui/ui/helpers.py:44
+msgid ""
+"In Uinput modes, automatically use Surrounding Text in applications that "
+"support it for smoother editing."
 msgstr ""
 
 #: src/lotus-config.h:188
@@ -453,6 +510,10 @@ msgstr ""
 msgid "JSON Backup (*.json);;All Files (*)"
 msgstr ""
 
+#: settings-gui/ui/pages/learned_editor.py:125
+msgid "Keep English (keys)"
+msgstr ""
+
 #: src/lotus-config.h:157
 msgid "Key"
 msgstr ""
@@ -465,20 +526,41 @@ msgstr ""
 msgid "Key:"
 msgstr ""
 
-#: settings-gui/ui/main_window.py:196
+#: settings-gui/ui/main_window.py:202
 #: settings-gui/ui/pages/keymap_editor.py:214
 msgid "Keymap"
+msgstr ""
+
+#: settings-gui/ui/pages/learned_editor.py:138
+msgid "Keys"
+msgstr ""
+
+#: settings-gui/ui/pages/learned_editor.py:119
+msgid "Keys (e.g. host, conf)"
+msgstr ""
+
+#: settings-gui/ui/pages/learned_editor.py:131
+msgid "Keys:"
+msgstr ""
+
+#: settings-gui/ui/pages/learned_editor.py:97
+msgid "Learn from reverts"
 msgstr ""
 
 #: src/lotus-config.h:222
 msgid "Learn from reverts (kept in a local file, never sent anywhere)"
 msgstr ""
 
+#: settings-gui/ui/main_window.py:201
+#: settings-gui/ui/pages/learned_editor.py:82
+msgid "Learned Words"
+msgstr ""
+
 #: src/lotus-config.h:71
 msgid "Light"
 msgstr ""
 
-#: src/lotus-engine.cpp:199 src/lotus-engine.cpp:396 src/lotus-config.h:162
+#: src/lotus-engine.cpp:199 src/lotus-engine.cpp:402 src/lotus-config.h:162
 #: src/lotus-config.h:274
 msgid "Macro"
 msgstr ""
@@ -492,7 +574,7 @@ msgstr ""
 msgid "Macro keys cannot contain spaces or special characters."
 msgstr ""
 
-#: settings-gui/ui/main_window.py:194 settings-gui/ui/pages/backup.py:76
+#: settings-gui/ui/main_window.py:199 settings-gui/ui/pages/backup.py:76
 #: settings-gui/ui/pages/backup.py:194 settings-gui/ui/pages/backup.py:248
 #: settings-gui/ui/pages/macro_editor.py:48
 msgid "Macros"
@@ -507,7 +589,7 @@ msgstr ""
 msgid "Main Settings"
 msgstr ""
 
-#: settings-gui/ui/pages/dynamic_settings.py:84
+#: settings-gui/ui/pages/dynamic_settings.py:97
 msgid "Manage input mode shortcuts, display order, and fast cycling."
 msgstr ""
 
@@ -543,7 +625,7 @@ msgstr ""
 msgid "Move Up"
 msgstr ""
 
-#: settings-gui/ui/pages/dynamic_settings.py:280
+#: settings-gui/ui/pages/dynamic_settings.py:296
 msgid "No interface settings available yet."
 msgstr ""
 
@@ -585,6 +667,14 @@ msgstr ""
 msgid "Preedit"
 msgstr ""
 
+#: settings-gui/ui/pages/learned_editor.py:126
+msgid "Prefer Vietnamese"
+msgstr ""
+
+#: settings-gui/ui/pages/learned_editor.py:138
+msgid "Preference"
+msgstr ""
+
 #: settings-gui/ui/helpers.py:34
 msgid ""
 "Press and release the selected modifier key before typing to skip macro "
@@ -593,11 +683,26 @@ msgid ""
 "is cancelled."
 msgstr ""
 
+#: settings-gui/ui/pages/dynamic_settings.py:360
+msgid "Reconfigure Super + Space"
+msgstr ""
+
+#: settings-gui/ui/helpers.py:41
+msgid ""
+"Remember your choice locally whenever you press the Revert key, so future "
+"occurrences follow your preference."
+msgstr ""
+
 #: settings-gui/ui/pages/mode_manager.py:171
 #: settings-gui/ui/pages/dict_editor.py:129
 #: settings-gui/ui/pages/macro_editor.py:212
+#: settings-gui/ui/pages/learned_editor.py:155
 #: settings-gui/ui/pages/keymap_editor.py:297
 msgid "Remove"
+msgstr ""
+
+#: settings-gui/ui/pages/learned_editor.py:356
+msgid "Remove all learned words?"
 msgstr ""
 
 #: settings-gui/ui/pages/mode_manager.py:514
@@ -624,12 +729,18 @@ msgstr ""
 msgid "Restore Selected Now"
 msgstr ""
 
-#: settings-gui/ui/main_window.py:219
+#: settings-gui/ui/main_window.py:225
 msgid "Restore all settings to defaults?"
 msgstr ""
 
 #: src/lotus-config.h:219
 msgid "Revert the last word to its other reading (English <-> Vietnamese)"
+msgstr ""
+
+#: settings-gui/ui/pages/dynamic_settings.py:345
+msgid ""
+"Route Super + Space through GNOME Shell to toggle Fcitx5 without "
+"accidentally opening Activities Overview."
 msgstr ""
 
 #: src/lotus-config.h:179
@@ -654,11 +765,13 @@ msgid "Search macros..."
 msgstr ""
 
 #: settings-gui/ui/pages/dict_editor.py:80
+#: settings-gui/ui/pages/learned_editor.py:103
 msgid "Search words..."
 msgstr ""
 
 #: settings-gui/ui/pages/dict_editor.py:84
 #: settings-gui/ui/pages/macro_editor.py:226
+#: settings-gui/ui/pages/learned_editor.py:107
 #: settings-gui/ui/pages/keymap_editor.py:234
 msgid "Search:"
 msgstr ""
@@ -689,7 +802,7 @@ msgstr ""
 msgid "Settings"
 msgstr ""
 
-#: settings-gui/ui/main_window.py:287
+#: settings-gui/ui/main_window.py:293
 msgid "Settings saved."
 msgstr ""
 
@@ -729,7 +842,7 @@ msgstr ""
 msgid "Shortcut for Uinput (Super Smooth)"
 msgstr ""
 
-#: settings-gui/ui/main_window.py:198
+#: settings-gui/ui/main_window.py:204
 msgid "Shortcuts"
 msgstr ""
 
@@ -765,17 +878,31 @@ msgstr ""
 msgid "Show Uinput (Super Smooth)"
 msgstr ""
 
-#: src/lotus-engine.cpp:197 src/lotus-engine.cpp:395
+#: src/lotus-engine.cpp:197 src/lotus-engine.cpp:401
 msgid "Spell Check"
 msgstr ""
 
-#: settings-gui/ui/main_window.py:287 settings-gui/ui/pages/backup.py:163
+#: settings-gui/ui/pages/dynamic_settings.py:359
+msgid "Status: Configured (GNOME handles Super + Space)"
+msgstr ""
+
+#: settings-gui/ui/pages/dynamic_settings.py:362
+msgid "Status: Not configured"
+msgstr ""
+
+#: settings-gui/ui/main_window.py:293 settings-gui/ui/pages/backup.py:163
 #: settings-gui/ui/pages/backup.py:279
+#: settings-gui/ui/pages/dynamic_settings.py:371
 msgid "Success"
 msgstr ""
 
 #: src/lotus-config.h:32
 msgid "Surrounding Text"
+msgstr ""
+
+#: settings-gui/ui/helpers.py:47
+msgid ""
+"Switch the word just typed to its other reading (English <-> Vietnamese)."
 msgstr ""
 
 #: org.fcitx.Fcitx5.Addon.Vanh.metainfo.xml.in.in:13
@@ -803,7 +930,7 @@ msgstr ""
 msgid "Time Format:"
 msgstr ""
 
-#: src/lotus-engine.cpp:934
+#: src/lotus-engine.cpp:940
 msgid "Type"
 msgstr ""
 
@@ -815,7 +942,7 @@ msgstr ""
 msgid "Type w to Produce ư"
 msgstr ""
 
-#: settings-gui/ui/main_window.py:192
+#: settings-gui/ui/main_window.py:197
 msgid "Typing"
 msgstr ""
 
@@ -842,12 +969,17 @@ msgid "Uinput modes: use Surrounding Text in apps that report it"
 msgstr ""
 
 #: settings-gui/ui/pages/macro_editor.py:450
+#: settings-gui/ui/pages/learned_editor.py:293
 #: settings-gui/ui/pages/keymap_editor.py:416
 msgid "Update"
 msgstr ""
 
 #: settings-gui/ui/pages/keymap_editor.py:416
 msgid "Update Keymap"
+msgstr ""
+
+#: settings-gui/ui/pages/learned_editor.py:288
+msgid "Use 1 to 39 lowercase ASCII letters only."
 msgstr ""
 
 #: src/lotus-config.h:231
@@ -870,7 +1002,7 @@ msgstr ""
 msgid "Vanh"
 msgstr ""
 
-#: src/lotus-engine.cpp:1035
+#: src/lotus-engine.cpp:1041
 msgid "Vanh - Off"
 msgstr ""
 
@@ -900,12 +1032,17 @@ msgstr ""
 msgid "Version {}"
 msgstr ""
 
+#: settings-gui/ui/pages/learned_editor.py:208
+msgid "Vietnamese ({})"
+msgstr ""
+
 #: org.fcitx.Fcitx5.Addon.Vanh.metainfo.xml.in.in:8
 msgid "Vietnamese input method that mixes Vietnamese and English"
 msgstr ""
 
 #: settings-gui/ui/pages/backup.py:124 settings-gui/ui/pages/backup.py:223
 #: settings-gui/ui/pages/dict_editor.py:183
+#: settings-gui/ui/pages/learned_editor.py:195
 msgid "Warning"
 msgstr ""
 
@@ -927,6 +1064,12 @@ msgid ""
 "Words in the custom dictionary will be excluded from 'Auto Restore Invalid "
 "Words'. Use this for names, technical terms, or words not yet in the built-"
 "in dictionary."
+msgstr ""
+
+#: settings-gui/ui/pages/learned_editor.py:88
+msgid ""
+"Words remembered locally when you press the Revert key. You can remove "
+"accidental entries or pin words to English or Vietnamese."
 msgstr ""
 
 #: settings-gui/ui/helpers.py:17

@@ -8,6 +8,11 @@ Dynamic Settings Page with Card-based Layout matching modern guidelines.
 from enum import Enum
 
 from core.dbus_handler import VanhDBusHandler
+from core.gnome_shortcut import (
+    configure_gnome_super_space,
+    is_gnome_session,
+    is_gnome_super_space_configured,
+)
 from i18n import _
 from qtpy.QtCore import QSize, Qt, QTimer
 from qtpy.QtGui import QIcon
@@ -18,6 +23,8 @@ from qtpy.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
+    QPushButton,
     QScrollArea,
     QVBoxLayout,
     QWidget,
@@ -44,14 +51,20 @@ class SettingsCategory(Enum):
 # Mapping of settings keys to categories and groups
 SETTINGS_MAP = {
     SettingsCategory.GENERAL: {
-        "INPUT METHOD": ["InputMethod", "Mode", "OutputCharset"],
+        "INPUT METHOD": ["InputMethod", "Mode", "OutputCharset", "AutoSurroundingText"],
         "TYPING": ["W2U", "BracketTransform"],
     },
     SettingsCategory.APPEARANCE: {
         "THEME & ICONS": ["UseVanhIcons", "IconTheme"],
     },
     SettingsCategory.TYPING: {
-        "SPELLING & CORRECTIONS": ["SpellCheck", "AutoNonVnRestore", "DdFreeStyle"],
+        "SPELLING & CORRECTIONS": [
+            "SpellCheck",
+            "AutoNonVnRestore",
+            "DdFreeStyle",
+            "EnglishRestore",
+            "LearnFromReverts",
+        ],
         "TYPING OPTIONS": [
             "ModernStyle",
             "FreeMarking",
@@ -61,7 +74,7 @@ SETTINGS_MAP = {
         ],
     },
     SettingsCategory.SHORTCUTS: {
-        "MAIN SHORTCUTS": ["ModeMenuKey", "CycleModeKey"],
+        "MAIN SHORTCUTS": ["ModeMenuKey", "CycleModeKey", "RevertKey"],
         "MODE SWITCHING": [
             "ShortcutSmooth",
             "ShortcutSuperSmooth",
@@ -264,7 +277,7 @@ class DynamicSettingsPage(QWidget):
 
                     found_any = True
                     type_str = item[1]
-                    if k in ["ModeMenuKey", "CycleModeKey"] or type_str == "Hotkey":
+                    if k in ["ModeMenuKey", "CycleModeKey", "RevertKey"] or type_str == "Hotkey":
                         self._render_hotkey(item, card.content_layout)
                     elif "Enum" in item[4]:
                         self._render_combobox(item, card.content_layout)
@@ -275,6 +288,9 @@ class DynamicSettingsPage(QWidget):
 
                 if found_any:
                     self.container_layout.addWidget(card)
+
+            if self.category == SettingsCategory.SHORTCUTS and is_gnome_session():
+                self._render_gnome_super_space_card()
 
             if self.category == SettingsCategory.INTERFACE and not category_groups:
                 self.container_layout.addWidget(QLabel(_("No interface settings available yet.")))
@@ -317,6 +333,59 @@ class DynamicSettingsPage(QWidget):
 
         row_layout.addWidget(hk_btn)
         layout.addLayout(row_layout)
+
+    def _render_gnome_super_space_card(self):
+        header = QLabel(_("GNOME Integration"))
+        header.setObjectName("GroupHeader")
+        self.container_layout.addWidget(header)
+
+        card = CardWidget("")
+        desc = QLabel(
+            _(
+                "Route Super + Space through GNOME Shell to toggle Fcitx5 without accidentally opening Activities Overview."
+            )
+        )
+        desc.setWordWrap(True)
+        desc.setStyleSheet("color: gray; font-size: 13px;")
+        card.content_layout.addWidget(desc)
+
+        row_layout = QHBoxLayout()
+        status_label = QLabel()
+        action_btn = QPushButton(QIcon.fromTheme("preferences-desktop-keyboard-shortcuts"))
+
+        def refresh_status():
+            configured = is_gnome_super_space_configured()
+            if configured:
+                status_label.setText(_("Status: Configured (GNOME handles Super + Space)"))
+                action_btn.setText(_("Reconfigure Super + Space"))
+            else:
+                status_label.setText(_("Status: Not configured"))
+                action_btn.setText(_("Configure Super + Space for GNOME"))
+
+        def on_configure():
+            ok, err = configure_gnome_super_space()
+            refresh_status()
+            if ok:
+                QMessageBox.information(
+                    self,
+                    _("Success"),
+                    _("GNOME Super + Space shortcut has been configured."),
+                )
+            else:
+                QMessageBox.warning(
+                    self,
+                    _("Error"),
+                    _("Failed to configure GNOME shortcut: {}").format(err),
+                )
+
+        action_btn.clicked.connect(on_configure)
+        refresh_status()
+
+        row_layout.addWidget(status_label)
+        row_layout.addStretch()
+        row_layout.addWidget(action_btn)
+        card.content_layout.addLayout(row_layout)
+        self.container_layout.addWidget(card)
 
     def _render_combobox(self, item, layout):
         key, type_str, label, default, annotations = item

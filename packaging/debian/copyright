@@ -1,21 +1,24 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: fcitx5-vanh
-Upstream-Contact: Nguyen Hoang Ky <nhktmdzhg@gmail.com>
+Upstream-Contact: Cong Nguyen <congminhnguyen@proton.me>
 Source: https://github.com/congmnguyen/fcitx5-vanh
 
 Files: *
 Copyright: 2022 CSSlayer <wengxt@gmail.com>
            2025 Vo Ngo Hoang Thanh <thanhpy2009@gmail.com>
            2026 Nguyen Hoang Ky <nhktmdzhg@gmail.com>
+           2026 Cong Nguyen <congminhnguyen@proton.me>
 License: GPL-3.0-or-later
 
 Files: debian/*
 Copyright: 2026 Nguyen Hoang Ky <nhktmdzhg@gmail.com>
+           2026 Cong Nguyen <congminhnguyen@proton.me>
 License: GPL-3.0-or-later
 
 Files: engine-rs/*
 Copyright: 2018 Luong Thanh Lam <ltlam93@gmail.com>
            2026 Nguyen Hoang Ky <nhktmdzhg@gmail.com>
+           2026 Cong Nguyen <congminhnguyen@proton.me>
 License: GPL-3.0-or-later
 
 Files: cmake/*

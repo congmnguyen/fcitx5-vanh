@@ -4,6 +4,8 @@
 
 **Vanh** (Việt + Anh) là bộ gõ tiếng Việt cho fcitx5 trên Linux, gõ được tiếng Việt và tiếng Anh xen kẽ mà không cần chuyển chế độ, gõ không gạch chân và không mất hay lặp chữ khi gõ nhanh. Vanh là bản fork của [fcitx5-lotus](https://github.com/LotusInputMethod/fcitx5-lotus).
 
+![Demo gõ song ngữ Việt–Anh không đổi chế độ với Vanh](docs/demo.gif)
+
 ## Tính năng
 
 - **Tự chuyển Anh/Việt.** Đến cuối từ, nếu phím vừa gõ là một từ tiếng Anh thì trả lại đúng phím đã gõ: `test` không thành "tét", `error` không thành "eror". Từ tiếng Việt vẫn giữ nguyên: `cos` → "có".
@@ -49,6 +51,8 @@ Distro khác (cần thêm `cargo` và `rustc`): `cmake -DCMAKE_INSTALL_PREFIX=/u
 - **Đảo từ.** `Shift+BackSpace` đổi từ vừa gõ sang cách đọc còn lại (Anh ↔ Việt) khi Vanh đoán sai.
 - **Cài đặt.** `fcitx5-vanh-settings` chỉnh kiểu gõ, bảng mã, phím tắt (gồm nút thiết lập `Super + Space` chuẩn GNOME không mở nhầm Activities), macro, từ đã học, từ điển riêng, keymap riêng, và sao lưu/khôi phục cấu hình.
 - **Luật theo app.** Trong menu chế độ có thể gán một chế độ riêng cho app đang dùng; luật được lưu trong `~/.config/fcitx5/conf/vanh-app-rules.conf`.
+
+![Giao diện cài đặt fcitx5-vanh-settings](docs/settings-vi.png)
 
 ## Độ chính xác
 

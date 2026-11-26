@@ -1,7 +1,7 @@
 Source: fcitx5-vanh
 Section: utils
 Priority: optional
-Maintainer: Nguyen Hoang Ky <nhktmdzhg@gmail.com>
+Maintainer: Cong Nguyen <congminhnguyen@proton.me>
 Build-Depends: debhelper-compat (= 13),
                dh-python,
                dh-sequence-python3,

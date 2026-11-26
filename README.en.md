@@ -4,6 +4,8 @@
 
 **Vanh** (Việt + Anh, "Vietnamese + English") is a Vietnamese input method for fcitx5 on Linux. It lets you mix Vietnamese and English in the same text without switching modes, types without underline, and does not drop or double letters when you type fast. Vanh is a fork of [fcitx5-lotus](https://github.com/LotusInputMethod/fcitx5-lotus).
 
+![Demo of mixed Vietnamese/English typing without mode switching in Vanh](docs/demo.gif)
+
 ## Features
 
 - **Automatic English/Vietnamese switching.** At the end of a word, if the keys you typed are an English word, Vanh puts them back as typed: `test` stays "test" instead of "tét", and `error` stays "error" instead of "eror". Vietnamese words are kept: `cos` → "có".
@@ -49,6 +51,8 @@ Other distros (`cargo` and `rustc` are needed too): `cmake -DCMAKE_INSTALL_PREFI
 - **Revert.** `Shift+BackSpace` turns the last word to its other reading (English ↔ Vietnamese) when Vanh guessed wrong.
 - **Settings.** `fcitx5-vanh-settings` edits the input method, charset, hotkeys (including one-click `Super + Space` setup on GNOME so Activities Overview is never triggered accidentally), macros, learned words, the user dictionary, a custom keymap, and backs up or restores the configuration.
 - **App rules.** The mode menu can assign a mode to the app in use; the rules are kept in `~/.config/fcitx5/conf/vanh-app-rules.conf`.
+
+![Vanh Settings GUI (fcitx5-vanh-settings)](docs/settings-en.png)
 
 ## Accuracy
 

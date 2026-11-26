@@ -231,6 +231,7 @@ int main() {
     engine.activate(entry, shellFocus);
     shell->surroundingText().setText("", 0, 0);
     shell->updateSurroundingText();
+    std::string shellText;
     for (const char ch : std::string_view("dduwowcj nguwowif vieetj\n")) {
         const fcitx::Key key =
             ch == '\n' ? fcitx::Key(FcitxKey_Return) : fcitx::Key(static_cast<fcitx::KeySym>(ch));
@@ -238,6 +239,12 @@ int main() {
         engine.keyEvent(entry, event);
         if (!event.accepted()) {
             shell->recordPassed(key.toString());
+            if (ch != '\n') {
+                shellText += ch;
+                const size_t cursor = fcitx_utf8_strlen(shellText.c_str());
+                shell->surroundingText().setText(shellText, cursor, cursor);
+                shell->updateSurroundingText();
+            }
         }
     }
     auto* loop = static_cast<sd_event*>(testInstance.instance.eventLoop().nativeHandle());
@@ -348,6 +355,46 @@ int main() {
         std::cerr << "GNOME Shell, late reports: expected 'được người việt ở nằm ', got '"
                   << appText << "'\n";
         ++failures;
+    }
+
+    // Mutter <= 46 aborts GNOME Shell (assertion failed: before >= start) if deleteSurroundingText
+    // asks to delete past the start of the text the app last reported (e.g. xterm.js in Electron
+    // reporting an empty textarea). None of Tab, Enter, FocusOut or timer expiry may send a
+    // deletion when the app does not show the text to delete.
+    for (const int trigger : {0, 1, 2, 3}) {
+        auto empty = std::make_unique<TestInputContext>(&testInstance.instance, "gnome-shell");
+        empty->setCapabilityFlags(fcitx::CapabilityFlag::SurroundingText);
+        empty->focusIn();
+        fcitx::InputContextEvent emptyFocus(empty.get(), fcitx::EventType::InputContextFocusIn);
+        engine.activate(entry, emptyFocus);
+        empty->surroundingText().setText("", 0, 0);
+        empty->updateSurroundingText();
+        for (const char ch : std::string_view("colab us")) {
+            fcitx::KeyEvent event(empty.get(), fcitx::Key(static_cast<fcitx::KeySym>(ch)), false);
+            engine.keyEvent(entry, event);
+        }
+        if (trigger == 0) {
+            fcitx::KeyEvent tab(empty.get(), fcitx::Key(FcitxKey_Tab), false);
+            engine.keyEvent(entry, tab);
+        } else if (trigger == 1) {
+            fcitx::KeyEvent ret(empty.get(), fcitx::Key(FcitxKey_Return), false);
+            engine.keyEvent(entry, ret);
+        } else if (trigger == 2) {
+            fcitx::InputContextEvent out(empty.get(), fcitx::EventType::InputContextFocusOut);
+            engine.reset(entry, out);
+        } else {
+            for (int i = 0; i < 250; ++i) {
+                while (sd_event_run(loop, 0) > 0) {
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+        }
+        if (!empty->deletes().empty()) {
+            std::cerr << "GNOME Shell empty surrounding (trigger " << trigger
+                      << "): sent deleteSurroundingText (" << empty->deletes().size()
+                      << "), which crashes Mutter <= 46\n";
+            ++failures;
+        }
     }
     return failures == 0 ? 0 : 1;
 }

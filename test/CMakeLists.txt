@@ -187,6 +187,7 @@ add_lotus_headless_test(TARGET dbus_deferred_commit SOURCES dbus-deferred-commit
 add_lotus_headless_test(TARGET modifier_key_bypasses_surrounding_text SOURCES modifier-key-bypasses-surrounding-text.cpp LABELS "integration;surrounding")
 add_lotus_headless_test(TARGET surrounding_text_typing SOURCES surrounding-text-typing.cpp LABELS "integration;surrounding")
 target_link_libraries(surrounding_text_typing PRIVATE systemd)
+add_lotus_headless_test(TARGET gnome_shell_guard SOURCES gnome-shell-guard.cpp LABELS "integration;surrounding;uinput")
 add_lotus_headless_test(TARGET runtime_safety SOURCES runtime-safety.cpp LABELS "integration;raii")
 add_lotus_headless_test(TARGET emoji_history_page_navigation SOURCES emoji-history-page-navigation.cpp LABELS "integration;emoji")
 add_lotus_headless_test(TARGET emoji_search_history SOURCES emoji-search-history.cpp LABELS "unit;emoji")
@@ -197,7 +198,7 @@ set_tests_properties(kb_sender PROPERTIES
     RESOURCE_LOCK lotus_kb_socket
     ENVIRONMENT "VANH_SOCKET_NAMESPACE=ctest-${LOTUS_CTEST_SOCKET_NAMESPACE}")
 
-set_tests_properties(server_wire_compat server_peer_auth smooth_buffered_key_replay focus_bounce_word_survival focus_out_mid_replacement uinput_auto_restore uinput_enter_restore anchor_key_protocol uinput_server_probe first_run_mode select_mode_replacement select_modifier_replay chromium_address_bar select_anchor_completion select_cancel select_cancel_reconcile select_word_break replacement_delays app_rule_delay_wire dbus_deferred_commit merged_replacement_commit runtime_safety
+set_tests_properties(server_wire_compat server_peer_auth smooth_buffered_key_replay focus_bounce_word_survival focus_out_mid_replacement uinput_auto_restore uinput_enter_restore anchor_key_protocol uinput_server_probe first_run_mode select_mode_replacement select_modifier_replay chromium_address_bar select_anchor_completion select_cancel select_cancel_reconcile select_word_break replacement_delays app_rule_delay_wire dbus_deferred_commit merged_replacement_commit runtime_safety gnome_shell_guard
     PROPERTIES RESOURCE_LOCK lotus_kb_socket
     ENVIRONMENT "VANH_SOCKET_NAMESPACE=ctest-${LOTUS_CTEST_SOCKET_NAMESPACE}")
 

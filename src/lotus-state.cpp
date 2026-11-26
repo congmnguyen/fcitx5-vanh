@@ -241,17 +241,32 @@ namespace fcitx {
     }
 
     bool LotusState::appShows(std::u32string_view deleted) const {
+        if (deleted.empty()) {
+            return true;
+        }
         const auto& st = ic_.surroundingText();
-        return deleted.empty() ||
-            (st.isValid() && st.anchor() == st.cursor() &&
-                lotus::utf8::decode(st.text()).substr(0, st.cursor()).ends_with(deleted));
+        if (!st.isValid() || st.anchor() != st.cursor() || st.cursor() < deleted.size()) {
+            return false;
+        }
+        const std::u32string text = lotus::utf8::decode(st.text());
+        return st.cursor() <= text.size() &&
+            std::u32string_view(text).substr(0, st.cursor()).ends_with(deleted);
     }
 
     void LotusState::sendHeldEdit() {
         if (!held_) {
             return;
         }
-        held_ = false;
+        held_                        = false;
+        const std::u32string deleted = std::exchange(heldDeleted_, {});
+        const std::u32string added   = std::exchange(heldAdded_, {});
+        if (!deleted.empty() && ic_.program() == "gnome-shell" && !appShows(deleted)) {
+            // Mutter <= 46 aborts GNOME Shell (assertion failed: before >= start) when a
+            // deletion reaches past the start of the text the app last reported, and newer
+            // Mutter still deletes the wrong bytes when the text does not match.
+            LOTUS_WARN("Surrounding: drop held edit, app does not show text to delete");
+            return;
+        }
         // Sent early for a key that reaches the app another way (forwarded keys do not reach
         // apps through GNOME Shell, so the key cannot wait instead): block for the rest of the
         // pace, at most kSurroundingPaceMs.
@@ -259,13 +274,11 @@ namespace fcitx {
         if (wait > 0) {
             std::this_thread::sleep_for(std::chrono::milliseconds(wait));
         }
-        if (!heldDeleted_.empty()) {
-            const int n = static_cast<int>(heldDeleted_.size());
+        if (!deleted.empty()) {
+            const int n = static_cast<int>(deleted.size());
             ic_.deleteSurroundingText(-n, n);
         }
-        lotus::fcitx_text::commit(&ic_, heldAdded_, lastCommitTime_);
-        heldDeleted_.clear();
-        heldAdded_.clear();
+        lotus::fcitx_text::commit(&ic_, added, lastCommitTime_);
         lastSurroundingEditMs_ = nowMs();
     }
 
@@ -715,9 +728,7 @@ namespace fcitx {
                     } else if (!canForward) {
                         // Only when the text before the cursor is the word shown (surrounding
                         // text can be stale).
-                        const auto& st     = ic_.surroundingText();
-                        const auto  before = lotus::utf8::decode(st.text()).substr(0, st.cursor());
-                        if (before.ends_with(diffPart.deletedPart)) {
+                        if (appShows(diffPart.deletedPart)) {
                             replaceSurrounding(diffPart.deletedPart, diffPart.addedPart);
                         }
                         keyEvent.forward();
@@ -1010,6 +1021,22 @@ namespace fcitx {
                 const std::u32string shown    = lotusEngine_->takeRewrittenBefore() + oldWord;
                 const DiffPart       diffPart = compareAndSplitU32(shown, committed);
                 replaceSurrounding(diffPart.deletedPart, diffPart.addedPart);
+            }
+            if (held_ && !heldDeleted_.empty() && ic_.program() == "gnome-shell" &&
+                !appShows(heldDeleted_) && isUinputMode(currentMode()) &&
+                engine_.kbSender().connected()) {
+                // The app has not reported the text this edit deletes (e.g. Messenger, xterm.js):
+                // fall back to uinput and send Enter after the replacement instead of dropping it.
+                LOTUS_INFO("Surrounding: Enter before app sync, use uinput");
+                held_                        = false;
+                const std::u32string deleted = std::exchange(heldDeleted_, {});
+                const std::u32string added   = std::exchange(heldAdded_, {});
+                switchToUinput(surrWord_);
+                returnAfterReplacement_ = true;
+                performReplacement({.deletedPart = deleted, .addedPart = added});
+                clearWord(true);
+                keyEvent.filterAndAccept();
+                return;
             }
             lotusEngine_->reset();
             lotusEngine_->forgetContext();
@@ -1493,6 +1520,13 @@ namespace fcitx {
         }
         // Never switch path while an injected replacement is still in flight.
         if (g_isDeleting.load(std::memory_order_acquire) || surroundingBroken_) {
+            return false;
+        }
+        // GNOME Shell / Mutter <= 46 aborts the session (meta-wayland-text-input.c:
+        // assertion failed: before >= start) if a text-input-v3 app clears or shortens its
+        // buffer while delete_surrounding_text is in flight over D-Bus.
+        if (ic_.program() == "gnome-shell" && engine_.hasUnsafeGnomeSurroundingText()) {
+            LOTUS_DEBUG("Auto surrounding: GNOME Shell < 47, use uinput");
             return false;
         }
         const auto flags = ic_.capabilityFlags();

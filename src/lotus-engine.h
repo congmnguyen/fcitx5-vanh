@@ -243,6 +243,12 @@ namespace fcitx {
          */
         [[nodiscard]] bool isLikeAddressBarChromium() const;
 
+        /**
+         * @brief True on GNOME Shell < 47, where Mutter aborts the session on an out-of-bounds
+         *        delete_surrounding_text (meta-wayland-text-input.c: before >= start).
+         */
+        [[nodiscard]] bool hasUnsafeGnomeSurroundingText() const;
+
       private:
         Instance&                                            instance_;
         lotusConfig                                          config_;
@@ -276,7 +282,8 @@ namespace fcitx {
         FCITX_ADDON_DEPENDENCY_LOADER(emoji, instance_.addonManager());
         std::unique_ptr<EmojiLoader>          emojiLoader_;
         std::unique_ptr<WindowFocusTracker>   windowFocusTracker_;
-        bool                                  isGnome_ = false;
+        bool                                  isGnome_         = false;
+        mutable int                           gnomeShellMajor_ = -1;
         mutable std::mutex                    appRulesMutex_;
         std::unordered_map<KeySym, LotusMode> modeMenuMapping_;
         std::unique_ptr<EventSourceIO>        mouseEventSource_;

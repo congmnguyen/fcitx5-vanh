@@ -495,6 +495,31 @@ int main() {
         unlink(mousePath.c_str());
     }
 
+    // Silent gnome-shell app (Messenger / xterm.js): pressing Enter before the 200 ms sync wait
+    // expires must fall back to uinput (no deleteSurroundingText on empty text) and keep Enter.
+    {
+        auto ctx = std::make_unique<TestInputContext>(&testInstance.instance, "gnome-shell");
+        ctx->setCapabilityFlags(fcitx::CapabilityFlag::SurroundingText);
+        ctx->focusIn();
+        fcitx::InputContextEvent focusEvent(ctx.get(), fcitx::EventType::InputContextFocusIn);
+        engine.activate(entry, focusEvent);
+        ctx->surroundingText().setText("", 0, 0);
+        ctx->updateSurroundingText();
+        Client client{.engine = engine,
+            .entry            = entry,
+            .context          = *ctx,
+            .listener         = listener,
+            .loop             = &testInstance.instance.eventLoop(),
+            .keyMs            = 10};
+        bool   ok = client.type("khi naof\n");
+        ok        = ok && client.drain(true);
+        if (!ok || !ctx->deletes().empty() || client.text != U"khi nào\n") {
+            std::printf("FAIL Messenger Enter: deletes=%zu text='%s' (expected 'khi nào\\n')\n",
+                ctx->deletes().size(), encode(client.text).c_str());
+            ++failures;
+        }
+    }
+
     if (failures != 0) {
         std::printf("%d failure(s)\n", failures);
         return 1;

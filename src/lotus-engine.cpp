@@ -43,8 +43,10 @@
 #include <array>
 #include <cassert>
 #include <atomic>
+#include <charconv>
 #include <cstdio>
 #include <cstdlib>
+#include <dbus/dbus.h>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -55,9 +57,84 @@
 #include <fcntl.h>
 
 namespace fcitx {
-    constexpr const char* CharsetActionPrefix = "vanh-charset-";
-    constexpr const char* CustomKeymapFile    = "conf/vanh-custom-keymap.conf";
-    constexpr const char* MacroTableFile      = "conf/vanh-macro-table.conf";
+    constexpr const char* CharsetActionPrefix  = "vanh-charset-";
+    constexpr const char* CustomKeymapFile     = "conf/vanh-custom-keymap.conf";
+    constexpr const char* MacroTableFile       = "conf/vanh-macro-table.conf";
+    constexpr int         kSafeGnomeShellMajor = 47;
+    constexpr int         kDbusProbeTimeoutMs  = 150;
+
+    static int parseMajorVersion(std::string_view version) {
+        int        major = 0;
+        const auto res   = std::from_chars(version.data(), version.data() + version.size(), major);
+        if (res.ec != std::errc{} || major <= 0 ||
+            (res.ptr != version.data() + version.size() && *res.ptr != '.')) {
+            return 0;
+        }
+        return major;
+    }
+
+    static int probeGnomeShellMajorVersion() {
+        struct BusDeleter {
+            void operator()(DBusConnection* conn) const noexcept {
+                if (conn != nullptr) {
+                    dbus_connection_unref(conn);
+                }
+            }
+        };
+        struct MsgDeleter {
+            void operator()(DBusMessage* msg) const noexcept {
+                if (msg != nullptr) {
+                    dbus_message_unref(msg);
+                }
+            }
+        };
+        using ConnectionPtr = std::unique_ptr<DBusConnection, BusDeleter>;
+        using MessagePtr    = std::unique_ptr<DBusMessage, MsgDeleter>;
+
+        DBusError error{};
+        dbus_error_init(&error);
+        ConnectionPtr bus(dbus_bus_get(DBUS_BUS_SESSION, &error));
+        const bool    busFailed = !bus || dbus_error_is_set(&error) != FALSE;
+        dbus_error_free(&error);
+        if (busFailed) {
+            return 0;
+        }
+
+        MessagePtr request(dbus_message_new_method_call(
+            "org.gnome.Shell", "/org/gnome/Shell", "org.freedesktop.DBus.Properties", "Get"));
+        if (!request) {
+            return 0;
+        }
+        const char* iface = "org.gnome.Shell";
+        const char* prop  = "ShellVersion";
+        if (dbus_message_append_args(request.get(), DBUS_TYPE_STRING, &iface, DBUS_TYPE_STRING,
+                &prop, DBUS_TYPE_INVALID) == FALSE) {
+            return 0;
+        }
+
+        dbus_error_init(&error);
+        MessagePtr reply(dbus_connection_send_with_reply_and_block(
+            bus.get(), request.get(), kDbusProbeTimeoutMs, &error));
+        const bool callFailed = !reply || dbus_error_is_set(&error) != FALSE;
+        dbus_error_free(&error);
+        if (callFailed) {
+            return 0;
+        }
+
+        DBusMessageIter iter{};
+        if (dbus_message_iter_init(reply.get(), &iter) == FALSE ||
+            dbus_message_iter_get_arg_type(&iter) != DBUS_TYPE_VARIANT) {
+            return 0;
+        }
+        DBusMessageIter variant{};
+        dbus_message_iter_recurse(&iter, &variant);
+        if (dbus_message_iter_get_arg_type(&variant) != DBUS_TYPE_STRING) {
+            return 0;
+        }
+        const char* version = nullptr;
+        dbus_message_iter_get_basic(&variant, &version);
+        return version != nullptr ? parseMajorVersion(version) : 0;
+    }
 
     static std::shared_ptr<const lotus::MacroTable> buildMacroTable(const lotusMacroTable& table) {
         auto macros = std::make_shared<lotus::MacroTable>();
@@ -149,6 +226,24 @@ namespace fcitx {
 
     bool LotusEngine::isLikeAddressBarChromium() const {
         return windowFocusTracker_->isLikeAddressBarChromium();
+    }
+
+    bool LotusEngine::hasUnsafeGnomeSurroundingText() const {
+        if (gnomeShellMajor_ < 0) {
+            const std::string overrideVersion = getEnv("VANH_GNOME_SHELL_VERSION");
+            if (!overrideVersion.empty()) {
+                gnomeShellMajor_ = parseMajorVersion(overrideVersion);
+            } else if (isGnome_) {
+                gnomeShellMajor_ = probeGnomeShellMajorVersion();
+            } else {
+                gnomeShellMajor_ = 0;
+            }
+            if (gnomeShellMajor_ > 0 && gnomeShellMajor_ < kSafeGnomeShellMajor) {
+                LOTUS_INFO("GNOME Shell " + std::to_string(gnomeShellMajor_) +
+                    ": keeping gnome-shell contexts on uinput to avoid Mutter crash");
+            }
+        }
+        return gnomeShellMajor_ > 0 && gnomeShellMajor_ < kSafeGnomeShellMajor;
     }
 
     LotusEngine::LotusEngine(Instance* instance) :

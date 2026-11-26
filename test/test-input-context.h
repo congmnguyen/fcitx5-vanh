@@ -229,6 +229,7 @@ inline void configureTestPaths(const char* name) {
     setenv(
         "VANH_SOCKET_DIR", s_socketDir.empty() ? (root / "run").c_str() : s_socketDir.c_str(), 1);
     setenv("VANH_SERVER_UID", std::to_string(getuid()).c_str(), 1);
+    setenv("VANH_GNOME_SHELL_VERSION", "50", 1);
 
     static std::filesystem::path s_cleanupPath;
     s_cleanupPath                = root;

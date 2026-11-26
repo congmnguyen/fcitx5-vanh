@@ -1,3 +1,20 @@
+fcitx5-vanh (6.0.6-1) unstable; urgency=medium
+
+  * Surrounding text through GNOME Shell: keep gnome-shell contexts on uinput
+    on GNOME Shell < 47 (Ubuntu 24.04 / Mutter 46), guard held edits against
+    out-of-bounds deleteSurroundingText, and fall back to uinput on Enter in
+    silent apps.
+  * First install: enable and start the uinput server for logged-in users and
+    default to Uinput (Smooth) on first run when the server is active.
+  * English restore: keep path/URL segments ASCII and preserve glued code/path
+    detection when macros are disabled.
+  * Settings GUI: add Vanh options, Learned Words editor, GNOME Super+Space
+    setup, and Vietnamese translations.
+  * D-Bus frontends: keep keys typed during a deferred commit behind it, and
+    ignore duplicate GTK backspace echoes.
+
+ -- congmnguyen <congminhnguyen@proton.me>  Thu, 26 Nov 2026 17:05:00 +0700
+
 fcitx5-vanh (6.0.5-1) unstable; urgency=medium
 
   * Surrounding text through GNOME Shell: pace edits and wait for the app to

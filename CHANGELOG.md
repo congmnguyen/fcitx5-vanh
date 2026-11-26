@@ -1,7 +1,11 @@
 # Changelog
 
-## Unreleased
+## 6.0.6 (2026-11-26)
 
+- Surrounding text through GNOME Shell: keep `gnome-shell` contexts on uinput when GNOME Shell
+  is older than 47 (Ubuntu 24.04 / Mutter 46), guard held edits so `deleteSurroundingText` is
+  never sent when the app does not show the text to delete, and fall back to uinput on Enter
+  before a silent app syncs.
 - First install: the package enables and starts the uinput server for the logged-in users, and
   Vanh defaults to `Uinput (Smooth)` on first run when the server is active.
 - Path and URL segments stay ASCII even when they look like common Vietnamese words

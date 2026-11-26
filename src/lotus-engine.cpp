@@ -132,7 +132,7 @@ namespace fcitx {
             return 0;
         }
         const char* version = nullptr;
-        dbus_message_iter_get_basic(&variant, &version);
+        dbus_message_iter_get_basic(&variant, static_cast<void*>(&version));
         return version != nullptr ? parseMajorVersion(version) : 0;
     }
 
